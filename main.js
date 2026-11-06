@@ -13,7 +13,7 @@ const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extens
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
 
 const SHELL_HEIGHT = 118;
-const RAIL_WIDTH = 68;
+const RAIL_WIDTH = 0;
 const MAX_TABS = 30;
 
 const popupLimiter = new PopupLimiter();

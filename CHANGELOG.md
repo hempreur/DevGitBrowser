@@ -1,3 +1,9 @@
+## 1.2.1 — Affichage et ergonomie
+
+- Correction du double défilement vertical dans l’interface d’accueil et les panneaux (page racine non défilante).
+- Suppression effective du menu latéral gauche et de ses écouteurs ; navigation conservée en haut et récupération de la largeur dans les pages web.
+- Signature de pied de page revue : plus petite, plus élégante et en style calligraphique, libellée « By Hempreur ». Tests adaptés et nouvelles vérifications d’interface.
+
 # Historique DevGitBrowser
 
 ## 1.1.0 — Correctif webcam et paramètres (6 novembre 2026)

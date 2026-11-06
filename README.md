@@ -1,8 +1,10 @@
-# DevGitBrowser 1.1.0 — CodexHempreur INC
+# DevGitBrowser 1.2.1 — CodexHempreur INC
 
-Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/Chromium, en français, sans console MS-DOS au lancement une fois compilé. Logo DevGitBrowser néon intégré à la barre supérieure, à l’accueil, à la barre inférieure, aux fenêtres, au raccourci et à l’installateur Windows. Signature graphique dans la barre inférieure : **By CodexHempreur**.
+Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/Chromium, en français, sans console MS-DOS au lancement une fois compilé. Logo DevGitBrowser néon intégré à la barre supérieure, à l’accueil, à la barre inférieure, aux fenêtres, au raccourci et à l’installateur Windows. Signature graphique dans la barre inférieure : **By Hempreur** en style calligraphique discret.
 
 Les changements de la version 1.1.0 sont détaillés dans [CHANGELOG.md](CHANGELOG.md).
+Cette révision **1.2.1** corrige le double ascenseur vertical, retire le menu latéral gauche redondant et affine la signature du pied de page.
+
 
 ## Contenu
 

@@ -34,7 +34,6 @@ function updateTabs(state){
   $('back').disabled=!t?.back;$('forward').disabled=!t?.forward;
   $('reload').textContent=t?.loading?'✕':'↻';
   $('welcome').classList.toggle('hidden',Boolean(t?.url));
-  $('rail-home').classList.toggle('active',!t?.url);
   $('ssl-symbol').textContent=t?.url?.startsWith('https://')?'♢':'◇';
 }
 function updateSecurity(state){
@@ -112,16 +111,9 @@ const openNetwork=()=>run(()=>api.network(),'Analyse réseau ouverte dans une fe
 const openLegacy=()=>run(()=>api.legacy());
 $('network-button').addEventListener('click',openNetwork);
 $('legacy-button').addEventListener('click',openLegacy);
-$('rail-network').addEventListener('click',openNetwork);
 $('card-network').addEventListener('click',openNetwork);
 $('settings-network').addEventListener('click',openNetwork);
 $('settings-legacy').addEventListener('click',openLegacy);
-$('rail-home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
-$('rail-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
-$('rail-github').addEventListener('click',()=>run(()=>showPanel('github')));
-$('rail-extensions').addEventListener('click',()=>run(()=>showPanel('extensions')));
-$('rail-security').addEventListener('click',()=>run(()=>showPanel('security')));
-$('rail-settings').addEventListener('click',()=>run(()=>showPanel('settings')));
 function openFind(){if(panel)showPanel('').catch(()=>{});$('find-bar').classList.remove('hidden');$('find-text').focus();$('find-text').select();}
 function closeFind(){api.stopFind().catch(()=>{});$('find-bar').classList.add('hidden');}
 $('find-button').addEventListener('click',openFind);

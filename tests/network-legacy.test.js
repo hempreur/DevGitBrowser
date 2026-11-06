@@ -51,5 +51,5 @@ test('Independent network panel files and Windows legacy launcher are bundled',(
     assert.ok(fs.statSync(path.join(root,file)).size>400,file);
   }
   const html=fs.readFileSync(path.join(root,'ui/index.html'),'utf8');
-  for(const id of ['rail-home','rail-network','settings-legacy','popup-topmost','card-network'])assert.match(html,new RegExp(`id="${id}"`));
+  for(const id of ['home','network-button','settings-legacy','popup-topmost','card-network'])assert.match(html,new RegExp(`id="${id}"`));
 });

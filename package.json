@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Navigateur Windows de développement néon : extensions GitHub privées, popups webcam natifs, réseau LIVE et compatibilité legacy IE",
   "author": {
