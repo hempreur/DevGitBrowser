@@ -36,7 +36,7 @@ test('MSHTML stays hosted inside the current tab client area, not an external wi
   assert.match(helper,/browser\.Navigate\(address\)/);
   const main=fs.readFileSync(path.join(root,'main.js'),'utf8');
   assert.match(main,/const handle=s\.win\.getNativeWindowHandle\(\)/);
-  assert.match(main,/embedded-ie\.ps1/);
+  assert.match(main,/DevGitLegacyHost\.exe/);
   assert.doesNotMatch(main,/async function launchLegacyWindow\(/);
   assert.match(main,/dgb:legacy-error/);
   const html=fs.readFileSync(path.join(root,'ui/index.html'),'utf8');
@@ -46,4 +46,17 @@ test('MSHTML stays hosted inside the current tab client area, not an external wi
 test('native process protocol accepts events with an empty payload',()=>{
   assert.deepEqual(decodeEvent('ATTACHED\t'),{event:'ATTACHED',value:''});
   assert.deepEqual(decodeEvent('READY\t'+Buffer.from('http://127.0.0.1/').toString('base64')),{event:'READY',value:'http://127.0.0.1/'});
+});
+
+test('Dedicated IE11 host and modern webcam fallback',()=>{
+  const {requiresModernVideo,shouldAutoEmbed,decodeEvent}=require('../lib/legacy-embedded');
+  assert.equal(requiresModernVideo('https://www.monvisio.com'),true);
+  assert.equal(requiresModernVideo('https://www.babelvisio.com'),true);
+  assert.equal(requiresModernVideo('https://classic.example.org'),false);
+  assert.equal(shouldAutoEmbed({url:'https://www.monvisio.com',trustedOrigins:{'https://www.monvisio.com':true},platform:'win32'}),false);
+  const cs=fs.readFileSync(path.join(__dirname,'../legacy/DevGitLegacyHost.cs'),'utf8');
+  assert.match(cs,/FEATURE_BROWSER_EMULATION/);
+  assert.match(cs,/DevGitLegacyHost\.exe.*11001/);
+  assert.match(cs,/document\.documentMode/);
+  assert.equal(decodeEvent('MODE\t'+Buffer.from('11').toString('base64')).value,'11');
 });

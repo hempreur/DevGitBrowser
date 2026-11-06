@@ -11,7 +11,7 @@ const server=http.createServer((_req,res)=>{
   res.end('<!doctype html><html><head><title>MSHTML smoke test</title></head><body><h1>MSHTML loaded</h1></body></html>');
 });
 let parent=null,helper=null,deadline=null,finished=false;
-function stop(){clearTimeout(deadline);try{helper?.kill();}catch{}try{parent?.kill();}catch{}server.close();}
+function stop(){clearTimeout(deadline);try{helper?.stdin?.end();}catch{}try{helper?.kill();}catch{}try{parent?.kill();}catch{}server.close();}
 function fail(reason){if(finished)return;finished=true;console.error('MSHTML integration failure: '+reason);process.exitCode=1;stop();}
 function lines(stream,onLine){let buffer='';stream.setEncoding('utf8');stream.on('data',data=>{
   buffer+=data; if(buffer.length>65536){fail('event stream overflow');return;}
@@ -21,14 +21,13 @@ server.listen(0,'127.0.0.1',()=>{
   const url='http://127.0.0.1:'+server.address().port+'/';
   parent=spawn('powershell.exe',['-NoProfile','-NonInteractive','-STA','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'windows-parent.ps1')],{windowsHide:true,stdio:['ignore','pipe','pipe']});
   deadline=setTimeout(()=>fail('timeout waiting for child window and page load'),35000);
-  let booted=false,attached=false,loaded=false;
+  let booted=false,attached=false,loaded=false,documentMode=0;
   lines(parent.stdout,line=>{
     if(booted||!line.startsWith('PARENT\t'))return;
     booted=true;
     const handle=line.split('\t')[1];
     console.log('Native parent HWND acquired.');
-    helper=spawn('powershell.exe',['-NoProfile','-NonInteractive','-STA','-ExecutionPolicy','Bypass','-WindowStyle','Hidden',
-      '-File',path.resolve(__dirname,'../legacy/embedded-ie.ps1'),'-ParentHandle',handle,'-InitialUrl',url,
+    helper=spawn(path.resolve(__dirname,'../legacy/DevGitLegacyHost.exe'),['-ParentHandle',handle,'-InitialUrl',url,
       '-X','0','-Y','118','-Width','850','-Height','540'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     helper.on('error',e=>fail(e.message));
     let stderr='';helper.stderr.setEncoding('utf8');helper.stderr.on('data',c=>{stderr+=c.slice(0,400);});
@@ -38,8 +37,11 @@ server.listen(0,'127.0.0.1',()=>{
       console.log('MSHTML event: '+m.event);
       if(m.event==='ERROR'){fail(m.value);return;}
       if(m.event==='ATTACHED')attached=true;
+      if(m.event==='MODE')documentMode=Number(m.value)||0;
+      if(m.event==='INCOMPATIBLE'){fail(m.value);return;}
       if(m.event==='READY' && m.value===url){
         if(!attached){fail('document loaded before native parent attachment');return;}
+        if(documentMode<11){fail('IE11 standards mode required, found: '+documentMode);return;}
         loaded=true;finished=true;console.log('PASS: MSHTML attached to native parent and loaded localhost document');stop();
       }
     });

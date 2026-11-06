@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {NetworkMonitor} = require('./lib/network-monitor');
 const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
-const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent} = require('./lib/legacy-embedded');
+const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo} = require('./lib/legacy-embedded');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
@@ -675,6 +675,12 @@ function handleEmbeddedEvent(t,host,message){
     if(!t.view.webContents.isDestroyed())t.view.webContents.loadURL('about:blank').catch(()=>{});
     sendState(t.owner);
     if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-ready', value);
+  } else if(event==='MODE'){
+    host.documentMode=Number(value)||0;
+  } else if(event==='INCOMPATIBLE'){
+    const failure=String(value).slice(0,250);
+    embeddedHostFailed(t);t.legacyError=failure;stopEmbeddedLegacy(t,true);sendState(t.owner);
+    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',failure);
   } else if(event==='URL'){
     try{t.url=validateLegacyTarget(value);t.title=new URL(t.url).hostname;}catch{return;}
     sendState(t.owner);
@@ -693,16 +699,15 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
   if(!t?.url)throw new Error('Ouvre d’abord un site ancien.');
   if(process.platform!=='win32')throw new Error('Le moteur historique MSHTML est uniquement disponible sous Windows.');
   const url=validateLegacyTarget(t.url),origin=originOf(url);
-  if(/(^|\.)babelvisio\.com$/i.test(new URL(url).hostname))throw new Error('Le moteur IE est désactivé pour BabelVisio et la visioconférence.');
+  if(requiresModernVideo(url))throw new Error('Ce site utilise des webcams/vidéos modernes. MSHTML ne prend pas en charge WebRTC : Chromium est conservé pour éviter les pages noires.');
   if(t.legacyHost)return true;
   if(rememberTrust){settings.legacyTrustedOrigins[origin]=true;saveSettings();}
   t.legacyError='';t.forceModern=false;
   const handle=s.win.getNativeWindowHandle();
   const winHandle=handle.length===8?handle.readBigUInt64LE(0).toString():String(handle.readUInt32LE(0));
   const bounds=nativeBounds(s);
-  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','embedded-ie.ps1');
-  const child=spawn('powershell.exe',['-NoProfile','-NoLogo','-NonInteractive','-STA','-ExecutionPolicy','Bypass',
-    '-WindowStyle','Hidden','-File',helper,'-ParentHandle',winHandle,'-InitialUrl',url,
+  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','DevGitLegacyHost.exe');
+  const child=spawn(helper,['-ParentHandle',winHandle,'-InitialUrl',url,
     '-X',String(bounds[0]),'-Y',String(bounds[1]),'-Width',String(bounds[2]),
     '-Height',String(bounds[3])],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   const host={child,ready:false,starting:true,stopping:false,buffer:'',watchdog:null};

@@ -38,7 +38,7 @@ test('Legacy supports only HTTP(S) addresses and is opt-in',()=>{
   const main=fs.readFileSync(path.join(__dirname,'..','main.js'),'utf8');
   assert.match(main,/startEmbeddedLegacy/);
   assert.match(main,/toggleLegacyInTab/);
-  assert.match(main,/powershell\.exe/);
+  assert.match(main,/DevGitLegacyHost\.exe/);
   assert.match(main,/setAlwaysOnTop\(true,'floating'\)/);
   assert.match(main,/app\.asar\.unpacked/);
 });

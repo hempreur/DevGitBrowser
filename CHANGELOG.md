@@ -1,3 +1,10 @@
+## 1.3.2 — Résolution du mode IE7 implicite et repli vidéo moderne
+
+- Hôte MSHTML Windows dédié, sans console visible, avec mode IE11 forcé pour cet exécutable uniquement (clé HKCU per-user `FEATURE_BROWSER_EMULATION=11001`).
+- Vérification effective de `document.documentMode` avant de confirmer IE ✓ ; repli Chromium si le contrôle est obsolète ou si une page vidéo nécessite WebRTC.
+- MonVisio et BabelVisio restent en moteur moderne (le rendu IE11 ne prend pas en charge les webcams WebRTC).
+- Test de chargement Windows renforcé : exécutable dédié et mode IE11 requis avant publication.
+
 # Version 1.3.1 — Correctif de visibilité du moteur IE (2026-11-06)
 
 - Correctif de l’empilement natif Windows : la fenêtre enfant MSHTML est replacée au-dessus du rendu Chromium et le style WS_CHILD est fixé avant SetParent.

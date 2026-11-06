@@ -23,6 +23,14 @@ jobs:
         run: |
           powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File legacy/embedded-ie.ps1 -CompileOnly
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compiler le moteur IE11 dédié pour Windows
+        shell: pwsh
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          if (!(Test-Path $compiler)) { throw 'Compilateur .NET Framework 64 bits manquant.' }
+          & $compiler /nologo /target:exe /out:legacy/DevGitLegacyHost.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll legacy/DevGitLegacyHost.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path legacy/DevGitLegacyHost.exe)) { throw 'Programme IE11 dédié absent.' }
       - name: Tester un vrai chargement MSHTML dans une fenêtre native Windows
         run: node tests/windows-ie-smoke.js
       - name: Compiler DevGitBrowser pour Windows x64

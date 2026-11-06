@@ -1,3 +1,7 @@
+# DevGitBrowser 1.3.2 — mode IE11 corrigé
+
+Le moteur MSHTML intégré utilise désormais `DevGitLegacyHost.exe` (compilé pendant GitHub Actions) plutôt que `powershell.exe`. Le programme configure la valeur par-utilisateur `FEATURE_BROWSER_EMULATION` **uniquement pour ce programme** (IE11 standards mode). Les sites de webcams modernes tels que MonVisio/BabelVisio utilisent Chromium, car MSHTML ne prend pas en charge la capture WebRTC ; ils ne sont pas présentés comme chargés en IE si l’écran demeure noir.
+
 # DevGitBrowser 1.3.1 — CodexHempreur INC
 
 Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/Chromium, en français, sans console MS-DOS au lancement une fois compilé. Logo DevGitBrowser néon intégré à la barre supérieure, à l’accueil, à la barre inférieure, aux fenêtres, au raccourci et à l’installateur Windows. Signature graphique dans la barre inférieure : **By Hempreur** en style calligraphique discret.
