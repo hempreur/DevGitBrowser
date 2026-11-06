@@ -720,7 +720,7 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
     host.buffer+=text;
     if(host.buffer.length>32000){host.buffer='';return;}
     let idx;while((idx=host.buffer.indexOf('\n'))!==-1){
-      const line=host.buffer.slice(0,idx).trimEnd();host.buffer=host.buffer.slice(idx+1);
+      const line=host.buffer.slice(0,idx).replace(/\r$/, '');host.buffer=host.buffer.slice(idx+1);
       const event=decodeEvent(line);if(event)handleEmbeddedEvent(t,host,event);
     }
   });

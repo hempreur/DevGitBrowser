@@ -10,10 +10,9 @@ const server=http.createServer((_req,res)=>{
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
   res.end('<!doctype html><html><head><title>MSHTML smoke test</title></head><body><h1>MSHTML loaded</h1></body></html>');
 });
-let parent=null,helper=null,deadline=null;
-function stop(){clearTimeout(deadline);try{helper?.stdin?.write(encodeCommand('QUIT'));}catch{}
-  try{helper?.kill();}catch{}try{parent?.kill();}catch{}server.close();}
-function fail(reason){console.error('MSHTML integration failure: '+reason);stop();process.exitCode=1;}
+let parent=null,helper=null,deadline=null,finished=false;
+function stop(){clearTimeout(deadline);try{helper?.kill();}catch{}try{parent?.kill();}catch{}server.close();}
+function fail(reason){if(finished)return;finished=true;console.error('MSHTML integration failure: '+reason);process.exitCode=1;stop();}
 function lines(stream,onLine){let buffer='';stream.setEncoding('utf8');stream.on('data',data=>{
   buffer+=data; if(buffer.length>65536){fail('event stream overflow');return;}
   let i;while((i=buffer.indexOf('\n'))!==-1){const line=buffer.slice(0,i).trimEnd();buffer=buffer.slice(i+1);onLine(line);}
@@ -41,7 +40,7 @@ server.listen(0,'127.0.0.1',()=>{
       if(m.event==='ATTACHED')attached=true;
       if(m.event==='READY' && m.value===url){
         if(!attached){fail('document loaded before native parent attachment');return;}
-        loaded=true;console.log('PASS: MSHTML attached to native parent and loaded localhost document');stop();
+        loaded=true;finished=true;console.log('PASS: MSHTML attached to native parent and loaded localhost document');stop();
       }
     });
   });

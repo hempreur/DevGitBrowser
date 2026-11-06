@@ -42,3 +42,8 @@ test('MSHTML stays hosted inside the current tab client area, not an external wi
   const html=fs.readFileSync(path.join(root,'ui/index.html'),'utf8');
   assert.match(html,/dans le même onglet/);
 });
+
+test('native process protocol accepts events with an empty payload',()=>{
+  assert.deepEqual(decodeEvent('ATTACHED\t'),{event:'ATTACHED',value:''});
+  assert.deepEqual(decodeEvent('READY\t'+Buffer.from('http://127.0.0.1/').toString('base64')),{event:'READY',value:'http://127.0.0.1/'});
+});
