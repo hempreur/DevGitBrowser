@@ -28,12 +28,14 @@
       <input id="address" type="text" autocomplete="off" spellcheck="false" aria-label="Adresse web ou recherche" placeholder="Rechercher sur le web ou saisir une adresse HTTPS">
       <button title="Aller" type="submit">↵</button>
     </form>
+    <button id="find-button" class="nav-tool small" title="Rechercher dans la page (Ctrl+F)">⌕</button>
     <button id="security-button" class="nav-tool" title="Sécurité et permissions du site">◈ <span>Sécurité</span></button>
     <button id="github-button" class="nav-tool github-button" title="Connexion et synchronisation GitHub">⌘ <span>GitHub</span><i id="git-indicator"></i></button>
     <button id="extensions-button" class="nav-tool" title="Extensions installées">▦ <span id="extension-counter">0</span></button>
-    <button id="proxy-button" class="nav-tool" title="Réglages de connexion">⚙</button>
+    <button id="proxy-button" class="nav-tool" title="Paramètres du navigateur">⚙</button>
     <button id="devtools" class="nav-tool small" title="Outils de développement">&lt;/&gt;</button>
   </div>
+  <div id="find-bar" class="find-bar hidden" role="search"><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><button id="find-prev" title="Occurrence précédente">↑</button><button id="find-next" title="Occurrence suivante">↓</button><button id="find-close" title="Fermer la recherche">✕</button></div>
 </header>
 
 <main id="welcome" class="welcome">
@@ -100,17 +102,47 @@
   <div class="panel-wrap">
     <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut.</p></div><button class="x" data-close="1">✕</button></div>
     <div class="section-card"><div class="site-head"><span class="site-icon">◈</span><div><small>SITE ACTIF</small><h3 id="origin-label">Ouvrir un site HTTPS</h3></div></div>
-      <div class="setting-line"><div><strong>Fenêtres pop-up</strong><p>Bloquées par défaut. Autorise uniquement le site de confiance : maximum 3 ouvertures par minute et par origine.</p></div><label class="switch"><input type="checkbox" id="popup-toggle"><span></span></label></div>
-      <div class="setting-line"><div><strong>Webcam et microphone</strong><p>Une demande de consentement s’affiche lors de la première utilisation. Autorisation ponctuelle ou conservée par site.</p></div><button id="revoke-media" class="outline" type="button">Révoquer</button></div>
+      <div class="setting-line"><div><strong>Fenêtres pop-up et webcam détachée</strong>
+        <p>BabelVisio est autorisé par défaut : les fenêtres vidéo <code>window.open()</code> restent utilisables. Les autres sites sont bloqués tant que tu ne les autorises pas. Des limites de fréquence et de nombre de fenêtres restent actives.</p></div>
+        <select id="popup-mode" aria-label="Politique pop-up de ce site" class="compact-select"><option value="default">Politique par défaut</option><option value="allow">Autoriser pour ce site</option><option value="block">Toujours bloquer</option></select></div>
+      <div class="notice good" id="popup-effective">Fenêtres selon la politique du site</div>
+      <div class="setting-line"><div><strong>Caméra</strong><p>Demander, autoriser ou bloquer individuellement le matériel vidéo pour l’origine affichée.</p></div><select id="site-camera" class="compact-select"><option value="ask">Demander</option><option value="allow">Autoriser</option><option value="block">Bloquer</option></select></div>
+      <div class="setting-line"><div><strong>Microphone</strong><p>Le microphone dispose de sa propre autorisation, distincte de celle de la caméra.</p></div><select id="site-microphone" class="compact-select"><option value="ask">Demander</option><option value="allow">Autoriser</option><option value="block">Bloquer</option></select></div>
+      <div class="setting-line"><div><strong>Notifications</strong><p>Bloquées par défaut pour éviter le spam. Active uniquement les sites utiles.</p></div><select id="site-notifications" class="compact-select"><option value="block">Bloquer</option><option value="ask">Demander</option><option value="allow">Autoriser</option></select></div>
+      <div class="setting-line"><div><strong>Position géographique</strong><p>Désactivée par défaut ; activation par site après ton choix.</p></div><select id="site-geolocation" class="compact-select"><option value="block">Bloquer</option><option value="ask">Demander</option><option value="allow">Autoriser</option></select></div>
+      <div class="setting-line"><div><strong>Partage d’écran</strong><p>Demande ton accord et la sélection d’un écran ou d’une fenêtre à chaque utilisation. Jamais préautorisé.</p></div><span class="policy-tag">Choix à chaque partage</span></div>
+      <div class="setting-line"><div><strong>Réinitialiser les permissions du site</strong><p>Efface les choix conservés pour ce domaine, sans modifier les autres sites.</p></div><button id="reset-site" class="outline" type="button">Réinitialiser</button></div>
       <div class="media-tags"><span id="camera-status">Caméra : non autorisée</span><span id="mic-status">Micro : non autorisé</span></div>
-    </div>
-    <div class="notice warning"><strong>Pop-up bloqués : <span id="popup-blocked-count">0</span></strong><span>Les ouvertures non autorisées et certains abus sont stoppés. Aucun filtre ne garantit de détecter 100 % des comportements nuisibles. Les demandes de notifications, géolocalisation et partage d’écran sont refusées.</span></div>
+        </div>
+    <div class="notice warning"><strong>Pop-up bloqués : <span id="popup-blocked-count">0</span></strong><span>Les ouvertures non autorisées et certains abus sont stoppés. Aucun filtre ne garantit de détecter 100 % des comportements nuisibles. La caméra, le micro et le partage d’écran conservent des contrôles distincts.</span></div>
   </div>
 </section>
 
-<section id="panel-proxy" class="panel hidden">
+<section id="panel-settings" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">RÉSEAU • CONFIGURATION</span><h2>Connexion réseau</h2><p>Utiliser le réseau de Windows ou un proxy externe. Pas de VPN intégré.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">RÉSEAU • CONFIGURATION</span><h2>Paramètres du navigateur</h2><p>Performances, confort, téléchargements, confidentialité et réseau. Pas de VPN intégré.</p></div><button class="x" data-close="1">✕</button></div>
+    <form id="performance-form" class="section-card">
+      <h3>Performances et rendu</h3><p>Le mode équilibré conserve une visioconférence fluide. Le mode éco réduit la fréquence des contrôles GitHub en arrière-plan et conserve le ralentissement natif des onglets inactifs. Le matériel vidéo utilise les ressources nécessaires au direct.</p>
+      <label for="performance-mode">Mode</label><select id="performance-mode"><option value="balanced">Équilibré — visioconférence recommandée</option><option value="eco">Économie — activité en arrière-plan réduite</option></select>
+      <div class="setting-line"><div><strong>Accélération graphique</strong><p>Conseillée pour les appels vidéo. Désactiver uniquement en cas de problème de pilote graphique. Nécessite un redémarrage, peut augmenter la charge CPU.</p></div><label class="switch"><input type="checkbox" id="hardware-acceleration"><span></span></label></div>
+      <div class="form-buttons"><button class="primary" type="submit">Appliquer les performances</button></div>
+    </form>
+    <div class="section-card">
+      <h3>Outils de page</h3><p>Rechercher dans le texte de la page, imprimer ou enregistrer en PDF avec la boîte de dialogue Windows.</p><div class="form-buttons"><button id="page-find" type="button" class="outline">Rechercher dans la page</button><button id="page-print" type="button" class="outline">Imprimer / PDF</button></div>
+    </div>
+    <div class="section-card">
+      <h3>Zoom des pages</h3><p>Agrandir ou réduire le site actuellement ouvert, sans changer la taille des menus.</p>
+      <div class="form-buttons"><button id="zoom-minus" type="button" class="outline">−</button><span id="zoom-value" class="zoom-value">100 %</span><button id="zoom-plus" type="button" class="outline">＋</button><button id="zoom-reset" type="button" class="outline">100 %</button></div>
+    </div>
+    <div class="section-card">
+      <h3>Téléchargements</h3><p>Une fenêtre « Enregistrer sous » est présentée pour chaque téléchargement. Aucun fichier ne s’exécute automatiquement.</p>
+      <div class="path-row"><span id="downloads-folder">Dossier Téléchargements de Windows</span><button id="downloads-choose" type="button" class="outline">Changer le dossier</button></div>
+    </div>
+    <div class="section-card">
+      <h3>Données de navigation</h3><p>Effacer le cache sans déconnexion, ou vider les cookies et les données de sites. Cette seconde action déconnectera des sites et peut supprimer leur stockage local, y compris celui d’extensions.</p>
+      <div class="form-buttons"><button id="clear-cache" type="button" class="outline">Vider le cache</button><button id="clear-sites" type="button" class="outline danger">Effacer les données des sites</button></div>
+    </div>
+    <h3 class="section-heading">Réseau / proxy</h3>
     <form id="proxy-form" class="section-card">
       <label for="proxy-mode">Mode de connexion</label><select id="proxy-mode"><option value="system">Système (VPN Windows déjà actif inclus)</option><option value="direct">Direct</option><option value="proxy">Serveur proxy</option></select>
       <div id="proxy-extra" class="two-fields hidden"><div><label for="proxy-type">Type</label><select id="proxy-type"><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></div><div><label for="proxy-host">Hôte</label><input id="proxy-host" placeholder="127.0.0.1"></div><div><label for="proxy-port">Port</label><input id="proxy-port" placeholder="1080" type="number" min="1" max="65535"></div></div>

@@ -8,9 +8,14 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   newTab:url=>invoke('tab:new',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),detachTab:()=>invoke('tab:detach'),
   go:url=>invoke('nav:go',url),back:()=>invoke('nav:back'),forward:()=>invoke('nav:forward'),
   reload:()=>invoke('nav:reload'),home:()=>invoke('nav:home'),inspect:()=>invoke('nav:inspect'),
+  find:(query,forward)=>invoke('nav:find',query,forward),stopFind:()=>invoke('nav:stop-find'),print:()=>invoke('nav:print'),
   panel:value=>invoke('ui:panel',value),
-  allowPopups:value=>invoke('site:popups',value),revokeMedia:()=>invoke('site:revoke-media'),
+  allowPopups:value=>invoke('site:popups',value),sitePrivacy:(key,value)=>invoke('site:privacy',key,value),siteReset:()=>invoke('site:reset'),revokeMedia:()=>invoke('site:revoke-media'),
   proxy:value=>invoke('proxy:set',value),
+  performance:(mode,gpu)=>invoke('performance:save',mode,gpu),
+  zoom:value=>invoke('nav:zoom',value),
+  downloadFolder:()=>invoke('downloads:folder'),
+  clearCache:()=>invoke('privacy:clear-cache'),clearSiteData:()=>invoke('privacy:clear-site-data'),
   githubConnect:token=>invoke('github:connect',token),
   githubRepo:(repo,branch)=>invoke('github:choose-repo',repo,branch),
   githubSync:()=>invoke('github:sync'),githubDisconnect:()=>invoke('github:disconnect'),
@@ -18,6 +23,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
     const fn=(_event,value)=>cb(value);
     ipcRenderer.on('dgb:state',fn);return()=>ipcRenderer.off('dgb:state',fn);
   },
+  onFocusFind:cb=>{const fn=()=>cb();ipcRenderer.on('dgb:focus-find',fn);return()=>ipcRenderer.off('dgb:focus-find',fn);},
   onFocusAddress:cb=>{
     const fn=()=>cb();ipcRenderer.on('dgb:focus-address',fn);return()=>ipcRenderer.off('dgb:focus-address',fn);
   }

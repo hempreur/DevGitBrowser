@@ -1,17 +1,20 @@
-# DevGitBrowser — CodexHempreur INC
+# DevGitBrowser 1.1.0 — CodexHempreur INC
 
 Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/Chromium, en français, sans console MS-DOS au lancement une fois compilé. Logo DevGitBrowser néon intégré à la barre supérieure, à l’accueil, à la barre inférieure, aux fenêtres, au raccourci et à l’installateur Windows. Signature graphique dans la barre inférieure : **By CodexHempreur**.
+
+Les changements de la version 1.1.0 sont détaillés dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Contenu
 
 - Onglets classiques et bouton **Détacher** : un onglet se transfère dans une **nouvelle fenêtre Windows indépendante** (même profil utilisateur, mêmes cookies et autorisations par site).
-- Pop-ups : **bloqués par défaut** ; autorisation explicite par origine HTTPS dans **Sécurité** ; filtre de protocoles et limite de **3 pop-ups par minute et par origine**. Il faut parfois rafraîchir une page et recliquer sur son bouton après autorisation. Cela ne constitue pas un antivirus ou un bloqueur de publicité absolu.
-- Caméra et microphone : boîte de dialogue **Refuser / Autoriser une fois / Toujours autoriser ce site**. Révocation des autorisations persistantes possible ; les permissions système Windows peuvent aussi être requises lors de l'utilisation. Géolocalisation, notification et partage d'écran refusés.
+- Pop-ups : **BabelVisio.com est autorisé par défaut** pour les fenêtres webcam (y compris `window.open('', ...)`), et tous les autres sites restent bloqués avant décision explicite dans **Sécurité**. Limites : **24 ouvertures/minute sur BabelVisio**, **8/minute sur un autre site autorisé**, **24 fenêtres ouvertes par origine, 64 globalement**. Les fenêtres enfant peuvent ouvrir leurs propres fenêtres sous contrôle. Cela ne remplace pas un antivirus ou un bloqueur publicitaire complet.
+- Caméra et microphone : boîte de dialogue **Refuser / Autoriser une fois / Toujours autoriser ce site**, et choix indépendants par origine. Géolocalisation et notifications bloquées initialement mais configurables. Le partage d'écran requiert une action utilisateur et une **sélection de source à chaque tentative**. Les permissions système Windows peuvent aussi être nécessaires.
 - Connexion GitHub via **jeton personnel à permissions limitées** (fine-grained PAT). Le jeton n'est pas dans le code ni dans l'installateur ; il est **chiffré via Windows DPAPI/Electron safeStorage** dans le profil local. Sans stockage chiffré, connexion refusée.
 - Un **unique dépôt privé**, appartenant au compte GitHub authentifié ; son identifiant numérique est vérifié à chaque synchronisation. Aucun import manuel local. Les données sont chargées depuis l'API officielle HTTPS GitHub et les empreintes SHA-1 des objets GitHub sont vérifiées.
-- Auto-détection des extensions dans `extensions/<nom>/manifest.json` sur la branche sélectionnée, **toutes les 90 secondes**, après que les fichiers ont été envoyés sur GitHub. Les extensions supprimées du dépôt sont retirées du navigateur. Synchronisation manuelle disponible.
+- Auto-détection des extensions dans `extensions/<nom>/manifest.json` sur la branche sélectionnée, **toutes les 90 secondes (mode équilibré) ou 5 minutes (mode éco)**, après que les fichiers ont été envoyés sur GitHub. Les extensions supprimées du dépôt sont retirées du navigateur. Synchronisation manuelle disponible.
 - **Profils séparés par utilisateur Windows** via le dossier de données d'application. **Les utilisateurs ne doivent pas partager le même compte Windows.** Les autres comptes ne reçoivent jamais ton jeton ni tes extensions ; un administrateur Windows, un logiciel malveillant ou une personne ayant accès à ta session Windows reste potentiellement capable de lire des données locales. Le contrôle d'accès distant dépend aussi de la confidentialité du dépôt GitHub.
 - Promotion originale et lien direct vers **https://www.BabelVisio.com** sur l'accueil. Le contenu public du site n'a pas pu être vérifié : aucune fonctionnalité du service n'est affirmée, le graphisme BV est une illustration non officielle et pas une copie du logo.
+- Paramètres de navigation : recherche dans la page (`Ctrl+F`), zoom (`Ctrl++`, `Ctrl+-`, `Ctrl+0`), impression (`Ctrl+P`), téléchargements avec « Enregistrer sous », effacement de cache et données, mode équilibré/éco, accélération GPU paramétrable (redémarrage nécessaire).
 - Connexion réseau **système / directe / proxy HTTP ou SOCKS5**. Aucun tunnel VPN intégré.
 
 > **Limite technique :** Electron ne prend en charge qu'une **partie** des API d'extensions Chrome, pas le Chrome Web Store ni les CRX. Une extension incompatible affiche une erreur dans le gestionnaire.
@@ -20,7 +23,7 @@ Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/
 
 Le projet utilise **electron-builder / NSIS**. L'installateur construit s'appelle :
 
-`DevGitBrowser-Setup-1.0.0.exe`
+`DevGitBrowser-Setup-1.1.0.exe`
 
 L'installateur contient Electron, Chromium et l'application. Les utilisateurs finaux **n'ont pas besoin de Node.js** ni de lancer de `.bat`.
 
@@ -30,7 +33,7 @@ L'installateur contient Electron, Chromium et l'application. Les utilisateurs fi
 2. Téléverse **le contenu de ce dossier**, y compris `.github/workflows/windows-installer.yml`, à la racine de ce dépôt.
 3. Va dans **Actions → Générer l'installateur Windows EXE → Run workflow**.
 4. Après réussite du workflow, ouvre l'exécution puis **Artifacts → DevGitBrowser-Installateur-Windows**. GitHub fournit l'artefact dans un ZIP : après extraction, il contient **un seul installateur EXE**.
-5. Pour un **lien direct vers le seul fichier EXE, sans ZIP**, publie un tag `v1.0.0` sur ce dépôt. Le workflow créera une GitHub Release avec l'EXE en téléchargement direct (si l'option Releases est autorisée sur le dépôt).
+5. Pour un **lien direct vers le seul fichier EXE, sans ZIP**, publie un tag `v1.1.0` sur ce dépôt. Le workflow créera une GitHub Release avec l'EXE en téléchargement direct (si l'option Releases est autorisée sur le dépôt).
 
 ### Méthode 2 — depuis Windows, avec Node.js (pour la construction seulement)
 
@@ -81,8 +84,8 @@ Après chaque `git push` vers la branche sélectionnée, le navigateur verra l'a
 
 ## Permissions de sécurité
 
-- Les **pop-ups** restent bloqués initialement. Pour un site de confiance, ouvre **Sécurité** et active **Fenêtres pop-up**. En cas de refus, retente l'action après autorisation. Les pop-ups autorisés peuvent être dangereux ; n'autorise que les sites fiables.
-- La **caméra** et le **micro** sont autorisables par site et révoquables dans Sécurité. Pour leur bon fonctionnement, vérifie aussi les réglages de confidentialité Windows. Les permissions dépendent d'un contexte sécurisé (HTTPS ou localhost) ; pas de caméra sur un site HTTP distant.
+- Les **pop-ups BabelVisio.com HTTPS sont autorisés par défaut**, sauf si tu les bloques dans **Sécurité → Fenêtres pop-up**. Les autres sites restent bloqués jusqu'à ton accord. Les ouvertures multiples restent soumises aux limites anti-abus, et aucun filtre ne détecte 100 % des publicités nuisibles.
+- La **caméra** et le **micro** sont autorisables séparément et révoquables dans Sécurité. Pour leur bon fonctionnement, vérifie aussi les réglages de confidentialité Windows. Les permissions dépendent d'un contexte sécurisé (HTTPS ou localhost) ; pas de caméra sur un site HTTP distant.
 - Les **extensions** ont accès aux pages définies par leur manifeste et peuvent être malveillantes même si elles proviennent de TON dépôt (compte compromis, commit dangereux). Le navigateur garantit uniquement la provenance et l'intégrité des objets Git téléchargés, pas leur innocuité. Ne donne accès au dépôt qu'aux personnes de confiance ; privilégie la validation manuelle des changements sensibles.
 - Ce projet est une **base de développement**, pas un navigateur ayant passé un audit de sécurité. Test de compatibilité et de sécurité sur Windows recommandé avant distribution.
 

@@ -1,24 +1,26 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage } = require('electron');
+const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
+const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
 
 const SHELL_HEIGHT = 118;
 const MAX_TABS = 30;
-const SYNC_INTERVAL_MS = 90_000;
-const MAX_POPUPS_PER_ORIGIN_MINUTE = 3;
+
+const popupLimiter = new PopupLimiter();
 const windows = new Map();
 const installed = new Map(); // key -> {id, name, fingerprint, directory, error}
-const popupTraffic = new Map();
+const popupOrigins = new WeakMap(); // popup webContents -> opener origin for about:blank windows
 const ephemeralMedia = new Map();
 let nextWindowId = 0, nextTabId = 0;
 let browsingSession, settings, account = null, token = '', syncTimer = null;
 let syncing = false, lastSync = null, lastError = '';
+let syncTimerCadence = 90_000;
 
 function userDataFile(name) { return path.join(app.getPath('userData'), name); }
 function cacheFolder() { return userDataFile('github-extension-cache'); }
@@ -29,12 +31,35 @@ function writeAtomic(target, contents) {
   finally { try { fs.rmSync(tmp, { force: true }); } catch {} }
 }
 function loadSettings() {
-  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupAllowed: [], mediaGrants: {} });
+  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{} });
   try {
     const raw = JSON.parse(fs.readFileSync(userDataFile('preferences.json'), 'utf8'));
     const p = fallback();
     try { p.proxy = normalizeProxy(raw.proxy || DEFAULT_PROXY); } catch {}
-    if (Array.isArray(raw.popupAllowed)) p.popupAllowed = raw.popupAllowed.filter(isSecureOrigin).slice(0, 80);
+    if (raw.popupModes && typeof raw.popupModes === 'object' && !Array.isArray(raw.popupModes)) {
+      for (const [origin, mode] of Object.entries(raw.popupModes).slice(0,100)) {
+        if (isSecureOrigin(origin) && ['allow','block'].includes(mode)) p.popupModes[origin]=mode;
+      }
+    }
+    // Migrate version 1.0 manually allowlisted origins; preserve user choices.
+    if (Array.isArray(raw.popupAllowed)) for(const origin of raw.popupAllowed.filter(isSecureOrigin).slice(0,80)) {
+      if (!Object.hasOwn(p.popupModes,origin))p.popupModes[origin]='allow';
+    }
+    if (raw.sitePrivacy && typeof raw.sitePrivacy === 'object' && !Array.isArray(raw.sitePrivacy)) {
+      for (const [origin, values] of Object.entries(raw.sitePrivacy).slice(0,100)) {
+        if (!isSecureOrigin(origin) || !values || typeof values!=='object') continue;
+        p.sitePrivacy[origin]={};
+        for(const key of ['camera','microphone','notifications','geolocation']) {
+          if(['allow','block','ask'].includes(values[key]))p.sitePrivacy[origin][key]=values[key];
+        }
+      }
+    }
+    if (raw.performance?.mode==='eco') p.performance.mode='eco';
+    if (raw.performance?.hardwareAcceleration===false) p.performance.hardwareAcceleration=false;
+    if (raw.downloads && typeof raw.downloads.folder==='string' && raw.downloads.folder.length<=600 && path.isAbsolute(raw.downloads.folder))p.downloads.folder=raw.downloads.folder;
+    if(raw.zoomByOrigin && typeof raw.zoomByOrigin==='object')for(const [origin,scale] of Object.entries(raw.zoomByOrigin).slice(0,100)) {
+      if(isSecureOrigin(origin) && Number.isFinite(scale) && scale>=0.5 && scale<=2)p.zoomByOrigin[origin]=scale;
+    }
     if (raw.mediaGrants && typeof raw.mediaGrants === 'object' && !Array.isArray(raw.mediaGrants)) {
       for (const [origin, value] of Object.entries(raw.mediaGrants).slice(0, 80)) {
         if (isSecureOrigin(origin)) p.mediaGrants[origin] = { camera: value?.camera === true, microphone: value?.microphone === true };
@@ -88,9 +113,14 @@ function publicState(s) {
   const origin = currentOrigin(s);
   return {
     windowId: s.id, activeId: s.activeId, tabs: [...s.tabs.values()].map(tabState),
-    proxy: settings.proxy, popupAllowedHere: origin ? settings.popupAllowed.includes(origin) : false,
+    proxy: settings.proxy, popupModeHere: origin ? popupMode(origin,settings.popupModes) : 'block',
+    popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
+    popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
+    performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
+    zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
+    privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
     currentOrigin: origin, blockedPopups: s.blockedPopups,
-    mediaHere: origin ? (settings.mediaGrants[origin] || {camera:false,microphone:false}) : {camera:false,microphone:false},
+    mediaHere: { camera:origin?mediaGranted(origin,'camera'):false, microphone:origin?mediaGranted(origin,'microphone'):false },
     github: { connected: Boolean(token && account), user: account?.login || '', avatar: '',
       repo: settings.github?.repo || '', branch: settings.github?.branch || 'main',
       lastSync, syncing, lastError },
@@ -126,7 +156,7 @@ function newTab(s, url = '') {
   if (s.tabs.size >= MAX_TABS) throw new Error(`Maximum de ${MAX_TABS} onglets par fenêtre.`);
   const view = new WebContentsView({ webPreferences: {
     session: browsingSession, nodeIntegration:false, contextIsolation:true, sandbox:true,
-    webSecurity:true, allowRunningInsecureContent:false, webviewTag:false
+    webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true
   }});
   view.setBackgroundColor('#f5f7fa');
   const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false };
@@ -139,7 +169,9 @@ function newTab(s, url = '') {
     sendState(t.owner);
   };
   wc.on('page-title-updated', (_event, title) => { t.title = String(title).slice(0,90); sendState(t.owner); });
-  wc.on('did-navigate', update); wc.on('did-navigate-in-page', update);
+  wc.on('did-navigate', () => { update(); applySiteZoom(t); }); wc.on('did-navigate-in-page', update);
+  wc.setBackgroundThrottling(true);
+  if(typeof wc.setZoomMode==='function')wc.setZoomMode('isolated');
   wc.on('did-start-loading', () => { t.loading=true; sendState(t.owner); });
   wc.on('did-stop-loading', () => { t.loading=false; update(); });
   wc.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
@@ -147,28 +179,7 @@ function newTab(s, url = '') {
   });
   wc.on('will-navigate', (event, target) => { if (!isWebUrl(typeof target === 'string' ? target : target.url)) event.preventDefault(); });
   wc.on('will-redirect', (event, target) => { if (!isWebUrl(typeof target === 'string' ? target : target.url)) event.preventDefault(); });
-  wc.setWindowOpenHandler(details => {
-    const origin = siteOrigin(wc.getURL());
-    const target = details.url;
-    const now = Date.now();
-    const entries = (popupTraffic.get(origin) || []).filter(time => now - time < 60_000);
-    const allowed = origin && settings.popupAllowed.includes(origin) && isWebUrl(target)
-      && entries.length < MAX_POPUPS_PER_ORIGIN_MINUTE;
-    entries.push(now); popupTraffic.set(origin, entries.slice(-10));
-    if (!allowed) { t.owner.blockedPopups++; sendState(t.owner); return { action:'deny' }; }
-    return { action:'allow', overrideBrowserWindowOptions: {
-      width:950, height:720, autoHideMenuBar:true, backgroundColor:'#121b2b',
-      webPreferences: { session:browsingSession, nodeIntegration:false, contextIsolation:true,
-        sandbox:true, webSecurity:true, allowRunningInsecureContent:false, webviewTag:false }
-    }};
-  });
-  wc.on('did-create-window', popup => {
-    popup.setMenu(null);
-    popup.webContents.setWindowOpenHandler(() => ({action:'deny'}));
-    popup.webContents.on('will-navigate', (event, detail) => {
-      if (!isWebUrl(typeof detail === 'string' ? detail : detail.url)) event.preventDefault();
-    });
-  });
+  installPopupHandler(wc, () => siteOrigin(wc.getURL()), () => t.owner, 0);
   wc.on('before-input-event', (event,input) => {
     if (input.type !== 'keyDown') return;
     const mod = input.control || input.meta;
@@ -177,6 +188,11 @@ function newTab(s, url = '') {
     else if (mod && key === 't') { event.preventDefault(); try { newTab(t.owner); } catch {} }
     else if (mod && key === 'w') { event.preventDefault(); closeTab(t.owner,t.id); }
     else if (mod && key === 'r') { event.preventDefault(); wc.reload(); }
+    else if (mod && ['+','='].includes(key)) { event.preventDefault(); setZoom(t.owner,1); }
+    else if (mod && key === '-') { event.preventDefault(); setZoom(t.owner,-1); }
+    else if (mod && key === '0') { event.preventDefault(); setZoom(t.owner,0); }
+    else if (mod && key === 'f') { event.preventDefault(); t.owner.win.webContents.send('dgb:focus-find'); }
+    else if (mod && key === 'p') { event.preventDefault(); wc.print({printBackground:true},()=>{}); }
     else if (input.alt && key === 'left') { event.preventDefault(); if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); }
     else if (input.alt && key === 'right') { event.preventDefault(); if (wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward(); }
   });
@@ -200,7 +216,7 @@ function navigate(s,text) {
   if (!s.win.contentView.children.includes(t.view)) s.win.contentView.addChildView(t.view);
   t.view.setVisible(!s.panelOpen); layout(s);
   sendState(s);
-  t.view.webContents.loadURL(url).catch(() => {});
+  t.view.webContents.loadURL(url).then(()=>applySiteZoom(t)).catch(() => {});
 }
 function home(s) {
   const t=activeTab(s); if (!t) return;
@@ -251,44 +267,162 @@ function setPanel(s,value) {
   s.panelOpen=Boolean(value);
   const t=activeTab(s); if(t?.url)t.view.setVisible(!s.panelOpen);
 }
-function grantMedia(origin, type, permanent) {
-  if (permanent) {
-    const current=settings.mediaGrants[origin] || {camera:false,microphone:false};
-    for(const p of type) current[p]=true;
-    settings.mediaGrants[origin]=current;saveSettings();
-  } else {
-    const current=ephemeralMedia.get(origin)||{camera:false,microphone:false};
-    for(const p of type) current[p]=true;
-    ephemeralMedia.set(origin,current);
-  }
+function sitePermissions(origin) {
+  const saved=origin ? settings.sitePrivacy[origin] || {} : {};
+  return Object.fromEntries(['camera','microphone','notifications','geolocation'].map(k=>[
+    k, saved[k] || (settings.mediaGrants[origin]?.[k] ? 'allow' : k==='camera'||k==='microphone'?'ask':'block')
+  ]));
 }
-function mediaGranted(origin,type) {return Boolean(settings.mediaGrants[origin]?.[type] || ephemeralMedia.get(origin)?.[type]);}
-function installPermissionPolicy() {
-  browsingSession.setPermissionCheckHandler((_wc, permission, origin, details) => {
-    if(permission!=='media'||!isSecureOrigin(origin))return false;
-    const requested=details?.mediaType;
-    if(requested==='video')return mediaGranted(origin,'camera');
-    if(requested==='audio')return mediaGranted(origin,'microphone');
-    return mediaGranted(origin,'camera') && mediaGranted(origin,'microphone');
+function permissionDecision(origin,key) { return sitePermissions(origin)[key]; }
+function mediaGranted(origin,key) {
+  const mode=permissionDecision(origin,key);
+  return mode==='allow' || (mode!=='block' && Boolean(ephemeralMedia.get(origin)?.[key]));
+}
+function safeSourceOrigin(wc, details={}) {
+  const origin=siteOrigin(details.securityOrigin||'') || siteOrigin(details.requestingUrl||'') || siteOrigin(details.requestingOrigin||'');
+  if(origin)return origin;
+  if(details.isMainFrame===false)return '';
+  const own=siteOrigin(wc?.getURL?.()||'');
+  if(own)return own;
+  // about:blank popups can inherit their creator's origin. Never use this
+  // fallback for a child that has navigated to another site.
+  return (!wc?.getURL?.() || wc?.getURL?.()==='about:blank') ? popupOrigins.get(wc)||'' : '';
+}
+function mediaPermissionCheck(wc, origin, details={}) {
+  const actual=siteOrigin(details.securityOrigin||'') || siteOrigin(details.requestingUrl||'') || siteOrigin(origin||'');
+  if(!actual)return false;
+  const media=details.mediaType;
+  if(media==='video')return mediaGranted(actual,'camera');
+  if(media==='audio')return mediaGranted(actual,'microphone');
+  return mediaGranted(actual,'camera') && mediaGranted(actual,'microphone');
+}
+function privacyOriginAllowed(wc, origin, key) {
+  return Boolean(siteOrigin(origin) && permissionDecision(origin,key)==='allow');
+}
+function dialogParentFor(wc) {
+  for(const s of windows.values())if([...s.tabs.values()].some(t=>t.view.webContents===wc))return s.win;
+  try {return BrowserWindow.fromWebContents(wc)||undefined;} catch {return undefined;}
+}
+function permissionDialog(wc, options) {
+  const win=dialogParentFor(wc);
+  return win?dialog.showMessageBox(win,options):dialog.showMessageBox(options);
+}
+function configurePermissionPolicy() {
+  browsingSession.setPermissionCheckHandler((wc,permission,origin,details={})=>{
+    if(permission==='media')return mediaPermissionCheck(wc,origin,details);
+    if(permission==='display-capture')return Boolean(siteOrigin(origin)); // picker still must ask explicitly
+    if(permission==='clipboard-sanitized-write'||permission==='fullscreen')return true;
+    if(permission==='notifications'||permission==='geolocation')return Boolean(privacyOriginAllowed(wc,siteOrigin(origin),permission));
+    return false;
   });
-  browsingSession.setPermissionRequestHandler((wc, permission, callback, details={}) => {
-    if(permission!=='media') {callback(false);return;}
-    const origin=siteOrigin(details.requestingUrl || wc.getURL());
-    if(!origin||siteOrigin(wc.getURL())!==origin) {callback(false);return;}
-    const requested=Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
+  browsingSession.setPermissionRequestHandler((wc,permission,callback,details={})=>{
+    if(permission==='clipboard-sanitized-write'||permission==='fullscreen'){callback(true);return;}
+    const origin=safeSourceOrigin(wc,details);
+    if(!origin){callback(false);return;}
+    if(permission==='display-capture') {callback(true);return;} // actual source picker below
+    if(['notifications','geolocation'].includes(permission)){
+      const decision=permissionDecision(origin,permission);
+      if(decision!=='ask'){callback(decision==='allow');return;}
+      const name=permission==='notifications'?'notifications':'position géographique';
+      permissionDialog(wc,{type:'question',title:'Autorisation du site',message:`${origin} demande l’accès : ${name}.`,buttons:['Refuser','Autoriser cette fois','Toujours autoriser'],defaultId:0,cancelId:0,noLink:true})
+        .then(({response})=>{
+          if(response===2){settings.sitePrivacy[origin]={...(settings.sitePrivacy[origin]||{}),[permission]:'allow'};saveSettings();}
+          callback(response===1||response===2);broadcast();
+        }).catch(()=>callback(false));
+      return;
+    }
+    if(permission!=='media'){callback(false);return;}
+    const requested=Array.isArray(details.mediaTypes)?details.mediaTypes:[];
     const types=[...new Set(requested.filter(x=>x==='audio'||x==='video').map(x=>x==='video'?'camera':'microphone'))];
-    if (!types.length){callback(false);return;}
-    if(types.every(type=>mediaGranted(origin,type))){callback(true);return;}
+    if(!types.length){callback(false);return;}
+    if(types.some(key=>permissionDecision(origin,key)==='block')){callback(false);return;}
+    if(types.every(key=>mediaGranted(origin,key))){callback(true);return;}
     const labels=types.map(x=>x==='camera'?'caméra':'microphone').join(' et ');
-    const parent=[...windows.values()].find(s=>[...s.tabs.values()].some(t=>t.view.webContents===wc))?.win;
-    const options={type:'question',title:'Autorisation caméra / microphone',
+    permissionDialog(wc,{type:'question',title:'Autorisation caméra / microphone',
       message:`${origin} demande l'accès à : ${labels}.`,
-      detail:'Cette autorisation est demandée par le site, jamais accordée automatiquement. Un site autorisé pourra enregistrer le son ou l’image pendant son utilisation.',
-      buttons:['Refuser','Autoriser une fois','Toujours autoriser pour ce site'],defaultId:0,cancelId:0,noLink:true};
-    Promise.resolve(parent?dialog.showMessageBox(parent,options):dialog.showMessageBox(options))
-      .then(({response})=>{ if(response===1||response===2)grantMedia(origin,types,response===2);callback(response===1||response===2);broadcast(); })
-      .catch(()=>callback(false));
+      detail:'Vérifie ton site. Le matériel peut rester actif pendant l’appel. Tu peux révoquer les autorisations dans Sécurité.',
+      buttons:['Refuser','Autoriser cette fois','Toujours autoriser pour ce site'],defaultId:0,cancelId:0,noLink:true})
+      .then(({response})=>{
+        if(response===1){const e=ephemeralMedia.get(origin)||{};types.forEach(k=>e[k]=true);ephemeralMedia.set(origin,e);}
+        if(response===2){const e=settings.sitePrivacy[origin]||{};types.forEach(k=>e[k]='allow');settings.sitePrivacy[origin]=e;saveSettings();}
+        callback(response===1||response===2);broadcast();
+      }).catch(()=>callback(false));
   });
+  // No screen, window or tab is shared without a deliberate system-side choice.
+  browsingSession.setDisplayMediaRequestHandler((request,callback)=>{
+    const origin=siteOrigin(request.securityOrigin||'');
+    if(!origin || !request.userGesture || !request.videoRequested){callback(null);return;}
+    desktopCapturer.getSources({types:['screen','window'],thumbnailSize:{width:0,height:0}})
+      .then(sources=>{
+        const options=sources.slice(0,15);
+        if(!options.length){callback(null);return;}
+        return permissionDialog(request.frame?.webContents,{type:'question',title:'Partager un écran ou une fenêtre',
+          message:`${origin} souhaite afficher ton écran. Choisis explicitement ce que tu souhaites partager :`,
+          buttons:['Annuler',...options.map((s,i)=>`${i+1}. ${String(s.name).slice(0,65)}`)],defaultId:0,cancelId:0,noLink:true})
+          .then(({response})=>callback(response>0?{video:options[response-1]}:null));
+      }).catch(()=>callback(null));
+  });
+}
+function installPopupHandler(wc, originProvider, ownerProvider, depth) {
+  if(depth>4)return;
+  const icon=path.join(__dirname,'assets','icon.png');
+  wc.setWindowOpenHandler(details=>{
+    const origin=originProvider();
+    const s=ownerProvider();
+    if(!popupLimiter.admit(origin,details.url,settings.popupModes)){
+      if(s){s.blockedPopups++;sendState(s);}
+      return {action:'deny'};
+    }
+    // Electron creates a native child window, preserving window.opener and DOM
+    // access for same-origin webcam popouts. Never substitute a new tab.
+    return {action:'allow',outlivesOpener:false,overrideBrowserWindowOptions:{
+      width:Math.max(360,Math.min(1200,Number(details.features?.match(/width=(\d+)/)?.[1])||950)),
+      height:Math.max(260,Math.min(1000,Number(details.features?.match(/height=(\d+)/)?.[1])||720)),
+      autoHideMenuBar:true,icon,backgroundColor:'#121b2b',
+      webPreferences:{session:browsingSession,nodeIntegration:false,contextIsolation:true,
+        sandbox:true,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,backgroundThrottling:true}
+    }};
+  });
+  wc.on('did-create-window',(popup,details)=>{
+    const origin=originProvider();
+    popupOrigins.set(popup.webContents,origin);
+    popup.setMenu(null);
+    popup.once('closed',()=>popupLimiter.release(origin));
+    popup.webContents.setBackgroundThrottling(true);
+    popup.webContents.on('will-navigate',(event,target)=>{
+      const next=typeof target==='string'?target:target.url;
+      let safe=isWebUrl(next);
+      if(!safe && typeof next==='string' && next.startsWith('blob:')){
+        try{ safe=new URL(next).origin===(siteOrigin(popup.webContents.getURL())||popupOrigins.get(popup.webContents)); }catch{}
+      }
+      if(!safe)event.preventDefault();
+    });
+    installPopupHandler(popup.webContents,()=>siteOrigin(popup.webContents.getURL())||(popup.webContents.getURL()==='about:blank'?origin:''),ownerProvider,depth+1);
+  });
+}
+function applySiteZoom(t) {
+  if(t.view.webContents.isDestroyed()||!t.url)return;
+  const origin=siteOrigin(t.url);
+  t.view.webContents.setZoomFactor(settings.zoomByOrigin[origin]||1);
+}
+function setZoom(s,direction) {
+  const t=activeTab(s);if(!t?.url)return;
+  const origin=currentOrigin(s);if(!origin)return;
+  const wc=t.view.webContents;
+  const value=direction===0?1:Math.min(2,Math.max(.5,Math.round((wc.getZoomFactor()+direction*.1)*10)/10));
+  wc.setZoomFactor(value); settings.zoomByOrigin[origin]=value;saveSettings();sendState(s);
+}
+function configureDownloads() {
+  browsingSession.on('will-download',(_event,item)=>{
+    const folder=settings.downloads.folder || app.getPath('downloads');
+    const safeName=path.basename(item.getFilename()||'telechargement');
+    item.setSaveDialogOptions({title:'Enregistrer le téléchargement — DevGitBrowser',defaultPath:path.join(folder,safeName),buttonLabel:'Enregistrer'});
+  });
+}
+function resetSyncTimer() {
+  if(syncTimer)clearInterval(syncTimer);
+  syncTimerCadence=settings.performance.mode==='eco'?300_000:90_000;
+  syncTimer=setInterval(()=>{if(token&&settings.github)syncGithub().catch(()=>{});},syncTimerCadence);
 }
 async function configureProxy(proxy) {
   const safe=normalizeProxy(proxy);
@@ -401,15 +535,57 @@ function registerIpc(){
     'nav:reload':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.reload();},
     'nav:home':s=>home(s),
     'nav:inspect':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.openDevTools({mode:'detach'});},
+    'nav:find':(s,query,forward=true)=>{
+      const wc=activeTab(s)?.view.webContents;
+      if(!wc || !activeTab(s).url || typeof query!=='string' || query.length>150)return;
+      if(!query){wc.stopFindInPage('clearSelection');return;}
+      wc.findInPage(query,{forward:Boolean(forward),findNext:true});
+    },
+    'nav:stop-find':s=>{const wc=activeTab(s)?.view.webContents;if(wc&&!wc.isDestroyed())wc.stopFindInPage('clearSelection');},
+    'nav:print':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.print({printBackground:true},()=>{});},
     'ui:panel':(s,shown)=>setPanel(s,shown),
-    'site:popups':(s,allowed)=>{
+    'site:popups':(s,mode)=>{
       const origin=activeOriginRequired(s);
-      settings.popupAllowed=settings.popupAllowed.filter(o=>o!==origin);
-      if(Boolean(allowed))settings.popupAllowed.push(origin);
+      if(!['allow','block','default'].includes(mode))throw new Error('Mode pop-up incorrect.');
+      if(mode==='default')delete settings.popupModes[origin];
+      else settings.popupModes[origin]=mode;
       saveSettings();broadcast();
     },
+    'site:privacy':(s,key,mode)=>{
+      const origin=activeOriginRequired(s);
+      if(!['camera','microphone','notifications','geolocation'].includes(key)||!['ask','block','allow'].includes(mode))throw new Error('Autorisation invalide.');
+      settings.sitePrivacy[origin]={...(settings.sitePrivacy[origin]||{}),[key]:mode};
+      if(['camera','microphone'].includes(key)){
+        const temp=ephemeralMedia.get(origin)||{};delete temp[key];ephemeralMedia.set(origin,temp);
+        if(settings.mediaGrants[origin])delete settings.mediaGrants[origin][key];
+      }
+      saveSettings();broadcast();
+    },
+    'site:reset':s=>{
+      const origin=activeOriginRequired(s);
+      delete settings.popupModes[origin];delete settings.sitePrivacy[origin];delete settings.mediaGrants[origin];ephemeralMedia.delete(origin);
+      saveSettings();broadcast();
+    },
+    'nav:zoom':(s,direction)=>setZoom(s,Number(direction)),
+    'privacy:clear-cache':async()=>{await browsingSession.clearCache();broadcast();},
+    'privacy:clear-site-data':async()=>{
+      await browsingSession.clearStorageData({storages:['cookies','localstorage','indexdb','serviceworkers','cachestorage']});
+      ephemeralMedia.clear();broadcast();
+    },
+    'downloads:folder':async(s)=>{
+      const res=await dialog.showOpenDialog(s.win,{title:'Choisir le dossier des téléchargements',properties:['openDirectory','createDirectory'],defaultPath:settings.downloads.folder||app.getPath('downloads')});
+      if(!res.canceled && res.filePaths?.[0]){settings.downloads.folder=res.filePaths[0];saveSettings();broadcast();}
+    },
+    'performance:save':(_s,mode,hardwareAcceleration)=>{
+      if(!['balanced','eco'].includes(mode)||typeof hardwareAcceleration!=='boolean')throw new Error('Réglage de performance invalide.');
+      const changedGpu=settings.performance.hardwareAcceleration!==hardwareAcceleration;
+      settings.performance={mode,hardwareAcceleration};saveSettings();resetSyncTimer();broadcast();
+      return {restartRequired:changedGpu};
+    },
     'site:revoke-media':s=>{
-      const origin=activeOriginRequired(s);delete settings.mediaGrants[origin];ephemeralMedia.delete(origin);saveSettings();broadcast();
+      const origin=activeOriginRequired(s);delete settings.mediaGrants[origin];ephemeralMedia.delete(origin);
+      const saved=settings.sitePrivacy[origin]||{};saved.camera='ask';saved.microphone='ask';settings.sitePrivacy[origin]=saved;
+      saveSettings();broadcast();
     },
     'proxy:set':(_s,proxy)=>configureProxy(proxy),
     'github:connect':(_s,personaltoken)=>connectGitHub(personaltoken),
@@ -422,6 +598,12 @@ function registerIpc(){
   }
 }
 
+// GPU acceleration defaults to ON because disabling it often makes video calls
+// use more CPU. Users can switch it off for broken GPU drivers (next launch).
+try {
+  const early=JSON.parse(fs.readFileSync(userDataFile('preferences.json'),'utf8'));
+  if(early.performance?.hardwareAcceleration===false)app.disableHardwareAcceleration();
+} catch {}
 if(!app.requestSingleInstanceLock()){app.quit();}
 else {
   app.on('second-instance',()=>{const s=[...windows.values()][0];if(s){if(s.win.isMinimized())s.win.restore();s.win.focus();}});
@@ -432,7 +614,7 @@ else {
     settings=loadSettings();
     // Electron's userData path and persistent partition are isolated per OS user profile.
     browsingSession=session.fromPartition('persist:devgitbrowser-user');
-    installPermissionPolicy();
+    configurePermissionPolicy();configureDownloads();
     try{await browsingSession.setProxy(proxyForElectron(settings.proxy));}
     catch{settings.proxy={...DEFAULT_PROXY};}
     token=restoreToken();
@@ -440,7 +622,7 @@ else {
       catch{token='';account=null;lastError='Session GitHub expirée. Reconnecte-toi.';}}
     registerIpc();createWindow();
     if(token&&settings.github) syncGithub().catch(()=>{});
-    syncTimer=setInterval(()=>{if(token&&settings.github)syncGithub().catch(()=>{});},SYNC_INTERVAL_MS);
+    resetSyncTimer();
   }).catch(err=>{dialog.showErrorBox('Démarrage impossible',String(err.stack||err));app.quit();});
   app.on('before-quit',()=>{if(syncTimer)clearInterval(syncTimer);});
   app.on('window-all-closed',()=>app.quit());

@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Navigateur de développement sécurisé et synchronisation privée des extensions GitHub",
   "author": {

@@ -2,7 +2,7 @@
 const api=window.DevGit;
 const $=id=>document.getElementById(id);
 let current=null, panel='', toastTimer;
-const panels=['github','extensions','security','proxy'];
+const panels=['github','extensions','security','settings'];
 function notify(message, bad=false){
   const el=$('toast');el.textContent=message;el.classList.toggle('error',bad);el.classList.remove('hidden');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('hidden'),4500);
@@ -39,11 +39,18 @@ function updateTabs(state){
 function updateSecurity(state){
   const hasSite=Boolean(state.currentOrigin);
   $('origin-label').textContent=state.currentOrigin||'Ouvrir un site HTTPS';
-  $('popup-toggle').disabled=!hasSite;$('popup-toggle').checked=Boolean(state.popupAllowedHere);
-  $('revoke-media').disabled=!hasSite;
+  $('popup-mode').disabled=!hasSite;
+  $('popup-mode').value=state.popupOverrideHere;
+  $('popup-effective').textContent=state.popupModeHere==='allow'
+    ?(state.popupDefaultBabel?'✓ BabelVisio : pop-ups vidéo autorisés automatiquement, avec filtre anti-abus.':'✓ Pop-ups autorisés pour ce site, avec filtre anti-abus.')
+    :'● Pop-ups bloqués pour ce site. Tu peux les autoriser après vérification.';
+  for(const key of ['camera','microphone','notifications','geolocation']){
+    const el=$(`site-${key}`);el.disabled=!hasSite;el.value=state.privacyHere[key];
+  }
+  $('reset-site').disabled=!hasSite;
   $('popup-blocked-count').textContent=String(state.blockedPopups);
-  $('camera-status').textContent='Caméra : '+(state.mediaHere.camera?'autorisée':'non autorisée');
-  $('mic-status').textContent='Micro : '+(state.mediaHere.microphone?'autorisé':'non autorisé');
+  $('camera-status').textContent='Caméra : '+(state.mediaHere.camera?'autorisée':'demande requise ou bloquée');
+  $('mic-status').textContent='Micro : '+(state.mediaHere.microphone?'autorisé':'demande requise ou bloqué');
   $('security-button').classList.toggle('attention',state.blockedPopups>0);
 }
 function updateGithub(state){
@@ -81,7 +88,13 @@ function updateProxy(state){
   if(document.activeElement!==$('proxy-port'))$('proxy-port').value=p.port||'';
   $('proxy-extra').classList.toggle('hidden',$('proxy-mode').value!=='proxy');
 }
-function render(state){current=state;updateTabs(state);updateSecurity(state);updateGithub(state);updateProxy(state);}
+function updateSettings(state){
+  $('performance-mode').value=state.performance.mode;
+  $('hardware-acceleration').checked=state.performance.hardwareAcceleration;
+  $('downloads-folder').textContent=state.downloads.folder;
+  $('zoom-value').textContent=`${Math.round(state.zoom*100)} %`;
+}
+function render(state){current=state;updateTabs(state);updateSecurity(state);updateGithub(state);updateProxy(state);updateSettings(state);}
 function submitNavigation(value){return run(async()=>{if(panel)await showPanel('');await api.go(value);});}
 
 $('add-tab').addEventListener('click',()=>run(async()=>{await showPanel('');return api.newTab();}));
@@ -91,15 +104,29 @@ $('forward').addEventListener('click',()=>run(()=>api.forward()));
 $('reload').addEventListener('click',()=>run(()=>api.reload()));
 $('home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
 $('devtools').addEventListener('click',()=>run(()=>api.inspect()));
+function openFind(){if(panel)showPanel('').catch(()=>{});$('find-bar').classList.remove('hidden');$('find-text').focus();$('find-text').select();}
+function closeFind(){api.stopFind().catch(()=>{});$('find-bar').classList.add('hidden');}
+$('find-button').addEventListener('click',openFind);
+$('find-text').addEventListener('input',()=>run(()=>api.find($('find-text').value,true)));
+$('find-next').addEventListener('click',()=>run(()=>api.find($('find-text').value,true)));
+$('find-prev').addEventListener('click',()=>run(()=>api.find($('find-text').value,false)));
+$('find-close').addEventListener('click',closeFind);
+$('find-text').addEventListener('keydown',e=>{if(e.key==='Escape')closeFind();else if(e.key==='Enter'){e.preventDefault();run(()=>api.find($('find-text').value,!e.shiftKey));}});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();openFind();}else if(e.key==='Escape'&&!$('find-bar').classList.contains('hidden'))closeFind();});
+$('page-find').addEventListener('click',openFind);
+$('page-print').addEventListener('click',()=>run(async()=>{await showPanel('');await api.print();}));
 $('address-form').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('address').value);});
 $('start-search').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('start-address').value);});
 $('open-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
-const panelBindings={ 'security-button':'security','github-button':'github','extensions-button':'extensions','proxy-button':'proxy',
+const panelBindings={ 'security-button':'security','github-button':'github','extensions-button':'extensions','proxy-button':'settings',
   'card-github':'github','card-extensions':'extensions','card-security':'security','goto-git':'github'};
 for(const [id,name] of Object.entries(panelBindings))$(id).addEventListener('click',()=>run(()=>showPanel(name)));
 for(const item of document.querySelectorAll('[data-close]'))item.addEventListener('click',()=>run(()=>showPanel('')));
-$('popup-toggle').addEventListener('change',()=>run(()=>api.allowPopups($('popup-toggle').checked),$('popup-toggle').checked?'Pop-up autorisés pour ce site.':'Pop-up bloqués pour ce site.'));
-$('revoke-media').addEventListener('click',()=>run(()=>api.revokeMedia(),'Autorisations caméra / micro révoquées pour ce site.'));
+$('popup-mode').addEventListener('change',()=>run(()=>api.allowPopups($('popup-mode').value),'Politique des fenêtres mise à jour.'));
+for(const key of ['camera','microphone','notifications','geolocation']){
+  $(`site-${key}`).addEventListener('change',()=>run(()=>api.sitePrivacy(key,$(`site-${key}`).value),'Autorisation du site enregistrée.'));
+}
+$('reset-site').addEventListener('click',()=>run(()=>api.siteReset(),'Autorisations du site réinitialisées.'));
 $('github-connect-form').addEventListener('submit',async ev=>{
   ev.preventDefault();const value=$('github-token').value;
   $('github-token').value='';
@@ -120,5 +147,20 @@ $('proxy-form').addEventListener('submit',ev=>{
   run(()=>api.proxy({mode:$('proxy-mode').value,type:$('proxy-type').value,
     host:$('proxy-host').value,port:$('proxy-port').value}),'Configuration réseau enregistrée.');
 });
-api.onState(render);api.onFocusAddress(()=>{if(panel)showPanel('').catch(()=>{});$('address').focus();$('address').select();});
+$('performance-form').addEventListener('submit',ev=>{
+  ev.preventDefault();run(async()=>{
+    const result=await api.performance($('performance-mode').value,$('hardware-acceleration').checked);
+    notify(result.restartRequired?'Performances enregistrées. Redémarre DevGitBrowser pour appliquer le réglage GPU.':'Performances enregistrées.');
+  });
+});
+for(const [name,dir] of [['zoom-minus',-1],['zoom-plus',1],['zoom-reset',0]]){
+  $(name).addEventListener('click',()=>run(()=>api.zoom(dir)));
+}
+$('downloads-choose').addEventListener('click',()=>run(()=>api.downloadFolder(),'Dossier des téléchargements mis à jour.'));
+$('clear-cache').addEventListener('click',()=>run(()=>api.clearCache(),'Cache vidé.'));
+$('clear-sites').addEventListener('click',async()=>{
+  if(!confirm('Effacer les cookies et toutes les données des sites, y compris les données des extensions ? Cette action te déconnectera des services.'))return;
+  await run(()=>api.clearSiteData(),'Données des sites supprimées.');
+});
+api.onFocusFind(openFind);api.onState(render);api.onFocusAddress(()=>{if(panel)showPanel('').catch(()=>{});$('address').focus();$('address').select();});
 api.initial().then(render).catch(err=>notify(err.message||String(err),true));
