@@ -121,3 +121,34 @@ DevGitBrowser/
 Le **nouveau logo néon** est inclus dans les ressources Windows et l’interface graphique. `assets/icon.ico` contient les formats 16, 24, 32, 48, 64, 128 et 256 pixels requis pour les raccourcis Windows ; `assets/icon.png` sert d'icône de fenêtre et `assets/logo-mark.png` est utilisée dans la page d'accueil et l'en-tête. L'installateur NSIS réutilise l'ICO fourni.
 
 Pour remplacer ultérieurement l'artwork par un fichier PNG original en pleine résolution, actualise `assets/brand-source.png`, régénère les icônes avec `python assets/generate-icon.py` et relance la construction Windows. Les visuels sont issus de l'illustration DevGitBrowser et peuvent différer d'un éventuel master vectoriel original.
+
+
+## 1.2.0 : nouveautés et limites techniques
+
+### Analyseur réseau en direct
+
+- Clique sur **◉ Réseau**, dans la barre supérieure ou le rail latéral : la fenêtre d'analyse indépendante s'ouvre et capture les appels de **l'onglet actif** via le protocole Chrome DevTools (CDP).
+- Le site inspecté et sa navigation sont visibles à travers les requêtes `GET/POST`, réponses HTTP, états et en-têtes. Les corps de réponse **textuels** sont accessibles uniquement après clic sur « Afficher », limités à 48 Ko. Les données secrètes courantes sont masquées, sans garantie d'anonymisation parfaite.
+- Le journal n'est conservé **qu'en mémoire** pendant l'ouverture du moniteur, limité à 400 requêtes ; il n'est ni envoyé à GitHub ni écrit sur disque. Les fenêtres pop-up indépendantes et le trafic des autres logiciels ne sont pas capturés.
+- L'ouverture simultanée des DevTools peut interrompre l'attachement réseau CDP : utilise « Reconnecter » après avoir fermé DevTools.
+
+### Pages anciennes : Internet Explorer/MSHTML **sans Edge**
+
+- DevGitBrowser conserve **Chromium** pour la navigation courante, la visioconférence et les extensions. Il recherche automatiquement certains marqueurs des pages anciennes (ActiveX, VBScript, directives IE, doctype ancien) et t'en informe.
+- « **IE • Ouvrir le site en mode ancien** » permet de démarrer, après confirmation, une fenêtre **Windows native** basée sur le composant `System.Windows.Forms.WebBrowser`/MSHTML (Trident historique d'Internet Explorer), lorsque Windows le fournit. Il ne passe pas par Edge.
+- Ce mécanisme reste **manuel**, car l'ouverture automatique d'un moteur obsolète sur des pages web externes serait dangereuse. Il n'a pas les permissions/cookies/extensions du navigateur principal, certains sites et fonctions modernes ne marchent pas, et les règles de sécurité Windows peuvent empêcher le lancement.
+- Microsoft ne prend plus en charge l'application IE autonome sur Windows 11. Le composant d'intégration MSHTML est une compatibilité héritée et ne doit servir qu'à des applications de confiance. N'y saisissez pas de mots de passe ou d'informations bancaires. Le fichier PowerShell de compatibilité est inclus sous `legacy/` et déployé dans `app.asar.unpacked`.
+
+### Pop-ups webcam Windows toujours visibles
+
+- Depuis **Sécurité du site → Fenêtres webcam Windows au premier plan**, choisis « comportement par défaut », « toujours » ou « fenêtres classiques ». Le comportement par défaut épingle uniquement les pop-ups autorisées de BabelVisio.
+- Ces pop-ups sont de **vraies fenêtres Windows Electron** avec leur relation `window.opener` préservée. Le menu clic droit et le raccourci **Alt+Maj+P** permettent de désactiver l'épinglage fenêtre par fenêtre.
+- Les autorisations *caméra/micro/partage écran* restent indépendantes du placement de la fenêtre. Le navigateur ne lance pas l'application Windows Caméra ; il utilise le périphérique Windows via WebRTC et une fenêtre Windows native.
+
+### BabelVisio
+
+L'accueil fait la promotion du site officiel `https://www.BabelVisio.com` comme espace de discussions, webcams et mini-jeux, éléments spécifiés par le propriétaire de DevGitBrowser. La page BabelVisio ne s'est pas laissée consulter depuis l'environnement de développement au moment de la mise à jour : aucun nom de mini-jeu, nombre de participants ou garantie de service n'a été inventé. Toutes les publicités sont internes au navigateur, sans injecter de code publicitaire dans les pages web.
+
+### Icône transparente et identité
+
+Le nouveau symbole PNG/ICO généré conserve son alpha transparent ; pas de plaque carrée sombre. Le `generate-icon.py` utilise `assets/brand-source.png` (logo de référence) pour reconstruire les tailles de 16 à 256 pixels pour Windows. La société et le développeur restent CodexHempreur INC / CodexHempreur ; une véritable signature Authenticode nécessite un certificat distinct.

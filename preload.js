@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   newTab:url=>invoke('tab:new',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),detachTab:()=>invoke('tab:detach'),
   go:url=>invoke('nav:go',url),back:()=>invoke('nav:back'),forward:()=>invoke('nav:forward'),
   reload:()=>invoke('nav:reload'),home:()=>invoke('nav:home'),inspect:()=>invoke('nav:inspect'),
+  network:()=>invoke('nav:network'),legacy:()=>invoke('nav:legacy'),topmost:mode=>invoke('site:popup-topmost',mode),
   find:(query,forward)=>invoke('nav:find',query,forward),stopFind:()=>invoke('nav:stop-find'),print:()=>invoke('nav:print'),
   panel:value=>invoke('ui:panel',value),
   allowPopups:value=>invoke('site:popups',value),sitePrivacy:(key,value)=>invoke('site:privacy',key,value),siteReset:()=>invoke('site:reset'),revokeMedia:()=>invoke('site:revoke-media'),

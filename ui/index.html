@@ -33,37 +33,54 @@
     <button id="github-button" class="nav-tool github-button" title="Connexion et synchronisation GitHub">⌘ <span>GitHub</span><i id="git-indicator"></i></button>
     <button id="extensions-button" class="nav-tool" title="Extensions installées">▦ <span id="extension-counter">0</span></button>
     <button id="proxy-button" class="nav-tool" title="Paramètres du navigateur">⚙</button>
+    <button id="network-button" class="nav-tool network-button" title="Analyse réseau en fenêtre indépendante">◉ <span>Réseau</span></button>
+    <button id="legacy-button" class="nav-tool small" title="Ouvrir dans Internet Explorer / MSHTML (sites anciens uniquement)">IE</button>
     <button id="devtools" class="nav-tool small" title="Outils de développement">&lt;/&gt;</button>
   </div>
   <div id="find-bar" class="find-bar hidden" role="search"><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><button id="find-prev" title="Occurrence précédente">↑</button><button id="find-next" title="Occurrence suivante">↓</button><button id="find-close" title="Fermer la recherche">✕</button></div>
 </header>
 
+<nav class="left-rail" aria-label="Navigation DevGitBrowser">
+  <div class="rail-top"><img src="../assets/logo-mark.png" alt="" width="42" height="42"></div>
+  <button type="button" id="rail-home" class="rail-action active" title="Accueil"><span class="rail-ico">⌂</span><small>Accueil</small></button>
+  <button type="button" id="rail-network" class="rail-action" title="Fenêtre d’analyse réseau"><span class="rail-ico">◉</span><small>Réseau</small></button>
+  <button type="button" id="rail-github" class="rail-action" title="GitHub"><span class="rail-ico">⌘</span><small>GitHub</small></button>
+  <button type="button" id="rail-extensions" class="rail-action" title="Extensions"><span class="rail-ico">▦</span><small>Extensions</small></button>
+  <button type="button" id="rail-security" class="rail-action" title="Autorisations"><span class="rail-ico">◇</span><small>Sécurité</small></button>
+  <button type="button" id="rail-settings" class="rail-action" title="Réglages"><span class="rail-ico">⚙</span><small>Réglages</small></button>
+  <button type="button" id="rail-babel" class="rail-action rail-babel" title="Découvrir BabelVisio"><span class="rail-ico">✦</span><small>Babel</small></button>
+</nav>
+
 <main id="welcome" class="welcome">
   <div class="light-spot"></div>
+  <div class="home-banner"><span>✦ DEV / NETWORK / LIVE</span><span class="home-banner-right">DEVGITBROWSER • NEON EDITION</span></div>
   <div class="welcome-layout">
     <section class="intro-panel">
       <div class="intro-identity"><img src="../assets/logo-mark.png" alt="DevGitBrowser" width="76" height="76"><div><strong>DevGitBrowser</strong><small>Le navigateur de développement par CodexHempreur</small></div></div>
-      <div class="supra">APPLICATION DÉVELOPPEUR <span>•</span> NAVIGATION PRIVÉE PAR PROFIL</div>
+      <div class="supra">L’UNIVERS DEV <span>✦</span> UN NAVIGATEUR QUI VOUS RESSEMBLE</div>
       <div class="overline"><span class="line"></span> VOTRE ESPACE DE CRÉATION</div>
-      <h1>Le web. Tes idées.<br><em>Un seul espace.</em></h1>
-      <p>Construis tes extensions depuis ton dépôt GitHub privé, retrouve-les automatiquement et teste-les directement dans ton navigateur.</p>
+      <div class="hero-hologram" aria-hidden="true"><img src="../assets/logo-mark.png" alt="" width="172" height="172"></div>
+      <h1>Le web, en mode<br><em>nouvelle génération.</em></h1>
+      <p>Développe tes extensions GitHub privées, analyse le trafic en direct et garde tes fenêtres vidéo sous les yeux, dans un navigateur pensé pour créer.</p>
       <form id="start-search" class="hero-search"><span>⌕</span><input id="start-address" type="text" placeholder="Explorer une adresse ou rechercher..."><button type="submit">Explorer <span>↗</span></button></form>
-      <div class="feature-chips"><span><b>✓</b> Dépôt privé</span><span><b>✓</b> Permissions contrôlées</span><span><b>✓</b> Multi-fenêtres</span></div>
+      <div class="feature-chips"><span><b>✓</b> GitHub privé</span><span><b>✓</b> Outils réseau</span><span><b>✓</b> Multi-fenêtres</span><span><b>✓</b> Mode legacy</span></div>
     </section>
-    <aside class="promo" aria-label="Partenaire mis en avant BabelVisio">
-      <div class="promo-top"><span class="spotlight">À DÉCOUVRIR</span><span class="star">✳</span></div>
-      <div class="promo-mark"><span class="promo-ring one"></span><span class="promo-ring two"></span><span class="promo-logo">B<span>V</span></span></div>
-      <div class="promo-eyebrow">FOCUS WEB • BABELVISIO.COM</div>
-      <h2>La rencontre<br>commence ici<span>.</span></h2>
-      <p>Découvrez BabelVisio directement depuis DevGitBrowser. Accédez à son site en un clic.</p>
-      <button id="open-babel" class="promo-link">Découvrir BabelVisio <span>↗</span></button>
-      <div class="promo-address">www.BabelVisio.com</div>
+    <aside class="promo promo-babel" aria-label="Découvrir la communauté BabelVisio">
+      <div class="promo-top"><span class="spotlight">✦ SITE À LA UNE</span><span class="star">EN LIGNE</span></div>
+      <div class="promo-sparkle" aria-hidden="true">✦</div>
+      <div class="promo-eyebrow">BABELVISIO.COM · ÉCHANGES EN LIGNE</div>
+      <h2>Discute. Partage.<br><span>Joue ensemble.</span></h2>
+      <p class="promo-lead">Un univers de discussion en ligne qui donne une autre dimension aux échanges. Textes, webcams et mini-jeux : retrouve la communauté sur <strong>BabelVisio</strong>.</p>
+      <div class="babel-features"><div><span>◌</span><b>Discussions</b><small>Échange en direct</small></div><div><span>▣</span><b>Webcams</b><small>Fenêtres détachables</small></div><div><span>✦</span><b>Mini-jeux</b><small>Jouez en discutant</small></div></div>
+      <button id="open-babel" class="promo-link">Explorer BabelVisio <span>↗</span></button>
+      <div class="promo-address">Visiter le site officiel · www.BabelVisio.com</div>
     </aside>
   </div>
   <div class="quick-grid">
     <button id="card-github" class="quick-item"><span class="quick-icon git">⌘</span><strong>GitHub privé</strong><small>Associer un dépôt et synchroniser</small><span class="mini-arrow">↗</span></button>
     <button id="card-extensions" class="quick-item"><span class="quick-icon ext">▦</span><strong>Mes extensions</strong><small>Tester les extensions du dépôt</small><span class="mini-arrow">↗</span></button>
     <button id="card-security" class="quick-item"><span class="quick-icon shield">◈</span><strong>Contrôle des sites</strong><small>Pop-ups, webcam et microphone</small><span class="mini-arrow">↗</span></button>
+    <button id="card-network" class="quick-item"><span class="quick-icon net">◉</span><strong>Analyse réseau LIVE</strong><small>Requêtes et réponses en direct</small><span class="mini-arrow">↗</span></button>
   </div>
 </main>
 
@@ -106,6 +123,8 @@
         <p>BabelVisio est autorisé par défaut : les fenêtres vidéo <code>window.open()</code> restent utilisables. Les autres sites sont bloqués tant que tu ne les autorises pas. Des limites de fréquence et de nombre de fenêtres restent actives.</p></div>
         <select id="popup-mode" aria-label="Politique pop-up de ce site" class="compact-select"><option value="default">Politique par défaut</option><option value="allow">Autoriser pour ce site</option><option value="block">Toujours bloquer</option></select></div>
       <div class="notice good" id="popup-effective">Fenêtres selon la politique du site</div>
+      <div class="setting-line"><div><strong>Fenêtres webcam Windows au premier plan</strong><p>BabelVisio épingle automatiquement ses fenêtres pop-up natives au-dessus des autres applications. Clic droit dans la fenêtre ou Alt+Maj+P pour modifier l’épinglage. Réglable site par site ; uniquement pour les prochaines fenêtres.</p></div>
+        <select id="popup-topmost" class="compact-select"><option value="default">Comportement par défaut</option><option value="yes">Toujours au premier plan</option><option value="no">Fenêtres classiques</option></select></div>
       <div class="setting-line"><div><strong>Caméra</strong><p>Demander, autoriser ou bloquer individuellement le matériel vidéo pour l’origine affichée.</p></div><select id="site-camera" class="compact-select"><option value="ask">Demander</option><option value="allow">Autoriser</option><option value="block">Bloquer</option></select></div>
       <div class="setting-line"><div><strong>Microphone</strong><p>Le microphone dispose de sa propre autorisation, distincte de celle de la caméra.</p></div><select id="site-microphone" class="compact-select"><option value="ask">Demander</option><option value="allow">Autoriser</option><option value="block">Bloquer</option></select></div>
       <div class="setting-line"><div><strong>Notifications</strong><p>Bloquées par défaut pour éviter le spam. Active uniquement les sites utiles.</p></div><select id="site-notifications" class="compact-select"><option value="block">Bloquer</option><option value="ask">Demander</option><option value="allow">Autoriser</option></select></div>
@@ -129,6 +148,14 @@
     </form>
     <div class="section-card">
       <h3>Outils de page</h3><p>Rechercher dans le texte de la page, imprimer ou enregistrer en PDF avec la boîte de dialogue Windows.</p><div class="form-buttons"><button id="page-find" type="button" class="outline">Rechercher dans la page</button><button id="page-print" type="button" class="outline">Imprimer / PDF</button></div>
+    </div>
+    <div class="section-card">
+      <h3>Analyse réseau & compatibilité ancienne</h3>
+      <p>Ouvre une fenêtre réseau Windows indépendante qui lit en direct les requêtes HTTP, les réponses, les statuts et les en-têtes de l’onglet actif. L’analyse s’arrête à la fermeture de la fenêtre.</p>
+      <div class="form-buttons"><button id="settings-network" class="primary" type="button">◉ Ouvrir l’analyse réseau</button></div>
+      <div class="legacy-status" id="legacy-status">Détection des pages anciennes disponible pour le site actif.</div>
+      <p>DevGitBrowser utilise Chromium normalement. Les sites qui nécessitent réellement Internet Explorer peuvent être ouverts dans une fenêtre Windows séparée avec MSHTML (moteur IE historique), à ta demande. Ce mode n’est pas conseillé pour les sites modernes, les webcams ou les informations sensibles.</p>
+      <div class="form-buttons"><button id="settings-legacy" class="outline" type="button">IE • Ouvrir le site en mode ancien</button></div>
     </div>
     <div class="section-card">
       <h3>Zoom des pages</h3><p>Agrandir ou réduire le site actuellement ouvert, sans changer la taille des menus.</p>

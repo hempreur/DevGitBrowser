@@ -25,3 +25,13 @@
 - Les modifications ont été vérifiées par tests de logique et compilation du projet, mais cela ne remplace pas un test end-to-end des fenêtres et périphériques Windows.
 - La consommation CPU/GPU varie selon les appels vidéo, le pilote graphique, les extensions chargées et le nombre d'onglets : une consommation quasi nulle n'est pas réaliste en visioconférence.
 - L'installateur NSIS Windows n'est pas signé avec un certificat Authenticode, les métadonnées CodexHempreur INC ne constituent pas une signature Windows vérifiée.
+
+## 1.2.0 — Neon / Analyse LIVE / IE Legacy (6 novembre 2026)
+
+- **Interface néon inspirée du visuel approuvé** : barre latérale, accueil cyberpunk cyan/violet/magenta, icônes et boutons cohérents, promotion BabelVisio pour discuter, utiliser les webcams et explorer les mini-jeux (sans listes de jeux non vérifiées).
+- **Icône Windows sans fond** : le symbole néon remplace le carré sombre ; PNG et ICO ont des pixels réellement transparents dans les quatre coins, sur le bureau, les raccourcis et l'installeur.
+- **Analyse réseau indépendante** : fenêtre Windows dédiée, protocole DevTools Network attaché seulement pendant l'inspection de l'onglet actif, requêtes/réponses, statuts, durées, en-têtes, aperçu de réponse explicitement demandé, données sensibles filtrées, aucune journalisation sur disque. WebSockets : métadonnées de connexion, pas le trafic privé des messages.
+- **Compatibilité IE historique réelle et distincte** : détection non intrusive de marqueurs anciens (ActiveX/VBScript/X-UA-Compatible), et commande *Ouvrir en mode ancien* invoquant le contrôle Windows WebBrowser (MSHTML/Trident) via une fenêtre PowerShell/WinForms sans console. Demande explicite et avertissement de sécurité avant chaque ouverture ; pas d'activation automatique sur les sites Internet.
+- **Caméras Windows au premier plan** : les nouvelles pop-ups natives de BabelVisio restent au premier plan par défaut (niveau flottant), sans désactiver l'isolation et les demandes de permissions. Réglage par site, menu contextuel et raccourci Alt+Maj+P pour épingler/désépingler. Le throttling d'arrière-plan est désactivé pour ces fenêtres vidéo afin de ne pas bloquer la lecture.
+- **Performances** : l'inspecteur réseau n'est actif que fenêtre ouverte, les animations décoratives ont été évitées, le GPU reste actif par défaut (meilleur rendu vidéo). Aucun gain chiffré garanti, dépend des sites et du PC.
+- **Distribution** : un seul installateur Windows x64 NSIS, même profil local et même partition, code éditeur CodexHempreur INC, sans certificat Authenticode.

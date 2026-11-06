@@ -1,9 +1,9 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Navigateur de développement sécurisé et synchronisation privée des extensions GitHub",
+  "description": "Navigateur Windows de développement néon : extensions GitHub privées, popups webcam natifs, réseau LIVE et compatibilité legacy IE",
   "author": {
     "name": "CodexHempreur",
     "organization": "CodexHempreur INC"
@@ -35,6 +35,8 @@
       "lib/**/*",
       "ui/**/*",
       "assets/**/*",
+      "legacy/**/*",
+      "network/**/*",
       "package.json"
     ],
     "win": {
@@ -65,6 +67,9 @@
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico"
-    }
+    },
+    "asarUnpack": [
+      "legacy/**/*"
+    ]
   }
 }

@@ -34,6 +34,7 @@ function updateTabs(state){
   $('back').disabled=!t?.back;$('forward').disabled=!t?.forward;
   $('reload').textContent=t?.loading?'✕':'↻';
   $('welcome').classList.toggle('hidden',Boolean(t?.url));
+  $('rail-home').classList.toggle('active',!t?.url);
   $('ssl-symbol').textContent=t?.url?.startsWith('https://')?'♢':'◇';
 }
 function updateSecurity(state){
@@ -41,6 +42,7 @@ function updateSecurity(state){
   $('origin-label').textContent=state.currentOrigin||'Ouvrir un site HTTPS';
   $('popup-mode').disabled=!hasSite;
   $('popup-mode').value=state.popupOverrideHere;
+  $('popup-topmost').disabled=!hasSite; $('popup-topmost').value=state.popupTopmostOverride||'default';
   $('popup-effective').textContent=state.popupModeHere==='allow'
     ?(state.popupDefaultBabel?'✓ BabelVisio : pop-ups vidéo autorisés automatiquement, avec filtre anti-abus.':'✓ Pop-ups autorisés pour ce site, avec filtre anti-abus.')
     :'● Pop-ups bloqués pour ce site. Tu peux les autoriser après vérification.';
@@ -52,6 +54,8 @@ function updateSecurity(state){
   $('camera-status').textContent='Caméra : '+(state.mediaHere.camera?'autorisée':'demande requise ou bloquée');
   $('mic-status').textContent='Micro : '+(state.mediaHere.microphone?'autorisé':'demande requise ou bloqué');
   $('security-button').classList.toggle('attention',state.blockedPopups>0);
+  const h=state.legacyHere||{likely:false,hints:[]};
+  $('legacy-status').textContent=h.likely?'⚠ Site ancien détecté : '+(h.hints||[]).join(' · '):h.hints?.length?'Indices legacy : '+h.hints.join(' · '):'Aucun besoin spécifique d’Internet Explorer détecté pour ce site.';
 }
 function updateGithub(state){
   const g=state.github;
@@ -104,6 +108,20 @@ $('forward').addEventListener('click',()=>run(()=>api.forward()));
 $('reload').addEventListener('click',()=>run(()=>api.reload()));
 $('home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
 $('devtools').addEventListener('click',()=>run(()=>api.inspect()));
+const openNetwork=()=>run(()=>api.network(),'Analyse réseau ouverte dans une fenêtre indépendante.');
+const openLegacy=()=>run(()=>api.legacy());
+$('network-button').addEventListener('click',openNetwork);
+$('legacy-button').addEventListener('click',openLegacy);
+$('rail-network').addEventListener('click',openNetwork);
+$('card-network').addEventListener('click',openNetwork);
+$('settings-network').addEventListener('click',openNetwork);
+$('settings-legacy').addEventListener('click',openLegacy);
+$('rail-home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
+$('rail-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
+$('rail-github').addEventListener('click',()=>run(()=>showPanel('github')));
+$('rail-extensions').addEventListener('click',()=>run(()=>showPanel('extensions')));
+$('rail-security').addEventListener('click',()=>run(()=>showPanel('security')));
+$('rail-settings').addEventListener('click',()=>run(()=>showPanel('settings')));
 function openFind(){if(panel)showPanel('').catch(()=>{});$('find-bar').classList.remove('hidden');$('find-text').focus();$('find-text').select();}
 function closeFind(){api.stopFind().catch(()=>{});$('find-bar').classList.add('hidden');}
 $('find-button').addEventListener('click',openFind);
@@ -123,6 +141,7 @@ const panelBindings={ 'security-button':'security','github-button':'github','ext
 for(const [id,name] of Object.entries(panelBindings))$(id).addEventListener('click',()=>run(()=>showPanel(name)));
 for(const item of document.querySelectorAll('[data-close]'))item.addEventListener('click',()=>run(()=>showPanel('')));
 $('popup-mode').addEventListener('change',()=>run(()=>api.allowPopups($('popup-mode').value),'Politique des fenêtres mise à jour.'));
+$('popup-topmost').addEventListener('change',()=>run(()=>api.topmost($('popup-topmost').value),'Comportement des fenêtres Windows enregistré.'));
 for(const key of ['camera','microphone','notifications','geolocation']){
   $(`site-${key}`).addEventListener('change',()=>run(()=>api.sitePrivacy(key,$(`site-${key}`).value),'Autorisation du site enregistrée.'));
 }

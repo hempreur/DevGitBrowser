@@ -5,15 +5,20 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {spawn} = require('node:child_process');
+const {NetworkMonitor} = require('./lib/network-monitor');
+const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
 
 const SHELL_HEIGHT = 118;
+const RAIL_WIDTH = 68;
 const MAX_TABS = 30;
 
 const popupLimiter = new PopupLimiter();
 const windows = new Map();
+const networkWindows = new Map(); // owner-window id -> {win, monitor}
 const installed = new Map(); // key -> {id, name, fingerprint, directory, error}
 const popupOrigins = new WeakMap(); // popup webContents -> opener origin for about:blank windows
 const ephemeralMedia = new Map();
@@ -31,7 +36,7 @@ function writeAtomic(target, contents) {
   finally { try { fs.rmSync(tmp, { force: true }); } catch {} }
 }
 function loadSettings() {
-  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{} });
+  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{}, popupTopmost:{} });
   try {
     const raw = JSON.parse(fs.readFileSync(userDataFile('preferences.json'), 'utf8'));
     const p = fallback();
@@ -53,6 +58,9 @@ function loadSettings() {
           if(['allow','block','ask'].includes(values[key]))p.sitePrivacy[origin][key]=values[key];
         }
       }
+    }
+    if (raw.popupTopmost && typeof raw.popupTopmost === 'object' && !Array.isArray(raw.popupTopmost)) {
+      for(const [origin,value] of Object.entries(raw.popupTopmost).slice(0,100)) if(isSecureOrigin(origin) && typeof value==='boolean')p.popupTopmost[origin]=value;
     }
     if (raw.performance?.mode==='eco') p.performance.mode='eco';
     if (raw.performance?.hardwareAcceleration===false) p.performance.hardwareAcceleration=false;
@@ -116,6 +124,8 @@ function publicState(s) {
     proxy: settings.proxy, popupModeHere: origin ? popupMode(origin,settings.popupModes) : 'block',
     popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
     popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
+    popupTopmostHere:origin ? nativePopupTopmost(origin):false, popupTopmostOverride:origin && Object.hasOwn(settings.popupTopmost,origin)?(settings.popupTopmost[origin]?'yes':'no'):'default',
+    legacyHere:activeTab(s)?.legacy||{likely:false,hints:[]},
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
     zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
@@ -136,7 +146,7 @@ function layout(s) {
   const t = activeTab(s);
   if (!t || !t.url) return;
   const [w,h] = s.win.getContentSize();
-  t.view.setBounds({ x:0, y:SHELL_HEIGHT, width:Math.max(1,w), height:Math.max(1,h-SHELL_HEIGHT-27) });
+  t.view.setBounds({ x:RAIL_WIDTH, y:SHELL_HEIGHT, width:Math.max(1,w-RAIL_WIDTH), height:Math.max(1,h-SHELL_HEIGHT-27) });
 }
 function selectTab(s, id) {
   const next = s.tabs.get(Number(id)); if (!next) return;
@@ -151,6 +161,7 @@ function selectTab(s, id) {
     layout(s);
   }
   sendState(s);
+  const inspector=networkWindows.get(s.id); if(inspector)inspector.monitor.start(next.url?next.view.webContents:null);
 }
 function newTab(s, url = '') {
   if (s.tabs.size >= MAX_TABS) throw new Error(`Maximum de ${MAX_TABS} onglets par fenêtre.`);
@@ -159,7 +170,7 @@ function newTab(s, url = '') {
     webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true
   }});
   view.setBackgroundColor('#f5f7fa');
-  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false };
+  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]} };
   s.tabs.set(t.id, t);
   const wc = view.webContents;
   const update = () => {
@@ -169,7 +180,13 @@ function newTab(s, url = '') {
     sendState(t.owner);
   };
   wc.on('page-title-updated', (_event, title) => { t.title = String(title).slice(0,90); sendState(t.owner); });
-  wc.on('did-navigate', () => { update(); applySiteZoom(t); }); wc.on('did-navigate-in-page', update);
+  wc.on('did-navigate', () => { update(); applySiteZoom(t); });
+  wc.on('did-finish-load',async()=>{
+    if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
+    try{const result=await wc.executeJavaScript(DETECTOR_SOURCE,true);
+      if(!wc.isDestroyed() && isWebUrl(wc.getURL()) && result && Array.isArray(result.hints)){t.legacy={likely:result.likely===true,hints:result.hints.slice(0,5)};sendState(t.owner);}
+    }catch{}
+  }); wc.on('did-navigate-in-page', update);
   wc.setBackgroundThrottling(true);
   if(typeof wc.setZoomMode==='function')wc.setZoomMode('isolated');
   wc.on('did-start-loading', () => { t.loading=true; sendState(t.owner); });
@@ -212,17 +229,19 @@ function closeTab(s,id) {
 function navigate(s,text) {
   const t = activeTab(s); if (!t) return;
   const url = normalizeAddress(text); if (!url) return;
-  t.url=url; t.title=(new URL(url)).hostname;
+  t.url=url; t.title=(new URL(url)).hostname; t.legacy={likely:false,hints:[]};
   if (!s.win.contentView.children.includes(t.view)) s.win.contentView.addChildView(t.view);
   t.view.setVisible(!s.panelOpen); layout(s);
+  const inspector=networkWindows.get(s.id);if(inspector)inspector.monitor.start(t.view.webContents);
   sendState(s);
   t.view.webContents.loadURL(url).then(()=>applySiteZoom(t)).catch(() => {});
 }
 function home(s) {
   const t=activeTab(s); if (!t) return;
   if (t.url) { try { s.win.contentView.removeChildView(t.view); } catch {} }
-  t.url='';t.title='Nouvel onglet';t.loading=false;
+  t.url='';t.title='Nouvel onglet';t.loading=false;t.legacy={likely:false,hints:[]};
   t.view.webContents.loadURL('about:blank').catch(()=>{});
+  const inspector=networkWindows.get(s.id);if(inspector)inspector.monitor.start(null);
   sendState(s);
 }
 function createWindow(initialTab=true) {
@@ -244,6 +263,7 @@ function createWindow(initialTab=true) {
   win.on('closed',()=>{
     for (const t of s.tabs.values()) if (!t.view.webContents.isDestroyed()) t.view.webContents.close();
     s.tabs.clear(); windows.delete(s.id);
+    const inspector=networkWindows.get(s.id);if(inspector){inspector.win.close();networkWindows.delete(s.id);}
   });
   win.loadFile(path.join(__dirname,'ui','index.html'));
   if (initialTab) newTab(s);
@@ -261,6 +281,7 @@ function detachTab(s) {
   }
   if (s.tabs.size) selectTab(s,[...s.tabs.keys()].at(-1)); else newTab(s);
   sendState(next);
+  const inspector=networkWindows.get(s.id);if(inspector)inspector.monitor.start(activeTab(s)?.url?activeTab(s).view.webContents:null);
   next.win.focus();
 }
 function setPanel(s,value) {
@@ -363,6 +384,10 @@ function configurePermissionPolicy() {
       }).catch(()=>callback(null));
   });
 }
+function nativePopupTopmost(origin) {
+  if(Object.hasOwn(settings.popupTopmost,origin))return settings.popupTopmost[origin]===true;
+  return popupMode(origin)==='allow'; // BabelVisio native webcam popouts only, not arbitrary sites.
+}
 function installPopupHandler(wc, originProvider, ownerProvider, depth) {
   if(depth>4)return;
   const icon=path.join(__dirname,'assets','icon.png');
@@ -387,8 +412,18 @@ function installPopupHandler(wc, originProvider, ownerProvider, depth) {
     const origin=originProvider();
     popupOrigins.set(popup.webContents,origin);
     popup.setMenu(null);
+    const isVideoPopup=nativePopupTopmost(origin);
+    if(isVideoPopup){try{popup.setAlwaysOnTop(true,'floating');}catch{}}
+    // Native Windows BrowserWindow keeps the site window.open opener relationship.
+    // Avoid background video throttling only for explicit webcam popouts.
+    popup.webContents.setBackgroundThrottling(!isVideoPopup);
+    popup.webContents.on('context-menu',()=>{
+      Menu.buildFromTemplate([{label:'Garder cette fenêtre au premier plan',type:'checkbox',checked:popup.isAlwaysOnTop(),click:()=>{try{popup.setAlwaysOnTop(!popup.isAlwaysOnTop(),'floating');}catch{}}}]).popup({window:popup});
+    });
+    popup.webContents.on('before-input-event',(ev,input)=>{
+      if(input.type==='keyDown' && input.alt && input.shift && String(input.key).toLowerCase()==='p'){ev.preventDefault();popup.setAlwaysOnTop(!popup.isAlwaysOnTop(),'floating');}
+    });
     popup.once('closed',()=>popupLimiter.release(origin));
-    popup.webContents.setBackgroundThrottling(true);
     popup.webContents.on('will-navigate',(event,target)=>{
       const next=typeof target==='string'?target:target.url;
       let safe=isWebUrl(next);
@@ -521,6 +556,51 @@ async function syncGithub() {
   }catch(err){lastError=String(err.message||err);throw err;}
   finally{syncing=false;broadcast();}
 }
+function showNetworkWindow(owner){
+  const old=networkWindows.get(owner.id);
+  if(old&&!old.win.isDestroyed()){old.win.focus();return;}
+  const win=new BrowserWindow({width:1180,height:740,minWidth:720,minHeight:490,
+    title:'DevGitBrowser — Analyse réseau',icon:path.join(__dirname,'assets','icon.png'),backgroundColor:'#070c25',autoHideMenuBar:true,
+    webPreferences:{preload:path.join(__dirname,'network','preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
+  win.setMenu(null);win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  win.webContents.on('will-navigate',e=>e.preventDefault());
+  const inspector={win,monitor:new NetworkMonitor(msg=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('dgb-network:event',msg);})};
+  networkWindows.set(owner.id,inspector);
+  win.on('closed',()=>{inspector.monitor.stop();networkWindows.delete(owner.id);});
+  win.webContents.once('did-finish-load',()=>inspector.monitor.start(activeTab(owner)?.url?activeTab(owner).view.webContents:null));
+  win.loadFile(path.join(__dirname,'network','index.html'));
+}
+function inspectorFromSender(wc){
+  for(const inspector of networkWindows.values())if(!inspector.win.isDestroyed()&&inspector.win.webContents===wc)return inspector;
+  throw new Error('Accès au moniteur réseau refusé.');
+}
+function ownerForInspector(inspector){
+  for(const [id,entry] of networkWindows)if(entry===inspector)return windows.get(id);
+  return null;
+}
+function registerNetworkIpc(){
+  ipcMain.handle('dgb-network:initial',event=>({status:inspectorFromSender(event.sender).monitor.status}));
+  ipcMain.handle('dgb-network:clear',event=>inspectorFromSender(event.sender).monitor.clear());
+  ipcMain.handle('dgb-network:reconnect',event=>{
+    const inspector=inspectorFromSender(event.sender),owner=ownerForInspector(inspector),tab=owner&&activeTab(owner);
+    inspector.monitor.start(tab?.url?tab.view.webContents:null);
+  });
+  ipcMain.handle('dgb-network:body',(event,id)=>inspectorFromSender(event.sender).monitor.body(id));
+}
+async function launchLegacyWindow(s){
+  const tab=activeTab(s);if(!tab?.url)throw new Error('Ouvre d’abord un site ancien.');
+  if(process.platform!=='win32')throw new Error('Le moteur IE/MSHTML est réservé à Windows.');
+  const url=validateLegacyTarget(tab.url);
+  const {response}=await dialog.showMessageBox(s.win,{type:'warning',title:'Mode historique Internet Explorer / MSHTML',
+    message:'Ouvrir ce site dans le moteur Internet Explorer historique ?',
+    detail:'Ce moteur Windows est obsolète et moins protégé. À utiliser uniquement pour un site ancien de confiance, jamais pour les services modernes, la banque ou la visioconférence. Il s’ouvre dans une fenêtre Windows séparée et ne partage pas les cookies de DevGitBrowser.',
+    buttons:['Annuler','J’ai compris, ouvrir'],defaultId:0,cancelId:0,noLink:true});
+  if(response!==1)return false;
+  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','legacy-browser.ps1');
+  const child=spawn('powershell.exe',['-NoProfile','-NoLogo','-NonInteractive','-STA','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',helper,'-Url',url],{windowsHide:true,detached:true,stdio:'ignore'});
+  child.on('error',err=>dialog.showErrorBox('Mode IE indisponible',String(err.message||err)));
+  child.unref();return true;
+}
 function activeOriginRequired(s){const value=currentOrigin(s);if(!value)throw new Error('Ouvre un site HTTPS avant de modifier ses autorisations.');return value;}
 function registerIpc(){
   const h={
@@ -535,6 +615,8 @@ function registerIpc(){
     'nav:reload':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.reload();},
     'nav:home':s=>home(s),
     'nav:inspect':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.openDevTools({mode:'detach'});},
+    'nav:network':s=>showNetworkWindow(s),
+    'nav:legacy':s=>launchLegacyWindow(s),
     'nav:find':(s,query,forward=true)=>{
       const wc=activeTab(s)?.view.webContents;
       if(!wc || !activeTab(s).url || typeof query!=='string' || query.length>150)return;
@@ -544,6 +626,12 @@ function registerIpc(){
     'nav:stop-find':s=>{const wc=activeTab(s)?.view.webContents;if(wc&&!wc.isDestroyed())wc.stopFindInPage('clearSelection');},
     'nav:print':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.print({printBackground:true},()=>{});},
     'ui:panel':(s,shown)=>setPanel(s,shown),
+    'site:popup-topmost':(s,mode)=>{
+      const origin=activeOriginRequired(s);
+      if(!['default','yes','no'].includes(mode))throw new Error('Choix invalide.');
+      if(mode==='default')delete settings.popupTopmost[origin];else settings.popupTopmost[origin]=mode==='yes';
+      saveSettings();broadcast();
+    },
     'site:popups':(s,mode)=>{
       const origin=activeOriginRequired(s);
       if(!['allow','block','default'].includes(mode))throw new Error('Mode pop-up incorrect.');
@@ -620,10 +708,10 @@ else {
     token=restoreToken();
     if(token){try{const u=await api().getUser();account={id:u.id,login:u.login};}
       catch{token='';account=null;lastError='Session GitHub expirée. Reconnecte-toi.';}}
-    registerIpc();createWindow();
+    registerIpc();registerNetworkIpc();createWindow();
     if(token&&settings.github) syncGithub().catch(()=>{});
     resetSyncTimer();
   }).catch(err=>{dialog.showErrorBox('Démarrage impossible',String(err.stack||err));app.quit();});
-  app.on('before-quit',()=>{if(syncTimer)clearInterval(syncTimer);});
+  app.on('before-quit',()=>{if(syncTimer)clearInterval(syncTimer);for(const inspector of networkWindows.values())inspector.monitor.stop();});
   app.on('window-all-closed',()=>app.quit());
 }
