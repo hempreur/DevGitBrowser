@@ -28,7 +28,9 @@ jobs:
         run: |
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
           if (!(Test-Path $compiler)) { throw 'Compilateur .NET Framework 64 bits manquant.' }
-          & $compiler /nologo /target:exe /out:legacy/DevGitLegacyHost.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll legacy/DevGitLegacyHost.cs
+          $source = (Resolve-Path 'legacy/DevGitLegacyHost.cs').Path
+          $out = Join-Path (Get-Location).Path 'legacy/DevGitLegacyHost.exe'
+          & $compiler /nologo /target:exe "/out:$out" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "$source"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path legacy/DevGitLegacyHost.exe)) { throw 'Programme IE11 dédié absent.' }
       - name: Tester un vrai chargement MSHTML dans une fenêtre native Windows
