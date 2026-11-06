@@ -15,7 +15,7 @@ function stop(){clearTimeout(deadline);try{helper?.kill();}catch{}try{parent?.ki
 function fail(reason){if(finished)return;finished=true;console.error('MSHTML integration failure: '+reason);process.exitCode=1;stop();}
 function lines(stream,onLine){let buffer='';stream.setEncoding('utf8');stream.on('data',data=>{
   buffer+=data; if(buffer.length>65536){fail('event stream overflow');return;}
-  let i;while((i=buffer.indexOf('\n'))!==-1){const line=buffer.slice(0,i).trimEnd();buffer=buffer.slice(i+1);onLine(line);}
+  let i;while((i=buffer.indexOf('\n'))!==-1){const line=buffer.slice(0,i).replace(/\r$/, '');buffer=buffer.slice(i+1);onLine(line);}
 });}
 server.listen(0,'127.0.0.1',()=>{
   const url='http://127.0.0.1:'+server.address().port+'/';
