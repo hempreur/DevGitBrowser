@@ -26,8 +26,10 @@ public sealed class DevGitLegacyHost : Form {
     const int GWL_STYLE = -16;
     const long WS_CHILD = 0x40000000L;
     const long WS_POPUP = 0x80000000L;
-    const int SWP_NOZORDER = 0x0004;
+    const int SWP_NOACTIVATE = 0x0010;
+    const int SWP_SHOWWINDOW = 0x0040;
     const int SWP_FRAMECHANGED = 0x0020;
+    static readonly IntPtr HWND_TOP = IntPtr.Zero;
     const int SW_HIDE = 0;
     const int SW_SHOW = 5;
 
@@ -81,21 +83,32 @@ public sealed class DevGitLegacyHost : Form {
       };
       browser.Navigated+=(sender,e)=>{try{if(browser.Url!=null && SafeAddress(browser.Url.AbsoluteUri))Emit("URL", browser.Url.AbsoluteUri);}catch{}};
       browser.DocumentTitleChanged+=(sender,e)=>{try{Emit("TITLE",browser.DocumentTitle);}catch{}};
-      browser.DocumentCompleted+=(sender,e)=>{try{Emit("READYURL",browser.Url==null?"":browser.Url.AbsoluteUri);}catch{}};
+      browser.DocumentCompleted+=(sender,e)=>{
+        try {
+          // Never claim the engine is ready until the top-level MSHTML document exists.
+          if(browser.Url!=null && e.Url!=null && browser.Url==e.Url &&
+             browser.ReadyState==WebBrowserReadyState.Complete && browser.Document!=null && SafeAddress(browser.Url.AbsoluteUri)) {
+            Emit("READY",browser.Url.AbsoluteUri);
+            Emit("READYURL",browser.Url.AbsoluteUri);
+          }
+        } catch(Exception ex) {Emit("ERROR", "Chargement IE : " + ex.Message);}
+      };
       Controls.Add(browser);
       Shown+=(sender,e)=>{
         // This is a Windows child HWND, not a separate top-level application window.
-        SetParent(Handle,parent);
-        if (GetParent(Handle)!=parent) {
-          Emit("ERROR","Impossible d'intégrer le moteur IE dans l'onglet Windows.");Close();return;
-        }
+        // WS_CHILD must be set before SetParent (Microsoft Win32 contract).
         long style=GetWindowLongPtr(Handle,GWL_STYLE).ToInt64();
         long newStyle=(style & ~WS_POPUP) | WS_CHILD;
         SetWindowLongPtr(Handle,GWL_STYLE,new IntPtr(newStyle));
-        if(!SetWindowPos(Handle,IntPtr.Zero,x,y,Math.Max(1,w),Math.Max(1,h),SWP_FRAMECHANGED|SWP_NOZORDER)){
-          Emit("ERROR","Le contrôle IE ne peut pas être positionné dans l'onglet Windows.");Close();return;
+        SetParent(Handle,parent);
+        if (GetParent(Handle)!=parent) {
+          Emit("ERROR","Impossible d'intégrer le moteur IE dans l'onglet Windows. Erreur Windows : " + Marshal.GetLastWin32Error());Close();return;
         }
-        Emit("READY","");
+        // Critical: keep the native child ABOVE Chromium's native window, not just reparented behind it.
+        if(!SetWindowPos(Handle,HWND_TOP,x,y,Math.Max(1,w),Math.Max(1,h),SWP_FRAMECHANGED|SWP_SHOWWINDOW|SWP_NOACTIVATE)){
+          Emit("ERROR","Le contrôle IE ne peut pas être affiché dans l'onglet Windows. Erreur : " + Marshal.GetLastWin32Error());Close();return;
+        }
+        Emit("ATTACHED","");
         if(SafeAddress(address))browser.Navigate(address); else Emit("ERROR","Adresse HTTP(S) invalide.");
       };
       FormClosed+=(sender,e)=>Emit("CLOSED","");
@@ -114,10 +127,10 @@ public sealed class DevGitLegacyHost : Form {
           var nums=value.Split(',');
           if(nums.Length==4) {
             int x=int.Parse(nums[0]),y=int.Parse(nums[1]),w=int.Parse(nums[2]),h=int.Parse(nums[3]);
-            if(w>0 && h>0 && w<20000 && h<20000)SetWindowPos(Handle,IntPtr.Zero,x,y,w,h,SWP_NOZORDER);
+            if(w>0 && h>0 && w<20000 && h<20000)SetWindowPos(Handle,HWND_TOP,x,y,w,h,SWP_NOACTIVATE);
           }
         }
-        else if(code=="SHOW")ShowWindow(Handle,SW_SHOW);
+        else if(code=="SHOW"){ShowWindow(Handle,SW_SHOW);SetWindowPos(Handle,HWND_TOP,Left,Top,Width,Height,SWP_NOACTIVATE|SWP_SHOWWINDOW);}
         else if(code=="HIDE")ShowWindow(Handle,SW_HIDE);
         else if(code=="QUIT")Close();
       }catch(Exception ex){Emit("ERROR",ex.Message);}

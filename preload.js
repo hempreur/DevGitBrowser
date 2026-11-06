@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   githubConnect:token=>invoke('github:connect',token),
   githubRepo:(repo,branch)=>invoke('github:choose-repo',repo,branch),
   githubSync:()=>invoke('github:sync'),githubDisconnect:()=>invoke('github:disconnect'),
+  onLegacyReady:cb=>{const fn=(_event,value)=>cb(String(value));ipcRenderer.on('dgb:legacy-ready',fn);
+    return()=>ipcRenderer.off('dgb:legacy-ready',fn);},
   onLegacyError:cb=>{const fn=(_event,value)=>cb(String(value));ipcRenderer.on('dgb:legacy-error',fn);
     return()=>ipcRenderer.off('dgb:legacy-error',fn);},
   onState:cb=>{

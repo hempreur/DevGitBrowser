@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer } = require('electron');
+const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer, screen } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -132,7 +132,7 @@ function publicState(s) {
     popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
     popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
     popupTopmostHere:origin ? nativePopupTopmost(origin):false, popupTopmostOverride:origin && Object.hasOwn(settings.popupTopmost,origin)?(settings.popupTopmost[origin]?'yes':'no'):'default',
-    legacyHere:{...(activeTab(s)?.legacy||{likely:false,hints:[]}), engine:activeTab(s)?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true},
+    legacyHere:{...(activeTab(s)?.legacy||{likely:false,hints:[]}), engine:activeTab(s)?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true, error:activeTab(s)?.legacyError||''},
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
     zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
@@ -159,6 +159,12 @@ function syncNativeHost(t){
   const s=t.owner;const visible=s.activeId===t.id && !s.panelOpen && Boolean(t.url);
   hostCommand(t,visible?'SHOW':'HIDE');
 }
+function nativeBounds(s) {
+  const [w,h] = s.win.getContentSize();
+  const scale = process.platform==='win32' ? screen.getDisplayMatching(s.win.getBounds()).scaleFactor || 1 : 1;
+  return [RAIL_WIDTH,SHELL_HEIGHT,Math.max(1,w-RAIL_WIDTH),Math.max(1,h-SHELL_HEIGHT-27)]
+    .map(v=>Math.max(0,Math.round(v*scale)));
+}
 function layout(s) {
   if (s.win.isDestroyed()) return;
   const t = activeTab(s);
@@ -166,7 +172,7 @@ function layout(s) {
   const [w,h] = s.win.getContentSize();
   const width=Math.max(1,w-RAIL_WIDTH),height=Math.max(1,h-SHELL_HEIGHT-27);
   t.view.setBounds({ x:RAIL_WIDTH, y:SHELL_HEIGHT, width, height });
-  hostCommand(t,'BOUNDS',[RAIL_WIDTH,SHELL_HEIGHT,width,height].join(','));
+  hostCommand(t,'BOUNDS',nativeBounds(s).join(','));
 }
 function selectTab(s, id) {
   const next = s.tabs.get(Number(id)); if (!next) return;
@@ -192,7 +198,7 @@ function newTab(s, url = '') {
     webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true
   }});
   view.setBackgroundColor('#f5f7fa');
-  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,forceModern:false };
+  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',forceModern:false };
   s.tabs.set(t.id, t);
   const wc = view.webContents;
   const update = () => {
@@ -657,14 +663,18 @@ function embeddedHostFailed(t){
 function handleEmbeddedEvent(t,host,message){
   if(t.legacyHost!==host || host.stopping)return;
   const {event,value}=message;
-  if(event==='READY'){
+  if(event==='ATTACHED'){
+    host.attached=true;sendState(t.owner);
+  } else if(event==='READY'){
+    if(host.ready)return;
     if(host.watchdog)clearTimeout(host.watchdog);
-    host.ready=true;host.starting=false;
+    host.ready=true;host.starting=false;t.engine='mshtml';t.legacyError='';
     if(!t.view.webContents.isDestroyed())t.view.setVisible(false);
     syncNativeHost(t);layout(t.owner);
     // After the native view is ready, unload Chromium's copy to avoid duplicate scripts, audio or camera capture.
     if(!t.view.webContents.isDestroyed())t.view.webContents.loadURL('about:blank').catch(()=>{});
     sendState(t.owner);
+    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-ready', value);
   } else if(event==='URL'){
     try{t.url=validateLegacyTarget(value);t.title=new URL(t.url).hostname;}catch{return;}
     sendState(t.owner);
@@ -672,7 +682,7 @@ function handleEmbeddedEvent(t,host,message){
     if(value)t.title=String(value).slice(0,90);sendState(t.owner);
   } else if(event==='ERROR'){
     const failure=String(value).slice(0,250);
-    if(!host.ready){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);}
+    embeddedHostFailed(t);t.legacyError=failure;stopEmbeddedLegacy(t,true);sendState(t.owner);
     if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',failure);
   } else if(event==='EXTERNAL'){
     // A cross-origin redirect must return to the normal protected Chromium engine.
@@ -686,20 +696,24 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
   if(/(^|\.)babelvisio\.com$/i.test(new URL(url).hostname))throw new Error('Le moteur IE est désactivé pour BabelVisio et la visioconférence.');
   if(t.legacyHost)return true;
   if(rememberTrust){settings.legacyTrustedOrigins[origin]=true;saveSettings();}
-  t.forceModern=false;
+  t.legacyError='';t.forceModern=false;
   const handle=s.win.getNativeWindowHandle();
   const winHandle=handle.length===8?handle.readBigUInt64LE(0).toString():String(handle.readUInt32LE(0));
-  const [width,height]=s.win.getContentSize();
+  const bounds=nativeBounds(s);
   const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','embedded-ie.ps1');
   const child=spawn('powershell.exe',['-NoProfile','-NoLogo','-NonInteractive','-STA','-ExecutionPolicy','Bypass',
     '-WindowStyle','Hidden','-File',helper,'-ParentHandle',winHandle,'-InitialUrl',url,
-    '-X',String(RAIL_WIDTH),'-Y',String(SHELL_HEIGHT),'-Width',String(Math.max(1,width-RAIL_WIDTH)),
-    '-Height',String(Math.max(1,height-SHELL_HEIGHT-27))],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+    '-X',String(bounds[0]),'-Y',String(bounds[1]),'-Width',String(bounds[2]),
+    '-Height',String(bounds[3])],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   const host={child,ready:false,starting:true,stopping:false,buffer:'',watchdog:null};
-  host.watchdog=setTimeout(()=>{if(t.legacyHost===host && !host.ready){stopEmbeddedLegacy(t,true);
-    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error','Le moteur IE ne répond pas sur cette machine. Retour à Chromium.');
-  }},12000);host.watchdog.unref?.();
-  t.legacyHost=host;t.engine='mshtml';
+  host.watchdog=setTimeout(()=>{if(t.legacyHost===host && !host.ready){
+    embeddedHostFailed(t);t.legacyError=host.attached ?
+      'Le contrôle IE a été intégré, mais la page ne s’est pas chargée. Retour à Chromium.' :
+      'Impossible d’afficher le contrôle Windows IE. Vérifie les composants MSHTML et les paramètres de sécurité Windows.';
+    stopEmbeddedLegacy(t,true);sendState(t.owner);
+    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',t.legacyError);
+  }},20000);host.watchdog.unref?.();
+  t.legacyHost=host;t.engine='mshtml-pending';
   // Prevent the render from being replaced by an unrelated tab while it starts.
   child.stdout.setEncoding('utf8');
   child.stdout.on('data',text=>{
@@ -710,19 +724,20 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
       const event=decodeEvent(line);if(event)handleEmbeddedEvent(t,host,event);
     }
   });
-  child.stderr.on('data',()=>{}); // no raw stderr or secret URLs in the interface
+  child.stderr.on('data',chunk=>{host.stderr=(host.stderr||'')+String(chunk).slice(0,200);}); // diagnostic only, never sent to website
   child.on('error',err=>{
-    if(t.legacyHost===host){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);
-      if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',String(err.message||err));}
+    if(t.legacyHost===host){embeddedHostFailed(t);t.legacyError=String(err.message||err).slice(0,250);stopEmbeddedLegacy(t,true);sendState(t.owner);
+      if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',t.legacyError);}
   });
   child.on('exit',()=>{
-    if(t.legacyHost===host){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);if(!t.owner.win.isDestroyed())sendState(t.owner);}
+    if(t.legacyHost===host){embeddedHostFailed(t);t.legacyError='Le processus Windows MSHTML s’est arrêté sans afficher la page. Retour à Chromium.';stopEmbeddedLegacy(t,true);sendState(t.owner);
+      if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',t.legacyError);}
   });
   sendState(s);return true;
 }
 async function toggleLegacyInTab(s){
   const tab=activeTab(s);if(!tab?.url)throw new Error('Ouvre d’abord un site ancien.');
-  if(tab.engine==='mshtml'){
+  if(tab.engine==='mshtml' || tab.engine==='mshtml-pending'){
     delete settings.legacyTrustedOrigins[originOf(tab.url)];saveSettings();
     tab.forceModern=true;stopEmbeddedLegacy(tab,true);sendState(s);return false;
   }

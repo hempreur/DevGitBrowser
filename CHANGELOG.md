@@ -1,3 +1,12 @@
+# Version 1.3.1 — Correctif de visibilité du moteur IE (2026-11-06)
+
+- Correctif de l’empilement natif Windows : la fenêtre enfant MSHTML est replacée au-dessus du rendu Chromium et le style WS_CHILD est fixé avant SetParent.
+- Respect des coordonnées physiques Windows et du facteur d’échelle de l’écran.
+- Le bouton IE indique désormais le chargement en cours et ne confirme le succès qu’après le chargement d’un document MSHTML.
+- Une erreur ou un délai excessif rétablit Chromium et affiche l’explication, au lieu de laisser une page invisible.
+- Test d’intégration Windows : attachement à une vraie fenêtre native et chargement d’une page HTML locale.
+- Le moteur IE demeure optionnel, après consentement par site, et reste exclu pour BabelVisio/WebRTC.
+
 # Version 1.3.0 — Intégration du mode historique à l’onglet
 
 - Le bouton **IE** bascule désormais le **site actuel dans le même onglet**, en intégrant un contrôle Windows `WebBrowser` (MSHTML) au moyen d’un processus local placé sous la fenêtre du navigateur. Il n’ouvre plus une seconde fenêtre avec titre et barre d’adresse.

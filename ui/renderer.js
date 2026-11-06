@@ -55,13 +55,14 @@ function updateSecurity(state){
   $('security-button').classList.toggle('attention',state.blockedPopups>0);
   const h=state.legacyHere||{likely:false,hints:[]};
   const inIE=h.engine==='mshtml';
-  $('legacy-status').textContent=inIE?'Mode IE/MSHTML intégré dans cet onglet — rechargement automatique pour ce site : activé.':
+  const pendingIE=h.engine==='mshtml-pending';
+  $('legacy-status').textContent=pendingIE?'Chargement du moteur historique Windows dans cet onglet…':h.error?'Échec IE : '+h.error:inIE?'Mode IE/MSHTML intégré dans cet onglet — rechargement automatique pour ce site : activé.':
     h.trusted?'Site déjà approuvé : mode IE automatique au prochain chargement.':
     h.likely?'⚠ Ancienne structure détectée : '+(h.hints||[]).join(' · ')+' — clique IE pour activer une première fois.':
     'Mode Chromium moderne. Le bouton IE permet de confier ce site au moteur historique et mémorise ton choix.';
-  $('legacy-button').textContent=inIE?'IE ✓':'IE';
-  $('legacy-button').classList.toggle('attention',inIE||h.likely);
-  $('legacy-button').title=inIE?'Revenir au mode moderne dans cet onglet':'Activer le moteur historique MSHTML dans cet onglet';
+  $('legacy-button').textContent=pendingIE?'IE …':inIE?'IE ✓':'IE';
+  $('legacy-button').classList.toggle('attention',inIE||pendingIE||h.likely);
+  $('legacy-button').title=pendingIE?'Annuler le chargement IE':inIE?'Revenir au mode moderne dans cet onglet':'Activer le moteur historique MSHTML dans cet onglet';
   $('settings-legacy').textContent=inIE?'Quitter le mode IE et revenir à Chromium':'IE • Activer pour ce site dans cet onglet';
 }
 function updateGithub(state){
@@ -116,7 +117,7 @@ $('reload').addEventListener('click',()=>run(()=>api.reload()));
 $('home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
 $('devtools').addEventListener('click',()=>run(()=>api.inspect()));
 const openNetwork=()=>run(()=>api.network(),'Analyse réseau ouverte dans une fenêtre indépendante.');
-const openLegacy=()=>run(()=>api.legacy(),'Mode de compatibilité de cet onglet mis à jour.');
+const openLegacy=()=>run(()=>api.legacy());
 $('network-button').addEventListener('click',openNetwork);
 $('legacy-button').addEventListener('click',openLegacy);
 $('card-network').addEventListener('click',openNetwork);
@@ -182,5 +183,6 @@ $('clear-sites').addEventListener('click',async()=>{
   await run(()=>api.clearSiteData(),'Données des sites supprimées.');
 });
 api.onLegacyError(message=>notify('Mode historique IE : '+message,true));
+api.onLegacyReady(()=>notify('Mode IE chargé et affiché dans cet onglet.')); 
 api.onFocusFind(openFind);api.onState(render);api.onFocusAddress(()=>{if(panel)showPanel('').catch(()=>{});$('address').focus();$('address').select();});
 api.initial().then(render).catch(err=>notify(err.message||String(err),true));
