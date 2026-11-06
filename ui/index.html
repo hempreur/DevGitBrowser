@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+<title>DevGitBrowser • CodexHempreur INC</title>
+<link rel="icon" type="image/png" href="../assets/icon.png">
+<link rel="stylesheet" href="style.css"><script defer src="renderer.js"></script>
+</head>
+<body>
+<header id="chrome">
+  <div class="tab-row">
+    <div class="brand" aria-label="DevGitBrowser"><img class="brand-image" src="../assets/logo-mark.png" alt="Logo DevGitBrowser"><span class="brand-word">DEV<span>GIT</span>BROWSER</span><span class="beta">DEV EDITION</span></div>
+    <div id="tabs" class="tabs" role="tablist" aria-label="Onglets"></div>
+    <button class="tab-add" id="add-tab" title="Nouvel onglet">＋</button>
+    <div class="chrome-spacer"></div>
+    <button id="detach" class="detach" title="Détacher l'onglet dans une autre fenêtre">▣ <span>Détacher</span></button>
+  </div>
+  <div class="nav-row">
+    <div class="nav-cluster">
+      <button class="nav-icon" id="back" title="Précédent">←</button>
+      <button class="nav-icon" id="forward" title="Suivant">→</button>
+      <button class="nav-icon" id="reload" title="Actualiser">↻</button>
+      <button class="nav-icon" id="home" title="Accueil">⌂</button>
+    </div>
+    <form id="address-form" class="address-bar">
+      <span class="ssl-symbol" id="ssl-symbol">◇</span>
+      <input id="address" type="text" autocomplete="off" spellcheck="false" aria-label="Adresse web ou recherche" placeholder="Rechercher sur le web ou saisir une adresse HTTPS">
+      <button title="Aller" type="submit">↵</button>
+    </form>
+    <button id="security-button" class="nav-tool" title="Sécurité et permissions du site">◈ <span>Sécurité</span></button>
+    <button id="github-button" class="nav-tool github-button" title="Connexion et synchronisation GitHub">⌘ <span>GitHub</span><i id="git-indicator"></i></button>
+    <button id="extensions-button" class="nav-tool" title="Extensions installées">▦ <span id="extension-counter">0</span></button>
+    <button id="proxy-button" class="nav-tool" title="Réglages de connexion">⚙</button>
+    <button id="devtools" class="nav-tool small" title="Outils de développement">&lt;/&gt;</button>
+  </div>
+</header>
+
+<main id="welcome" class="welcome">
+  <div class="light-spot"></div>
+  <div class="welcome-layout">
+    <section class="intro-panel">
+      <div class="intro-identity"><img src="../assets/logo-mark.png" alt="DevGitBrowser" width="76" height="76"><div><strong>DevGitBrowser</strong><small>Le navigateur de développement par CodexHempreur</small></div></div>
+      <div class="supra">APPLICATION DÉVELOPPEUR <span>•</span> NAVIGATION PRIVÉE PAR PROFIL</div>
+      <div class="overline"><span class="line"></span> VOTRE ESPACE DE CRÉATION</div>
+      <h1>Le web. Tes idées.<br><em>Un seul espace.</em></h1>
+      <p>Construis tes extensions depuis ton dépôt GitHub privé, retrouve-les automatiquement et teste-les directement dans ton navigateur.</p>
+      <form id="start-search" class="hero-search"><span>⌕</span><input id="start-address" type="text" placeholder="Explorer une adresse ou rechercher..."><button type="submit">Explorer <span>↗</span></button></form>
+      <div class="feature-chips"><span><b>✓</b> Dépôt privé</span><span><b>✓</b> Permissions contrôlées</span><span><b>✓</b> Multi-fenêtres</span></div>
+    </section>
+    <aside class="promo" aria-label="Partenaire mis en avant BabelVisio">
+      <div class="promo-top"><span class="spotlight">À DÉCOUVRIR</span><span class="star">✳</span></div>
+      <div class="promo-mark"><span class="promo-ring one"></span><span class="promo-ring two"></span><span class="promo-logo">B<span>V</span></span></div>
+      <div class="promo-eyebrow">FOCUS WEB • BABELVISIO.COM</div>
+      <h2>La rencontre<br>commence ici<span>.</span></h2>
+      <p>Découvrez BabelVisio directement depuis DevGitBrowser. Accédez à son site en un clic.</p>
+      <button id="open-babel" class="promo-link">Découvrir BabelVisio <span>↗</span></button>
+      <div class="promo-address">www.BabelVisio.com</div>
+    </aside>
+  </div>
+  <div class="quick-grid">
+    <button id="card-github" class="quick-item"><span class="quick-icon git">⌘</span><strong>GitHub privé</strong><small>Associer un dépôt et synchroniser</small><span class="mini-arrow">↗</span></button>
+    <button id="card-extensions" class="quick-item"><span class="quick-icon ext">▦</span><strong>Mes extensions</strong><small>Tester les extensions du dépôt</small><span class="mini-arrow">↗</span></button>
+    <button id="card-security" class="quick-item"><span class="quick-icon shield">◈</span><strong>Contrôle des sites</strong><small>Pop-ups, webcam et microphone</small><span class="mini-arrow">↗</span></button>
+  </div>
+</main>
+
+<section id="panel-github" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">DÉVELOPPEMENT • INTÉGRATION</span><h2>GitHub privé</h2><p>Seules les extensions du dépôt privé lié à <em>ton compte</em> peuvent être chargées.</p></div><button class="x" data-close="1">✕</button></div>
+    <div id="git-connected" class="notice">Non connecté à GitHub</div>
+    <form id="github-connect-form" class="section-card">
+      <h3>1. Connecter ton compte</h3><p>Crée un <strong>fine-grained personal access token</strong> sur GitHub, avec la permission <strong>Contents: Read</strong> uniquement pour ton dépôt privé. Le jeton est chiffré localement avec les services Windows, jamais intégré à l’installeur.</p>
+      <label for="github-token">Jeton personnel GitHub (masqué)</label><input id="github-token" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
+      <div class="form-buttons"><button type="submit" class="primary">Connecter GitHub</button><button type="button" id="github-disconnect" class="outline danger">Déconnecter</button></div>
+    </form>
+    <form id="github-repo-form" class="section-card">
+      <h3>2. Dépôt privé autorisé</h3><p>Le dépôt doit appartenir au compte connecté. Les extensions doivent se trouver dans <code>extensions/nom-extension/manifest.json</code>.</p>
+      <div class="two-fields"><div><label for="github-repo">Nom du dépôt</label><input id="github-repo" type="text" placeholder="mes-extensions-privees" spellcheck="false"></div><div><label for="github-branch">Branche</label><input id="github-branch" type="text" value="main" spellcheck="false"></div></div>
+      <div class="form-buttons"><button type="submit" class="primary">Enregistrer le dépôt</button><button id="github-sync" type="button" class="outline">↻ Synchroniser maintenant</button></div>
+    </form>
+    <div class="notice good"><strong>Ajout automatique</strong><span>Après chaque <em>push</em> sur GitHub, l’application vérifie le dépôt toutes les 90 secondes et ajoute les extensions compatibles. Aucun dossier local externe n’est accepté.</span></div>
+  </div>
+</section>
+
+<section id="panel-extensions" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Extensions autorisées</h2><p>Provenance exclusivement GitHub, depuis le dépôt privé sélectionné.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="notice"><strong>Aucun import manuel</strong><span>Les extensions téléchargées sont vérifiées grâce aux empreintes des objets Git. Electron ne prend pas en charge toutes les API d’extensions de Chrome.</span></div>
+    <div class="section-card"><h3>Extensions synchronisées <span id="extension-total" class="count">0</span></h3><div id="extension-list" class="extension-list"></div><div class="form-buttons"><button id="extension-sync" type="button" class="primary">↻ Rechercher les nouvelles extensions</button><button id="goto-git" class="outline" type="button">Configurer GitHub</button></div></div>
+    <div class="tip"><strong>Exemple de structure GitHub :</strong><pre>mon-depot-prive/
+  extensions/
+    ma-premiere-extension/
+      manifest.json
+      content.js</pre></div>
+  </div>
+</section>
+
+<section id="panel-security" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="section-card"><div class="site-head"><span class="site-icon">◈</span><div><small>SITE ACTIF</small><h3 id="origin-label">Ouvrir un site HTTPS</h3></div></div>
+      <div class="setting-line"><div><strong>Fenêtres pop-up</strong><p>Bloquées par défaut. Autorise uniquement le site de confiance : maximum 3 ouvertures par minute et par origine.</p></div><label class="switch"><input type="checkbox" id="popup-toggle"><span></span></label></div>
+      <div class="setting-line"><div><strong>Webcam et microphone</strong><p>Une demande de consentement s’affiche lors de la première utilisation. Autorisation ponctuelle ou conservée par site.</p></div><button id="revoke-media" class="outline" type="button">Révoquer</button></div>
+      <div class="media-tags"><span id="camera-status">Caméra : non autorisée</span><span id="mic-status">Micro : non autorisé</span></div>
+    </div>
+    <div class="notice warning"><strong>Pop-up bloqués : <span id="popup-blocked-count">0</span></strong><span>Les ouvertures non autorisées et certains abus sont stoppés. Aucun filtre ne garantit de détecter 100 % des comportements nuisibles. Les demandes de notifications, géolocalisation et partage d’écran sont refusées.</span></div>
+  </div>
+</section>
+
+<section id="panel-proxy" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">RÉSEAU • CONFIGURATION</span><h2>Connexion réseau</h2><p>Utiliser le réseau de Windows ou un proxy externe. Pas de VPN intégré.</p></div><button class="x" data-close="1">✕</button></div>
+    <form id="proxy-form" class="section-card">
+      <label for="proxy-mode">Mode de connexion</label><select id="proxy-mode"><option value="system">Système (VPN Windows déjà actif inclus)</option><option value="direct">Direct</option><option value="proxy">Serveur proxy</option></select>
+      <div id="proxy-extra" class="two-fields hidden"><div><label for="proxy-type">Type</label><select id="proxy-type"><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></div><div><label for="proxy-host">Hôte</label><input id="proxy-host" placeholder="127.0.0.1"></div><div><label for="proxy-port">Port</label><input id="proxy-port" placeholder="1080" type="number" min="1" max="65535"></div></div>
+      <div class="form-buttons"><button class="primary" type="submit">Enregistrer</button></div>
+    </form>
+    <div class="notice warning">Un proxy n’est pas un VPN. DevGitBrowser ne promet pas l’anonymat ou la protection contre toutes les fuites réseau.</div>
+  </div>
+</section>
+
+<footer class="statusbar"><span class="footer-brand"><img src="../assets/logo-mark.png" alt="" width="20" height="20"><strong>DEVGITBROWSER</strong> · CodexHempreur INC</span><span id="status-message">Navigateur indépendant · Profil local isolé</span><span class="signature">By CodexHempreur</span></footer>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+</body>
+</html>

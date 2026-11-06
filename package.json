@@ -1,0 +1,70 @@
+{
+  "name": "devgitbrowser",
+  "productName": "DevGitBrowser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Navigateur de développement sécurisé et synchronisation privée des extensions GitHub",
+  "author": {
+    "name": "CodexHempreur",
+    "organization": "CodexHempreur INC"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.js",
+    "build:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "inc.codexhempreur.devgitbrowser",
+    "productName": "DevGitBrowser",
+    "copyright": "Copyright © 2026 CodexHempreur INC",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "ui/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "DevGitBrowser",
+      "artifactName": "DevGitBrowser-Setup-${version}.${ext}",
+      "icon": "assets/icon.ico",
+      "legalTrademarks": "CodexHempreur INC",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DevGitBrowser",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    }
+  }
+}

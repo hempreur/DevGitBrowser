@@ -1,0 +1,31 @@
+DevGitBrowser — CodexHempreur INC
+=================================
+
+Cette archive contient le CODE SOURCE et les visuels. Ce ZIP n'est pas encore l'installateur .exe.
+
+Créer l'installateur Windows .exe depuis GitHub (recommandé) :
+  1. Crée un dépôt GitHub pour le navigateur.
+  2. Envoie le contenu de ce dossier à la racine du dépôt, y compris .github/
+  3. Sur GitHub, clique Actions > Générer l'installateur Windows EXE > Run workflow.
+  4. Télécharge le résultat DevGitBrowser-Installateur-Windows, puis extrais le .exe unique.
+  5. Pour télécharger l'EXE directement sans ZIP, publie un tag v1.0.0 :
+     la GitHub Release contiendra DevGitBrowser-Setup-1.0.0.exe.
+
+Autre méthode, sur Windows (terminal requis uniquement pour compiler) :
+  - Installe Node.js 22, ouvre PowerShell dans ce dossier.
+  - Lance : npm install
+  - Lance : npm test
+  - Lance : npm run build:win
+  - Récupère dist/DevGitBrowser-Setup-1.0.0.exe
+
+Le programme installé se lance par son icône, SANS fenêtre MS-DOS.
+L'icône de la fenêtre et de l'EXE est incluse (assets/icon.ico).
+
+IMPORTANT : Windows affichera « Éditeur inconnu » tant que l'EXE n'est pas
+signé avec un vrai certificat Authenticode de CodexHempreur/CodexHempreur INC.
+Les noms indiqués dans package.json ne remplacent pas cette signature.
+
+Le navigateur n'accorde jamais les droits caméra/micro automatiquement à
+l'installation : chaque site doit demander une permission explicite.
+
+Consulte README.md pour la connexion GitHub et les règles de sécurité.

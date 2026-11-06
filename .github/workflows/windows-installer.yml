@@ -1,0 +1,44 @@
+name: Générer l'installateur Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installer les dépendances
+        run: npm install --no-audit --no-fund
+      - name: Exécuter les tests
+        run: npm test
+      - name: Compiler DevGitBrowser pour Windows x64
+        run: npm run build:win
+      - name: Conserver l'installateur comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevGitBrowser-Installateur-Windows
+          path: dist/DevGitBrowser-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publier un EXE direct dans GitHub Releases
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/DevGitBrowser-Setup-*.exe --clobber
+          else
+            gh release create "$TAG" dist/DevGitBrowser-Setup-*.exe \
+              --title "DevGitBrowser $(node -p "require('./package.json').version") — Windows" \
+              --notes "Installateur Windows x64 NSIS. Compilé automatiquement par GitHub Actions. Ce fichier n'est pas signé avec un certificat Authenticode." \
+              --target "$GITHUB_SHA"
+          fi
