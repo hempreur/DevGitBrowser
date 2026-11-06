@@ -18,6 +18,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Exécuter les tests
         run: npm test
+      - name: Vérifier la compilation du moteur MSHTML Windows
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File legacy/embedded-ie.ps1 -CompileOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
       - name: Conserver l'installateur comme artefact

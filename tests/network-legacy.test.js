@@ -36,7 +36,8 @@ test('Legacy supports only HTTP(S) addresses and is opt-in',()=>{
   assert.match(DETECTOR_SOURCE,/ActiveXObject/);
   assert.match(DETECTOR_SOURCE,/X-UA-Compatible/);
   const main=fs.readFileSync(path.join(__dirname,'..','main.js'),'utf8');
-  assert.match(main,/dialog\.showMessageBox\(s\.win/);
+  assert.match(main,/startEmbeddedLegacy/);
+  assert.match(main,/toggleLegacyInTab/);
   assert.match(main,/powershell\.exe/);
   assert.match(main,/setAlwaysOnTop\(true,'floating'\)/);
   assert.match(main,/app\.asar\.unpacked/);
@@ -47,7 +48,7 @@ test('Independent network panel files and Windows legacy launcher are bundled',(
   assert.ok(build.files.includes('network/**/*'));
   assert.ok(build.files.includes('legacy/**/*'));
   assert.ok(build.asarUnpack.includes('legacy/**/*'));
-  for(const file of ['network/index.html','network/preload.js','network/renderer.js','network/style.css','legacy/legacy-browser.ps1']) {
+  for(const file of ['network/index.html','network/preload.js','network/renderer.js','network/style.css','legacy/embedded-ie.ps1']) {
     assert.ok(fs.statSync(path.join(root,file)).size>400,file);
   }
   const html=fs.readFileSync(path.join(root,'ui/index.html'),'utf8');

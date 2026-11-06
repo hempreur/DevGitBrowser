@@ -34,7 +34,7 @@
     <button id="extensions-button" class="nav-tool" title="Extensions installées">▦ <span id="extension-counter">0</span></button>
     <button id="proxy-button" class="nav-tool" title="Paramètres du navigateur">⚙</button>
     <button id="network-button" class="nav-tool network-button" title="Analyse réseau en fenêtre indépendante">◉ <span>Réseau</span></button>
-    <button id="legacy-button" class="nav-tool small" title="Ouvrir dans Internet Explorer / MSHTML (sites anciens uniquement)">IE</button>
+    <button id="legacy-button" class="nav-tool small" title="Basculer ce site dans le moteur IE intégré à cet onglet (sites anciens uniquement)">IE</button>
     <button id="devtools" class="nav-tool small" title="Outils de développement">&lt;/&gt;</button>
   </div>
   <div id="find-bar" class="find-bar hidden" role="search"><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><button id="find-prev" title="Occurrence précédente">↑</button><button id="find-next" title="Occurrence suivante">↓</button><button id="find-close" title="Fermer la recherche">✕</button></div>
@@ -145,8 +145,8 @@
       <p>Ouvre une fenêtre réseau Windows indépendante qui lit en direct les requêtes HTTP, les réponses, les statuts et les en-têtes de l’onglet actif. L’analyse s’arrête à la fermeture de la fenêtre.</p>
       <div class="form-buttons"><button id="settings-network" class="primary" type="button">◉ Ouvrir l’analyse réseau</button></div>
       <div class="legacy-status" id="legacy-status">Détection des pages anciennes disponible pour le site actif.</div>
-      <p>DevGitBrowser utilise Chromium normalement. Les sites qui nécessitent réellement Internet Explorer peuvent être ouverts dans une fenêtre Windows séparée avec MSHTML (moteur IE historique), à ta demande. Ce mode n’est pas conseillé pour les sites modernes, les webcams ou les informations sensibles.</p>
-      <div class="form-buttons"><button id="settings-legacy" class="outline" type="button">IE • Ouvrir le site en mode ancien</button></div>
+      <p>Le moteur IE/MSHTML peut s’afficher dans le même onglet grâce à un composant Windows séparé du moteur Chromium. Active-le une première fois pour un site ancien connu : ce site sera ensuite automatiquement ouvert en mode historique. Les nouveaux sites restent en Chromium par sécurité ; webcams et services modernes restent dans Chromium. Le mode IE ne partage pas les cookies ou les outils réseau Chromium.</p>
+      <div class="form-buttons"><button id="settings-legacy" class="outline" type="button">IE • Activer / désactiver dans cet onglet</button></div>
     </div>
     <div class="section-card">
       <h3>Zoom des pages</h3><p>Agrandir ou réduire le site actuellement ouvert, sans changer la taille des menus.</p>

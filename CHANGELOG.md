@@ -1,3 +1,11 @@
+# Version 1.3.0 — Intégration du mode historique à l’onglet
+
+- Le bouton **IE** bascule désormais le **site actuel dans le même onglet**, en intégrant un contrôle Windows `WebBrowser` (MSHTML) au moyen d’un processus local placé sous la fenêtre du navigateur. Il n’ouvre plus une seconde fenêtre avec titre et barre d’adresse.
+- La première activation d’un site se fait volontairement par un clic sur **IE**, puis le choix est conservé **par origine** dans les préférences de l’utilisateur ; ce site bascule automatiquement en mode ancien lors des prochaines visites. Le bouton IE permet de revenir à Chromium et de retirer l’autorisation automatique.
+- Protection : aucune bascule silencieuse vers un moteur obsolète pour les sites inconnus ; la détection ActiveX/VBScript n’est qu’un indice. BabelVisio reste en Chromium. Les liens vers d’autres origines reviennent en navigation moderne.
+- Les onglets, l’accueil, le zoom et les panneaux Chromium restent inchangés. **Limites :** le moteur IE n’a pas les mêmes cookies, permissions, outils réseau et capacités média que Chromium ; il repose sur des composants Windows non pris en charge dans toutes les configurations. La réalisation d’un composant natif au moyen de PowerShell/.NET ne garantit pas la prise en charge sur tous les postes.
+- En cas d’échec de l’intégration Windows, repli sur Chromium et message d’erreur explicite.
+
 ## 1.2.1 — Affichage et ergonomie
 
 - Correction du double défilement vertical dans l’interface d’accueil et les panneaux (page racine non défilante).

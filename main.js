@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {NetworkMonitor} = require('./lib/network-monitor');
 const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
+const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent} = require('./lib/legacy-embedded');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
@@ -36,7 +37,7 @@ function writeAtomic(target, contents) {
   finally { try { fs.rmSync(tmp, { force: true }); } catch {} }
 }
 function loadSettings() {
-  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{}, popupTopmost:{} });
+  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{} });
   try {
     const raw = JSON.parse(fs.readFileSync(userDataFile('preferences.json'), 'utf8'));
     const p = fallback();
@@ -57,6 +58,12 @@ function loadSettings() {
         for(const key of ['camera','microphone','notifications','geolocation']) {
           if(['allow','block','ask'].includes(values[key]))p.sitePrivacy[origin][key]=values[key];
         }
+      }
+    }
+    // Opt-in consent remembered separately for each legacy origin.
+    if (raw.legacyTrustedOrigins && typeof raw.legacyTrustedOrigins === 'object' && !Array.isArray(raw.legacyTrustedOrigins)) {
+      for(const [origin,approved] of Object.entries(raw.legacyTrustedOrigins).slice(0,100)){
+        if(originOf(origin)===origin && approved===true)p.legacyTrustedOrigins[origin]=true;
       }
     }
     if (raw.popupTopmost && typeof raw.popupTopmost === 'object' && !Array.isArray(raw.popupTopmost)) {
@@ -114,7 +121,7 @@ function tabState(t) {
   if (!wc.isDestroyed()) {
     try { back = wc.navigationHistory.canGoBack(); forward = wc.navigationHistory.canGoForward(); } catch {}
   }
-  return { id: t.id, title: t.title, url: t.url, loading: t.loading, back, forward };
+  return { id: t.id, title: t.title, url: t.url, loading: t.loading, back, forward, engine:t.engine||'chromium' };
 }
 function currentOrigin(s) { return siteOrigin(activeTab(s)?.url || ''); }
 function publicState(s) {
@@ -125,7 +132,7 @@ function publicState(s) {
     popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
     popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
     popupTopmostHere:origin ? nativePopupTopmost(origin):false, popupTopmostOverride:origin && Object.hasOwn(settings.popupTopmost,origin)?(settings.popupTopmost[origin]?'yes':'no'):'default',
-    legacyHere:activeTab(s)?.legacy||{likely:false,hints:[]},
+    legacyHere:{...(activeTab(s)?.legacy||{likely:false,hints:[]}), engine:activeTab(s)?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true},
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
     zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
@@ -141,24 +148,39 @@ function sendState(s) {
   if (s && !s.win.isDestroyed() && !s.win.webContents.isDestroyed()) s.win.webContents.send('dgb:state', publicState(s));
 }
 function broadcast() { for (const s of windows.values()) sendState(s); }
+function hostCommand(t,code,payload='') {
+  const host=t?.legacyHost;
+  if(host && !host.child.killed && host.child.stdin && !host.child.stdin.destroyed){
+    try{host.child.stdin.write(encodeCommand(code,payload));}catch{}
+  }
+}
+function syncNativeHost(t){
+  if(!t?.legacyHost?.ready || t.owner.win.isDestroyed())return;
+  const s=t.owner;const visible=s.activeId===t.id && !s.panelOpen && Boolean(t.url);
+  hostCommand(t,visible?'SHOW':'HIDE');
+}
 function layout(s) {
   if (s.win.isDestroyed()) return;
   const t = activeTab(s);
   if (!t || !t.url) return;
   const [w,h] = s.win.getContentSize();
-  t.view.setBounds({ x:RAIL_WIDTH, y:SHELL_HEIGHT, width:Math.max(1,w-RAIL_WIDTH), height:Math.max(1,h-SHELL_HEIGHT-27) });
+  const width=Math.max(1,w-RAIL_WIDTH),height=Math.max(1,h-SHELL_HEIGHT-27);
+  t.view.setBounds({ x:RAIL_WIDTH, y:SHELL_HEIGHT, width, height });
+  hostCommand(t,'BOUNDS',[RAIL_WIDTH,SHELL_HEIGHT,width,height].join(','));
 }
 function selectTab(s, id) {
   const next = s.tabs.get(Number(id)); if (!next) return;
   const prev = activeTab(s);
   if (prev && prev !== next) {
+    hostCommand(prev,'HIDE');
     try { s.win.contentView.removeChildView(prev.view); } catch {}
   }
   s.activeId = next.id;
   if (next.url) {
     if (!s.win.contentView.children.includes(next.view)) s.win.contentView.addChildView(next.view);
-    next.view.setVisible(!s.panelOpen);
+    next.view.setVisible(!s.panelOpen && next.engine!=='mshtml');
     layout(s);
+    syncNativeHost(next);
   }
   sendState(s);
   const inspector=networkWindows.get(s.id); if(inspector)inspector.monitor.start(next.url?next.view.webContents:null);
@@ -170,7 +192,7 @@ function newTab(s, url = '') {
     webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true
   }});
   view.setBackgroundColor('#f5f7fa');
-  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]} };
+  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,forceModern:false };
   s.tabs.set(t.id, t);
   const wc = view.webContents;
   const update = () => {
@@ -184,7 +206,13 @@ function newTab(s, url = '') {
   wc.on('did-finish-load',async()=>{
     if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
     try{const result=await wc.executeJavaScript(DETECTOR_SOURCE,true);
-      if(!wc.isDestroyed() && isWebUrl(wc.getURL()) && result && Array.isArray(result.hints)){t.legacy={likely:result.likely===true,hints:result.hints.slice(0,5)};sendState(t.owner);}
+      if(!wc.isDestroyed() && isWebUrl(wc.getURL()) && result && Array.isArray(result.hints)){
+        t.legacy={likely:result.likely===true,hints:result.hints.slice(0,5)};sendState(t.owner);
+        if(t.engine==='chromium' && !t.forceModern && shouldAutoEmbed({url:wc.getURL(),hints:t.legacy.hints,
+            trustedOrigins:settings.legacyTrustedOrigins,platform:process.platform})){
+          startEmbeddedLegacy(t.owner,t,false).catch(()=>{});
+        }
+      }
     }catch{}
   }); wc.on('did-navigate-in-page', update);
   wc.setBackgroundThrottling(true);
@@ -221,6 +249,7 @@ function closeTab(s,id) {
   const t = s.tabs.get(Number(id)); if (!t) return;
   const active = s.activeId === t.id;
   if (active && t.url) { try { s.win.contentView.removeChildView(t.view); } catch {} }
+  stopEmbeddedLegacy(t,false);
   s.tabs.delete(t.id);
   if (!t.view.webContents.isDestroyed()) t.view.webContents.close();
   if (active) { s.activeId=null; if (s.tabs.size) selectTab(s,[...s.tabs.keys()].at(-1)); else newTab(s); }
@@ -229,6 +258,13 @@ function closeTab(s,id) {
 function navigate(s,text) {
   const t = activeTab(s); if (!t) return;
   const url = normalizeAddress(text); if (!url) return;
+  const origin=originOf(url);
+  if(t.engine==='mshtml' && settings.legacyTrustedOrigins[origin]===true){
+    t.url=url;t.title=(new URL(url)).hostname;t.legacy={likely:true,hints:[]};
+    hostCommand(t,'NAV',url);sendState(s);return;
+  }
+  stopEmbeddedLegacy(t,false);
+  t.forceModern=false;
   t.url=url; t.title=(new URL(url)).hostname; t.legacy={likely:false,hints:[]};
   if (!s.win.contentView.children.includes(t.view)) s.win.contentView.addChildView(t.view);
   t.view.setVisible(!s.panelOpen); layout(s);
@@ -238,6 +274,7 @@ function navigate(s,text) {
 }
 function home(s) {
   const t=activeTab(s); if (!t) return;
+  stopEmbeddedLegacy(t,false);
   if (t.url) { try { s.win.contentView.removeChildView(t.view); } catch {} }
   t.url='';t.title='Nouvel onglet';t.loading=false;t.legacy={likely:false,hints:[]};
   t.view.webContents.loadURL('about:blank').catch(()=>{});
@@ -260,8 +297,10 @@ function createWindow(initialTab=true) {
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('did-finish-load',()=>sendState(s));
   win.on('resize',()=>layout(s));
+  win.on('minimize',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
+  win.on('restore',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
   win.on('closed',()=>{
-    for (const t of s.tabs.values()) if (!t.view.webContents.isDestroyed()) t.view.webContents.close();
+    for (const t of s.tabs.values()) {stopEmbeddedLegacy(t,false);if (!t.view.webContents.isDestroyed()) t.view.webContents.close();}
     s.tabs.clear(); windows.delete(s.id);
     const inspector=networkWindows.get(s.id);if(inspector){inspector.win.close();networkWindows.delete(s.id);}
   });
@@ -272,12 +311,14 @@ function createWindow(initialTab=true) {
 function detachTab(s) {
   const t=activeTab(s); if(!t) return;
   const next=createWindow(false);
+  const oldUrl=t.url;stopEmbeddedLegacy(t,false);
   if(t.url) {try{s.win.contentView.removeChildView(t.view);}catch{}}
   s.tabs.delete(t.id); s.activeId=null;
   t.owner=next;
   next.tabs.set(t.id,t); next.activeId=t.id;
   if (t.url) {
     next.win.contentView.addChildView(t.view); t.view.setVisible(true); layout(next);
+    if(oldUrl && t.view.webContents.getURL()==='about:blank')t.view.webContents.loadURL(oldUrl).catch(()=>{});
   }
   if (s.tabs.size) selectTab(s,[...s.tabs.keys()].at(-1)); else newTab(s);
   sendState(next);
@@ -286,7 +327,7 @@ function detachTab(s) {
 }
 function setPanel(s,value) {
   s.panelOpen=Boolean(value);
-  const t=activeTab(s); if(t?.url)t.view.setVisible(!s.panelOpen);
+  const t=activeTab(s); if(t?.url){t.view.setVisible(!s.panelOpen && t.engine!=='mshtml');syncNativeHost(t);}
 }
 function sitePermissions(origin) {
   const saved=origin ? settings.sitePrivacy[origin] || {} : {};
@@ -587,19 +628,105 @@ function registerNetworkIpc(){
   });
   ipcMain.handle('dgb-network:body',(event,id)=>inspectorFromSender(event.sender).monitor.body(id));
 }
-async function launchLegacyWindow(s){
+// Separate MSHTML process is hosted as a native child in the current tab area.
+// BrowserWindow's Chromium shell remains the owner; no second top-level window appears.
+function stopEmbeddedLegacy(t,restore=true){
+  if(!t)return;
+  const host=t.legacyHost;
+  t.legacyHost=null;t.engine='chromium';
+  if(host){
+    if(host.watchdog)clearTimeout(host.watchdog);
+    host.stopping=true;
+    try{host.child.stdin.write(encodeCommand('QUIT'));}catch{}
+    try{host.child.stdin.end();}catch{}
+    // The native child process must not outlive the browser if it misbehaves.
+    setTimeout(()=>{try{if(host.child.exitCode===null)host.child.kill();}catch{}},1800).unref?.();
+  }
+  if(restore && t.url && !t.view.webContents.isDestroyed()){
+    if(!t.owner.win.isDestroyed() && t.owner.activeId===t.id && !t.owner.panelOpen)t.view.setVisible(true);
+    const current=t.view.webContents.getURL();
+    if(current!==t.url)t.view.webContents.loadURL(t.url).catch(()=>{});
+  }
+}
+function embeddedHostFailed(t){
+  const origin=originOf(t.url);
+  if(origin && settings.legacyTrustedOrigins[origin]===true){
+    delete settings.legacyTrustedOrigins[origin];saveSettings();
+  }
+}
+function handleEmbeddedEvent(t,host,message){
+  if(t.legacyHost!==host || host.stopping)return;
+  const {event,value}=message;
+  if(event==='READY'){
+    if(host.watchdog)clearTimeout(host.watchdog);
+    host.ready=true;host.starting=false;
+    if(!t.view.webContents.isDestroyed())t.view.setVisible(false);
+    syncNativeHost(t);layout(t.owner);
+    // After the native view is ready, unload Chromium's copy to avoid duplicate scripts, audio or camera capture.
+    if(!t.view.webContents.isDestroyed())t.view.webContents.loadURL('about:blank').catch(()=>{});
+    sendState(t.owner);
+  } else if(event==='URL'){
+    try{t.url=validateLegacyTarget(value);t.title=new URL(t.url).hostname;}catch{return;}
+    sendState(t.owner);
+  } else if(event==='TITLE'){
+    if(value)t.title=String(value).slice(0,90);sendState(t.owner);
+  } else if(event==='ERROR'){
+    const failure=String(value).slice(0,250);
+    if(!host.ready){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);}
+    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',failure);
+  } else if(event==='EXTERNAL'){
+    // A cross-origin redirect must return to the normal protected Chromium engine.
+    try{const url=validateLegacyTarget(value);stopEmbeddedLegacy(t,false);navigate(t.owner,url);}catch{}
+  }
+}
+async function startEmbeddedLegacy(s,t,rememberTrust){
+  if(!t?.url)throw new Error('Ouvre d’abord un site ancien.');
+  if(process.platform!=='win32')throw new Error('Le moteur historique MSHTML est uniquement disponible sous Windows.');
+  const url=validateLegacyTarget(t.url),origin=originOf(url);
+  if(/(^|\.)babelvisio\.com$/i.test(new URL(url).hostname))throw new Error('Le moteur IE est désactivé pour BabelVisio et la visioconférence.');
+  if(t.legacyHost)return true;
+  if(rememberTrust){settings.legacyTrustedOrigins[origin]=true;saveSettings();}
+  t.forceModern=false;
+  const handle=s.win.getNativeWindowHandle();
+  const winHandle=handle.length===8?handle.readBigUInt64LE(0).toString():String(handle.readUInt32LE(0));
+  const [width,height]=s.win.getContentSize();
+  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','embedded-ie.ps1');
+  const child=spawn('powershell.exe',['-NoProfile','-NoLogo','-NonInteractive','-STA','-ExecutionPolicy','Bypass',
+    '-WindowStyle','Hidden','-File',helper,'-ParentHandle',winHandle,'-InitialUrl',url,
+    '-X',String(RAIL_WIDTH),'-Y',String(SHELL_HEIGHT),'-Width',String(Math.max(1,width-RAIL_WIDTH)),
+    '-Height',String(Math.max(1,height-SHELL_HEIGHT-27))],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+  const host={child,ready:false,starting:true,stopping:false,buffer:'',watchdog:null};
+  host.watchdog=setTimeout(()=>{if(t.legacyHost===host && !host.ready){stopEmbeddedLegacy(t,true);
+    if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error','Le moteur IE ne répond pas sur cette machine. Retour à Chromium.');
+  }},12000);host.watchdog.unref?.();
+  t.legacyHost=host;t.engine='mshtml';
+  // Prevent the render from being replaced by an unrelated tab while it starts.
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data',text=>{
+    host.buffer+=text;
+    if(host.buffer.length>32000){host.buffer='';return;}
+    let idx;while((idx=host.buffer.indexOf('\n'))!==-1){
+      const line=host.buffer.slice(0,idx).trimEnd();host.buffer=host.buffer.slice(idx+1);
+      const event=decodeEvent(line);if(event)handleEmbeddedEvent(t,host,event);
+    }
+  });
+  child.stderr.on('data',()=>{}); // no raw stderr or secret URLs in the interface
+  child.on('error',err=>{
+    if(t.legacyHost===host){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);
+      if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',String(err.message||err));}
+  });
+  child.on('exit',()=>{
+    if(t.legacyHost===host){embeddedHostFailed(t);stopEmbeddedLegacy(t,true);if(!t.owner.win.isDestroyed())sendState(t.owner);}
+  });
+  sendState(s);return true;
+}
+async function toggleLegacyInTab(s){
   const tab=activeTab(s);if(!tab?.url)throw new Error('Ouvre d’abord un site ancien.');
-  if(process.platform!=='win32')throw new Error('Le moteur IE/MSHTML est réservé à Windows.');
-  const url=validateLegacyTarget(tab.url);
-  const {response}=await dialog.showMessageBox(s.win,{type:'warning',title:'Mode historique Internet Explorer / MSHTML',
-    message:'Ouvrir ce site dans le moteur Internet Explorer historique ?',
-    detail:'Ce moteur Windows est obsolète et moins protégé. À utiliser uniquement pour un site ancien de confiance, jamais pour les services modernes, la banque ou la visioconférence. Il s’ouvre dans une fenêtre Windows séparée et ne partage pas les cookies de DevGitBrowser.',
-    buttons:['Annuler','J’ai compris, ouvrir'],defaultId:0,cancelId:0,noLink:true});
-  if(response!==1)return false;
-  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','legacy-browser.ps1');
-  const child=spawn('powershell.exe',['-NoProfile','-NoLogo','-NonInteractive','-STA','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',helper,'-Url',url],{windowsHide:true,detached:true,stdio:'ignore'});
-  child.on('error',err=>dialog.showErrorBox('Mode IE indisponible',String(err.message||err)));
-  child.unref();return true;
+  if(tab.engine==='mshtml'){
+    delete settings.legacyTrustedOrigins[originOf(tab.url)];saveSettings();
+    tab.forceModern=true;stopEmbeddedLegacy(tab,true);sendState(s);return false;
+  }
+  return startEmbeddedLegacy(s,tab,true);
 }
 function activeOriginRequired(s){const value=currentOrigin(s);if(!value)throw new Error('Ouvre un site HTTPS avant de modifier ses autorisations.');return value;}
 function registerIpc(){
@@ -610,13 +737,13 @@ function registerIpc(){
     'tab:close':(s,id)=>closeTab(s,id),
     'tab:detach':s=>detachTab(s),
     'nav:go':(s,address)=>navigate(s,address),
-    'nav:back':s=>{const wc=activeTab(s)?.view.webContents;if(wc?.navigationHistory.canGoBack())wc.navigationHistory.goBack();},
-    'nav:forward':s=>{const wc=activeTab(s)?.view.webContents;if(wc?.navigationHistory.canGoForward())wc.navigationHistory.goForward();},
-    'nav:reload':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.reload();},
+    'nav:back':s=>{const t=activeTab(s);if(t?.engine==='mshtml')return hostCommand(t,'BACK');const wc=t?.view.webContents;if(wc?.navigationHistory.canGoBack())wc.navigationHistory.goBack();},
+    'nav:forward':s=>{const t=activeTab(s);if(t?.engine==='mshtml')return hostCommand(t,'FORWARD');const wc=t?.view.webContents;if(wc?.navigationHistory.canGoForward())wc.navigationHistory.goForward();},
+    'nav:reload':s=>{const t=activeTab(s);if(t?.engine==='mshtml')return hostCommand(t,'RELOAD');if(t?.url)t.view.webContents.reload();},
     'nav:home':s=>home(s),
-    'nav:inspect':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.openDevTools({mode:'detach'});},
+    'nav:inspect':s=>{const t=activeTab(s);if(t?.engine==='mshtml')throw new Error('Les DevTools Chromium ne peuvent pas inspecter MSHTML. Reviens au mode moderne.');if(t?.url)t.view.webContents.openDevTools({mode:'detach'});},
     'nav:network':s=>showNetworkWindow(s),
-    'nav:legacy':s=>launchLegacyWindow(s),
+    'nav:legacy':s=>toggleLegacyInTab(s),
     'nav:find':(s,query,forward=true)=>{
       const wc=activeTab(s)?.view.webContents;
       if(!wc || !activeTab(s).url || typeof query!=='string' || query.length>150)return;
@@ -624,7 +751,7 @@ function registerIpc(){
       wc.findInPage(query,{forward:Boolean(forward),findNext:true});
     },
     'nav:stop-find':s=>{const wc=activeTab(s)?.view.webContents;if(wc&&!wc.isDestroyed())wc.stopFindInPage('clearSelection');},
-    'nav:print':s=>{const t=activeTab(s);if(t?.url)t.view.webContents.print({printBackground:true},()=>{});},
+    'nav:print':s=>{const t=activeTab(s);if(t?.engine==='mshtml')return hostCommand(t,'PRINT');if(t?.url)t.view.webContents.print({printBackground:true},()=>{});},
     'ui:panel':(s,shown)=>setPanel(s,shown),
     'site:popup-topmost':(s,mode)=>{
       const origin=activeOriginRequired(s);

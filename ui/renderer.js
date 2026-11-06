@@ -54,7 +54,15 @@ function updateSecurity(state){
   $('mic-status').textContent='Micro : '+(state.mediaHere.microphone?'autorisé':'demande requise ou bloqué');
   $('security-button').classList.toggle('attention',state.blockedPopups>0);
   const h=state.legacyHere||{likely:false,hints:[]};
-  $('legacy-status').textContent=h.likely?'⚠ Site ancien détecté : '+(h.hints||[]).join(' · '):h.hints?.length?'Indices legacy : '+h.hints.join(' · '):'Aucun besoin spécifique d’Internet Explorer détecté pour ce site.';
+  const inIE=h.engine==='mshtml';
+  $('legacy-status').textContent=inIE?'Mode IE/MSHTML intégré dans cet onglet — rechargement automatique pour ce site : activé.':
+    h.trusted?'Site déjà approuvé : mode IE automatique au prochain chargement.':
+    h.likely?'⚠ Ancienne structure détectée : '+(h.hints||[]).join(' · ')+' — clique IE pour activer une première fois.':
+    'Mode Chromium moderne. Le bouton IE permet de confier ce site au moteur historique et mémorise ton choix.';
+  $('legacy-button').textContent=inIE?'IE ✓':'IE';
+  $('legacy-button').classList.toggle('attention',inIE||h.likely);
+  $('legacy-button').title=inIE?'Revenir au mode moderne dans cet onglet':'Activer le moteur historique MSHTML dans cet onglet';
+  $('settings-legacy').textContent=inIE?'Quitter le mode IE et revenir à Chromium':'IE • Activer pour ce site dans cet onglet';
 }
 function updateGithub(state){
   const g=state.github;
@@ -108,7 +116,7 @@ $('reload').addEventListener('click',()=>run(()=>api.reload()));
 $('home').addEventListener('click',()=>run(async()=>{await showPanel('');return api.home();}));
 $('devtools').addEventListener('click',()=>run(()=>api.inspect()));
 const openNetwork=()=>run(()=>api.network(),'Analyse réseau ouverte dans une fenêtre indépendante.');
-const openLegacy=()=>run(()=>api.legacy());
+const openLegacy=()=>run(()=>api.legacy(),'Mode de compatibilité de cet onglet mis à jour.');
 $('network-button').addEventListener('click',openNetwork);
 $('legacy-button').addEventListener('click',openLegacy);
 $('card-network').addEventListener('click',openNetwork);
@@ -173,5 +181,6 @@ $('clear-sites').addEventListener('click',async()=>{
   if(!confirm('Effacer les cookies et toutes les données des sites, y compris les données des extensions ? Cette action te déconnectera des services.'))return;
   await run(()=>api.clearSiteData(),'Données des sites supprimées.');
 });
+api.onLegacyError(message=>notify('Mode historique IE : '+message,true));
 api.onFocusFind(openFind);api.onState(render);api.onFocusAddress(()=>{if(panel)showPanel('').catch(()=>{});$('address').focus();$('address').select();});
 api.initial().then(render).catch(err=>notify(err.message||String(err),true));

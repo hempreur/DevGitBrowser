@@ -1,10 +1,17 @@
-# DevGitBrowser 1.2.1 — CodexHempreur INC
+# DevGitBrowser 1.3.0 — CodexHempreur INC
 
 Navigateur de développement pour **Windows 10/11 64 bits**, conçu en Electron/Chromium, en français, sans console MS-DOS au lancement une fois compilé. Logo DevGitBrowser néon intégré à la barre supérieure, à l’accueil, à la barre inférieure, aux fenêtres, au raccourci et à l’installateur Windows. Signature graphique dans la barre inférieure : **By Hempreur** en style calligraphique discret.
 
 Les changements de la version 1.1.0 sont détaillés dans [CHANGELOG.md](CHANGELOG.md).
 Cette révision **1.2.1** corrige le double ascenseur vertical, retire le menu latéral gauche redondant et affine la signature du pied de page.
 
+
+
+## Mode historique intégré à l’onglet (1.3.0)
+
+Sur Windows, le bouton **IE** tente d’afficher la page actuelle dans le même onglet en hébergeant un contrôle MSHTML Windows natif. Le processus est distinct de Chromium, mais la fenêtre est ancrée dans la zone de page du navigateur, sans seconde fenêtre d’application. Le premier clic active et mémorise explicitement le site ; les visites suivantes utilisent automatiquement le mode historique pour le même site. Un second clic revient au moteur moderne et retire l’autorisation.
+
+Par sécurité, les pages inconnues restent en Chromium, même quand des indices d’ActiveX/VBScript sont détectés. Les sites modernes, BabelVisio et la visioconférence ne doivent pas utiliser MSHTML. Le partage des cookies et de la session, les DevTools réseau Chromium et les webcams ne sont pas garantis dans ce mode. La disponibilité de MSHTML et la capacité d’intégration des fenêtres dépendent de Windows et de ses règles DPI/sécurité ; un échec provoque un retour au mode moderne. Aucun test graphique réel sur tous les systèmes Windows n’est possible depuis l’environnement de développement.
 
 ## Contenu
 
