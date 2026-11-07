@@ -17,7 +17,7 @@ test('One scroll container, no left navigation rail', () => {
   assert.match(read('main.js'),/const RAIL_WIDTH = 0;/);
 });
 test('Footer uses compact handwritten signature', () => {
-  assert.match(read('ui/index.html'),/class="signature">By Hempreur<\/span>/);
+  assert.match(read('ui/index.html'),/class="signature">By CodexHempreur<\/span>/);
   assert.match(read('ui/style.css'),/\.signature\{font-family:"Edwardian Script ITC"/);
-  assert.equal(require('../package.json').version,'1.3.9');
+  assert.equal(require('../package.json').version,'1.4.0');
 });

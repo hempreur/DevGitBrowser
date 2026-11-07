@@ -51,13 +51,40 @@ jobs:
         run: node tests/windows-ie-smoke.js DevGitLegacyHost32.exe
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
-      - name: Contrôler MatchPulse dans le paquet Windows
+      - name: Contrôler MatchPulse et la mise à jour dans le paquet Windows
         run: node tests/check-windows-bundle.js
+      - name: Vérifier les listes DevGitShield en ligne (YouTube / Twitch)
+        run: node tests/adblocker-lists-smoke.js
+        continue-on-error: true
       - name: Conserver l'installateur comme artefact
         uses: actions/upload-artifact@v4
         with:
           name: DevGitBrowser-Installateur-Windows
-          path: dist/DevGitBrowser-Setup-*.exe
+          path: |
+            dist/DevGitBrowser-Setup-*.exe
+            dist/DevGitBrowser-Setup-*.exe.blockmap
+            dist/latest.yml
+      # Chaque nouvelle version poussée sur main devient une release GitHub :
+      # les navigateurs installés la détectent et se mettent à jour seuls.
+      - name: Publier la release pour la mise à jour automatique
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          if (!(Test-Path dist/latest.yml)) { throw 'dist/latest.yml absent : mise à jour automatique impossible.' }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { Write-Host "La release $tag existe déjà : aucune publication."; exit 0 }
+          $notes = "Voir CHANGELOG.md"
+          $changelog = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+          $m = [regex]::Match($changelog, "(?ms)^##\s+$([regex]::Escape($version)).*?(?=\r?\n## |\z)")
+          if ($m.Success) { $notes = $m.Value }
+          Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --title "DevGitBrowser $version" --notes-file release-notes.md --target $env:GITHUB_SHA `
+            "dist/DevGitBrowser-Setup-$version.exe" "dist/DevGitBrowser-Setup-$version.exe.blockmap" dist/latest.yml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if-no-files-found: error
           retention-days: 30
       - name: Publier un EXE direct dans GitHub Releases

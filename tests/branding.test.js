@@ -21,6 +21,7 @@ test('Brand icon is shown in the application interface', () => {
   const html = fs.readFileSync(path.join(root,'ui','index.html'),'utf8');
   assert.match(html, /brand-image[^>]+logo-mark\.png/);
   assert.match(html, /intro-identity/);
-  assert.match(html, /By Hempreur/);
+  assert.match(html, /By CodexHempreur/);
+  assert.doesNotMatch(html, /By Hempreur</);
   assert.match(fs.readFileSync(path.join(root,'main.js'),'utf8'), /assets','icon\.png'/);
 });

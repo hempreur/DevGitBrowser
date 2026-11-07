@@ -1,4 +1,4 @@
-/* MatchPulse 0.3 — fonctions déterministes partagées, sans dépendance externe. */
+/* MatchPulse 0.4 — fonctions déterministes partagées, sans dépendance externe. */
 (function (root, build) {
   const api = build();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -159,7 +159,10 @@
     {id:'bra.1',name:'Brésil · Série A'}, {id:'usa.1',name:'États-Unis · MLS'},
     {id:'eng.1',name:'Angleterre · Premier League'}, {id:'esp.1',name:'Espagne · Liga'},
     {id:'fra.1',name:'France · Ligue 1'}, {id:'ger.1',name:'Allemagne · Bundesliga'},
-    {id:'ita.1',name:'Italie · Serie A'}, {id:'uefa.champions',name:'Ligue des champions'}
+    {id:'ita.1',name:'Italie · Serie A'}, {id:'uefa.champions',name:'Ligue des champions'},
+    {id:'uefa.europa',name:'Ligue Europa'}, {id:'uefa.europa.conf',name:'Ligue Conférence'}, {id:'fra.2',name:'France · Ligue 2'},
+    {id:'eng.2',name:'Angleterre · Championship'}, {id:'por.1',name:'Portugal · Liga'}, {id:'ned.1',name:'Pays-Bas · Eredivisie'},
+    {id:'bel.1',name:'Belgique · Pro League'}, {id:'tur.1',name:'Turquie · Süper Lig'}, {id:'sco.1',name:'Écosse · Premiership'}, {id:'ksa.1',name:'Arabie saoudite · Pro League'}
   ]);
   function allowedEspnLeague(value){return ESPN_LEAGUES.some(x=>x.id===value);}
   function normalizeTeam(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\b(?:fc|cf|ac|club|atletico|athletic|deportivo|futbol|football|calcio|cd|united)\b/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
@@ -196,7 +199,122 @@
       .slice(0,30).map(r=>({id:r.id,league:r.league,home:r.home,away:r.away,date:r.date,score:r.score,status:r.status,source:'public'}));
   }
 
-  return { parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
+  // ------------------------------------------------------------------ SofaScore
+  // Flux JSON public utilisé par sofascore.com (sans clé ni compte). Non officiel :
+  // les formats sont lus de façon défensive et ESPN reste la source de secours.
+  function validSofaId(value){return /^\d{1,12}$/.test(String(value??''));}
+  function sofaState(type){const t=String(type||'').toLowerCase();return t==='inprogress'?'live':t==='finished'||t==='afterpenalties'||t==='afterextratime'?'post':t==='notstarted'?'pre':t||'pre';}
+  function sofaRecord(ev){
+    if(!ev||!validSofaId(ev.id))return null;
+    const home=niceLabel(ev.homeTeam?.name||ev.homeTeam?.shortName,70), away=niceLabel(ev.awayTeam?.name||ev.awayTeam?.shortName,70);
+    if(!home||!away)return null;
+    const hs=ev.homeScore?.current??ev.homeScore?.display, as=ev.awayScore?.current??ev.awayScore?.display;
+    const league=niceLabel([ev.tournament?.category?.name,ev.tournament?.uniqueTournament?.name||ev.tournament?.name].filter(Boolean).join(' · '),80);
+    return {id:String(ev.id),source:'sofascore',home,away,league,
+      score:`${Number.isFinite(Number(hs))?Number(hs):'-'} : ${Number.isFinite(Number(as))?Number(as):'-'}`,
+      status:niceLabel(ev.status?.description||'',40),state:sofaState(ev.status?.type),
+      date:Number(ev.startTimestamp)>0?new Date(Number(ev.startTimestamp)*1000).toISOString():''};
+  }
+  function sofaIncidents(body){
+    const list=Array.isArray(body?.incidents)?body.incidents:[];
+    const out=[];
+    for(const inc of list.slice(0,300)){
+      const type=String(inc?.incidentType||''), cls=String(inc?.incidentClass||'');
+      let kind=null;
+      if(type==='goal')kind=cls==='penalty'?'penalty':cls==='ownGoal'?'own-goal':'goal';
+      else if(type==='card')kind=cls==='red'?'red-card':cls==='yellowRed'?'second-yellow':'yellow-card';
+      else if(type==='inGamePenalty')kind='penalty-missed';
+      else if(type==='varDecision')kind='var';
+      if(!kind)continue;
+      const minute=Number.isFinite(Number(inc.time))?Number(inc.time):null;
+      const extra=Number.isFinite(Number(inc.addedTime))&&Number(inc.addedTime)>0?Number(inc.addedTime):0;
+      const player=niceLabel(inc.player?.name||inc.player?.shortName||inc.playerName||'',60);
+      const side=inc.isHome===true?'home':inc.isHome===false?'away':'';
+      const detail=kind==='var'?niceLabel(String(inc.incidentClass||'').replace(/([A-Z])/g,' $1'),40):'';
+      const score=Number.isFinite(Number(inc.homeScore))&&Number.isFinite(Number(inc.awayScore))?`${inc.homeScore}–${inc.awayScore}`:'';
+      out.push({id:String(inc.id||[kind,minute,extra,player,side,cls].join('|')),kind,minute,extra,player,side,detail,score});
+    }
+    return out.sort((a,b)=>(a.minute??0)-(b.minute??0)||(a.extra-b.extra));
+  }
+  function sofaStatistics(body){
+    const periods=Array.isArray(body?.statistics)?body.statistics:[];
+    const all=periods.find(p=>p?.period==='ALL')||periods[0];
+    const wanted={fouls:/^fouls$/i,corners:/^corner/i,yellow:/^yellow/i,red:/^red/i,shotsOnTarget:/shots on target|on target/i,offsides:/^offsides?$/i};
+    const keys={fouls:['fouls'],corners:['cornerKicks'],yellow:['yellowCards'],red:['redCards'],shotsOnTarget:['shotsOnGoal','shotsOnTarget'],offsides:['offsides']};
+    const result={};
+    for(const group of all?.groups||[])for(const item of group?.statisticsItems||[]){
+      for(const [name,re] of Object.entries(wanted)){
+        if(result[name])continue;
+        if(!(keys[name].includes(item?.key)||re.test(String(item?.name||''))))continue;
+        const h=Number(item.homeValue??String(item.home).replace(/[^\d.]/g,'')), a=Number(item.awayValue??String(item.away).replace(/[^\d.]/g,''));
+        if(Number.isFinite(h)&&Number.isFinite(a))result[name]={home:h,away:a,total:h+a};
+      }
+    }
+    return result;
+  }
+  const STAT_LABELS=Object.freeze({fouls:'Fautes',corners:'Corners',yellow:'Cartons jaunes',red:'Cartons rouges',shotsOnTarget:'Tirs cadrés',offsides:'Hors-jeu'});
+  function statChanges(previous,next,enabled=['fouls','corners']){
+    const out=[];
+    if(!previous||!next)return out;
+    for(const key of enabled){
+      const a=previous[key],b=next[key];
+      if(!a||!b||b.total<=a.total)continue;
+      out.push({key,text:`${STAT_LABELS[key]} : ${a.total} → ${b.total} (${b.home}–${b.away})`});
+    }
+    return out;
+  }
+  function liveEventText(item,home='',away=''){
+    const labels={'goal':'⚽ But','penalty':'⚽🎯 But sur pénalty','own-goal':'⚽ But contre son camp','penalty-missed':'🎯 Pénalty manqué',
+      'penalty-not-scored':'🎯 Pénalty signalé','yellow-card':'🟨 Carton jaune','second-yellow':'🟨🟥 Second jaune (exclusion)','red-card':'🟥 Carton rouge','var':'📺 VAR'};
+    if(!labels[item?.kind])return null;
+    const minute=item.minute===null||item.minute===undefined?'':`${item.minute}${item.extra?'+'+item.extra:''}′ `;
+    const team=item.side==='home'?home:item.side==='away'?away:'';
+    const who=[item.player,team&&item.player?`(${team})`:team].filter(Boolean).join(' ');
+    return `${minute}${labels[item.kind]}${who?' — '+who:''}${item.detail?' · '+item.detail:''}${item.score?' · '+item.score:''}`;
+  }
+  // ------------------------------------------------------------- Ticket → matchs
+  function parseFixtureTeams(text){
+    const line=niceLabel(text,170).replace(/\s+\d{1,2}\s*[-:]\s*\d{1,2}\s+/,' - ');
+    const m=line.match(/^(.{2,70}?)\s+(?:-|–|—|vs\.?|v)\s+(.{2,70})$/i);
+    if(!m)return null;
+    const clean=v=>niceLabel(v.replace(/\b\d{1,2}[:h]\d{2}\b/g,'').replace(/\(.*?\)/g,''),70);
+    const home=clean(m[1]),away=clean(m[2]);
+    return home&&away&&/[A-Za-zÀ-ÿ]/.test(home)&&/[A-Za-zÀ-ÿ]/.test(away)?{home,away}:null;
+  }
+  // Abréviations et noms français courants chez les bookmakers.
+  const TEAM_ALIASES=Object.freeze({'psg':'paris saint germain','paris sg':'paris saint germain','om':'olympique marseille','marseille':'olympique marseille',
+    'ol':'olympique lyonnais','lyon':'olympique lyonnais','losc':'lille','asse':'saint etienne','st etienne':'saint etienne','rcl':'lens','srfc':'rennes',
+    'fcn':'nantes','ogc nice':'nice','asm':'monaco','man utd':'manchester','man united':'manchester','man city':'manchester city','barcelone':'barcelona',
+    'bayern munich':'bayern','bayern munchen':'bayern','inter':'internazionale','inter milan':'internazionale','milan ac':'milan','naples':'napoli',
+    'seville':'sevilla','juventus turin':'juventus','tottenham hotspur':'tottenham','spurs':'tottenham','atletico madrid':'madrid','real madrid':'real madrid',
+    'borussia dortmund':'dortmund','bvb':'dortmund','rb leipzig':'leipzig','leverkusen':'bayer leverkusen','benfica lisbonne':'benfica','sporting portugal':'sporting'});
+  function canonicalTeam(value){const n=normalizeTeam(value);return TEAM_ALIASES[n]||n;}
+  function teamSimilarity(a,b){
+    const x=canonicalTeam(a),y=canonicalTeam(b);
+    if(!x||!y)return 0;
+    if(x===y)return 1;
+    if(x.includes(y)||y.includes(x))return 0.85;
+    const tx=new Set(x.split(' ').filter(w=>w.length>2)),ty=new Set(y.split(' ').filter(w=>w.length>2));
+    if(!tx.size||!ty.size)return 0;
+    let common=0;for(const w of tx)if(ty.has(w))common++;
+    return common/Math.max(tx.size,ty.size);
+  }
+  function bestFixtureMatch(records,teams){
+    if(!teams||!Array.isArray(records))return null;
+    let best=null;
+    for(const r of records){
+      const direct=(teamSimilarity(r.home,teams.home)+teamSimilarity(r.away,teams.away))/2;
+      const swapped=(teamSimilarity(r.home,teams.away)+teamSimilarity(r.away,teams.home))/2*0.9;
+      const score=Math.max(direct,swapped)+(r.state==='live'?0.05:0);
+      if(score>=0.6&&(!best||score>best.score))best={record:r,score};
+    }
+    return best?.record||null;
+  }
+  // Textes affichés par les bookmakers juste après la validation d'un pari.
+  const CONFIRMATION=/(?:pari|ticket|coupon|mise)s?\s+(?:a\s+(?:bien\s+)?été\s+)?(?:valid[ée]e?s?|plac[ée]e?s?|enregistr[ée]e?s?|accept[ée]e?s?|confirm[ée]e?s?|pris\s+en\s+compte)|votre\s+(?:pari|ticket)\s+(?:est|a)\b|bet\s+(?:placed|accepted|confirmed)/i;
+  function isBetConfirmation(text){return CONFIRMATION.test(String(text||'').slice(0,4000));}
+
+  return { validSofaId, sofaRecord, sofaIncidents, sofaStatistics, statChanges, liveEventText, STAT_LABELS, parseFixtureTeams, teamSimilarity, bestFixtureMatch, isBetConfirmation, parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
     niceLabel, extractOddsAndLabel, eventKind, eventText, eventId, foulCount,
     validFixtureId, matchingFixtures };
 });

@@ -35,3 +35,11 @@
 #mp-root .mp-selection-info b{font-size:12px!important;color:#eaf4ff!important}
 #mp-root .mp-selection-info small{display:block!important;font-size:10px!important;line-height:1.4!important;color:#adc0dd!important}
 #mp-root .mp-odd-input{width:72px!important;min-width:72px!important;max-width:72px!important;flex:0 0 72px!important;align-self:center!important}
+#mp-root .mp-launch.mp-live .mp-pulse{background:#ff4d6d!important;box-shadow:0 0 10px #ff4d6d!important}
+#mp-root .mp-match{align-items:flex-start!important}
+#mp-root .mp-details{margin-top:10px!important;font-size:11px!important;color:#cfe0fa!important}
+#mp-root .mp-details summary{cursor:pointer!important;color:#8fe9ff!important;margin-bottom:6px!important}
+#mp-root .mp-checks{display:grid!important;grid-template-columns:1fr 1fr!important;gap:5px 10px!important}
+#mp-root .mp-checks label{display:flex!important;align-items:center!important;gap:6px!important;font-size:11px!important;color:#d8e5fa!important}
+#mp-root .mp-checks input{flex:none!important;width:auto!important;padding:0!important}
+#mp-root .mp-group h3{flex:1!important;margin:6px 0 0!important}

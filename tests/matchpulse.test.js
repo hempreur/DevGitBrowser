@@ -66,7 +66,8 @@ test('Manifeste chargé uniquement par DevGitBrowser et aux domaines déclarés'
   assert.ok(manifest.content_scripts[0].js.includes('content.js'));
   assert.ok(manifest.content_scripts[0].js.includes('dom-reader.js'));
   assert.ok(manifest.content_scripts[0].css.includes('style.css'));
-  assert.deepEqual(manifest.permissions,['https://v3.football.api-sports.io/*','https://site.api.espn.com/*']);
+  assert.deepEqual(manifest.permissions,['https://api.sofascore.com/*','https://www.sofascore.com/*','https://site.api.espn.com/*','https://v3.football.api-sports.io/*']);
+  assert.ok(manifest.permissions.every(p=>p.startsWith('https://')&&!p.includes('<all_urls>')));
   assert.ok(manifest.content_scripts[0].matches.some(s=>s.includes('unibetsports.be')));
   assert.equal(manifest.content_scripts[0].matches.some(s=>s.includes('<all_urls>')),false);
   for(const relative of ['manifest.json','core.js','background.js','content.js','style.css']) assert.ok(fs.existsSync(path.join(dir,relative)));
@@ -81,39 +82,68 @@ test('Protection contre les appels tiers arbitraires et stockage des clés',()=>
   assert.match(source,/credentials:\s*'omit'/);
 });
 
+function backgroundContext(fetchImpl,extra={}){
+  const vm=require('node:vm');let listener;
+  const ctx={globalThis:{MatchPulseCore:C},chrome:{runtime:{onMessage:{addListener(fn){listener=fn;}}}},
+    URL,AbortController,Promise,Date,Map,Set,Number,String,Object,Error,Math,setTimeout:(fn,ms)=>({ms}),clearTimeout(){},fetch:fetchImpl,...extra};
+  vm.runInNewContext(fs.readFileSync(path.join(dir,'background.js'),'utf8'),vm.createContext(ctx),{filename:'background.js'});
+  return (action,details={},url='https://www.betclic.fr/paris')=>new Promise(resolve=>listener({action,...details},{url},resolve));
+}
+const json=body=>({ok:true,status:200,json:async()=>body});
 test('Messagerie : accès limité au bookmaker, API sportive externe et clé en mémoire',async()=>{
-  const vm=require('node:vm');
-  const source=fs.readFileSync(path.join(dir,'background.js'),'utf8');
-  let listener, requests=[];
-  const ctx={
-    globalThis:{MatchPulseCore:C},
-    chrome:{runtime:{onMessage:{addListener(fn){listener=fn;}}}},
-    URL,AbortController,Promise,Date,Map,Set,Number,String,Object,Error,
-    setTimeout,clearTimeout,
-    fetch:async(url,opts)=>{
-      requests.push({url,opts});
-      const resp=String(url).includes('fixtures?')?[{fixture:{id:99,date:'2026-11-07'},teams:{home:{name:'Lyon'},away:{name:'Paris'}}}]:[];
-      return {ok:true,status:200,json:async()=>({response:resp,errors:[]})};
-    }
-  };
-  vm.runInNewContext(source,vm.createContext(ctx),{filename:'background.js'});
-  function send(action,details={},url='https://www.betclic.fr/paris'){
-    return new Promise(resolve=>listener({action,...details},{url},resolve));
-  }
+  const requests=[];
+  const send=backgroundContext(async(url,opts)=>{requests.push({url,opts});
+    const resp=String(url).includes('fixtures?')?[{fixture:{id:99,date:'2026-11-07'},teams:{home:{name:'Lyon'},away:{name:'Paris'}}}]:[];
+    return json({response:resp,errors:[]});});
   const refused=await send('status',{},'https://www.betclic.fr.evil.com/');
   assert.equal(refused.ok,false);
   let r=await send('set-key',{value:'abc01234567890123456789012'});
   assert.equal(r.ok,true);
-  r=await send('fixtures',{date:'2026-11-07',search:'lyon'});
+  r=await send('search',{date:'2026-11-07',search:'lyon',source:'api-football'});
   assert.equal(r.ok,true);assert.equal(r.data.items[0].id,99);
   assert.equal(requests.length,1);
   assert.ok(requests[0].url.startsWith('https://v3.football.api-sports.io/fixtures?date='));
   assert.equal(requests[0].opts.credentials,'omit');
-  r=await send('events',{fixture:'../../secret'});assert.equal(r.ok,false);
+  r=await send('track',{match:{id:'../../secret',source:'api-football'}});assert.equal(r.ok,false);
+  r=await send('track',{match:{id:'1',source:'public',league:'../../x'}});assert.equal(r.ok,false);
   r=await send('clear-key');assert.equal(r.data.configured,false);
   r=await send('status');assert.equal(r.data.configured,false);
+  r=await send('rm -rf');assert.equal(r.ok,false);
 });
-
+test('SofaScore gratuit : recherche, suivi du ticket et alertes buts / cartons / fautes',async()=>{
+  const calls=[];let incidents=[],fouls=[10,8];
+  const events=[{id:111,homeTeam:{name:'Paris Saint-Germain'},awayTeam:{name:'Olympique Lyonnais'},homeScore:{current:0},awayScore:{current:0},status:{type:'inprogress',description:'1re MT'},tournament:{name:'Ligue 1',category:{name:'France'}},startTimestamp:1762542000},
+    {id:222,homeTeam:{name:'Lille'},awayTeam:{name:'Nice'},homeScore:{},awayScore:{},status:{type:'notstarted'},tournament:{name:'Ligue 1'}}];
+  const notes=[];
+  function FakeNotification(title,opts){notes.push(title+' | '+opts.body);}FakeNotification.permission='granted';
+  let now=Date.parse('2026-11-07T20:00:00Z');class FakeDate extends Date{constructor(...a){super(...(a.length?a:[now]));}static now(){return now;}}
+  const send=backgroundContext(async(url,opts)=>{calls.push(url);assert.equal(opts.credentials,'omit');
+    if(url.includes('/scheduled-events/')||url.includes('/events/live'))return json({events});
+    if(url.endsWith('/incidents'))return json({incidents});
+    if(url.endsWith('/statistics'))return json({statistics:[{period:'ALL',groups:[{groupName:'Match overview',statisticsItems:[{name:'Fouls',key:'fouls',homeValue:fouls[0],awayValue:fouls[1]},{name:'Corner kicks',key:'cornerKicks',homeValue:3,awayValue:1}]}]}]});
+    if(/\/event\/111$/.test(url))return json({event:events[0]});
+    return {ok:false,status:404,json:async()=>({})};},{Notification:FakeNotification,Date:FakeDate});
+  let r=await send('search',{date:'2026-11-07',search:'Lille',source:'auto'});
+  assert.equal(r.ok,true);assert.equal(r.data.source,'sofascore');assert.equal(r.data.items[0].id,'222');
+  r=await send('track-ticket',{date:'2026-11-07',items:[{label:'PSG',fixture:'PSG 0 - 0 Lyon',market:'Résultat du match'},{label:'Inconnu',fixture:'Équipe X - Équipe Y'}]});
+  assert.equal(r.ok,true);assert.deepEqual([...r.data.matched],['Paris Saint-Germain – Olympique Lyonnais']);
+  assert.equal(r.data.missing.length,1);
+  assert.ok(calls.every(u=>u.startsWith('https://api.sofascore.com/')||u.startsWith('https://www.sofascore.com/')||u.startsWith('https://site.api.espn.com/')));
+  // Premier passage = référence ; les événements suivants déclenchent les alertes.
+  incidents=[{id:1,incidentType:'goal',incidentClass:'regular',time:12,isHome:true,player:{name:'Joueur A'},homeScore:1,awayScore:0},
+    {id:2,incidentType:'card',incidentClass:'yellow',time:30,isHome:false,player:{name:'Joueur B'}},
+    {id:3,incidentType:'inGamePenalty',incidentClass:'missed',time:40,isHome:true,player:{name:'Joueur C'}}];
+  fouls=[12,9];
+  for(let i=0;i<30;i++)await new Promise(res=>setImmediate(res)); // premier passage (référence) terminé
+  now+=60_000;
+  r=await send('start');assert.equal(r.ok,true);
+  r=await send('state');
+  const texts=r.data.alerts.map(a=>a.text).join('\n');
+  assert.match(texts,/But — Joueur A/);assert.match(texts,/Carton jaune — Joueur B/);assert.match(texts,/Pénalty manqué/);
+  assert.match(texts,/Fautes : 18 → 21/);
+  assert.ok(notes.length>=3,'notifications Windows envoyées');
+  r=await send('untrack',{id:'111'});assert.equal(r.data.tracked.length,0);assert.equal(r.data.running,false);
+});
 test('Ticket combiné Betclic déjà validé : 4 sélections visibles, 5 attendues, cotes inconnues',()=>{
   const text=`En cours (1)\nTerminés\nGagnés\nCombiné (5)\nUnion Nord\nL’équipe possède 2 buts d’avance ou gagne (t. rég)\n19′ · MT 1\nUnion Nord 0 - 0 Racing Sud\nSporting Est\nL'équipe possède 2 buts d'avance ou gagne (t. rég)\n18′ · MT 1\nSporting Est 1 - 0 Union Ouest\nOlympique Rivage\nL'équipe possède 2 buts d'avance ou gagne (t. rég)\n17′ · MT 1\nOlympique Rivage 0 - 0 Racing Mont\nClub des Pins\nRésultat du match (t. rég)\n19′ · MT 1\nFC Forêt 0 - 2 Club des Pins`;
   const r=C.parsePlacedTicketText(text);
@@ -145,25 +175,32 @@ test('ESPN : conversion des buts, pénaltys et cartons sans inventer des fautes'
   assert.equal(C.normalizeTeam('Atlético Étoile'),'etoile');
 });
 
-test('ESPN sans clé : messagerie sécurisée, source limitée aux ligues déclarées et cookies absents',async()=>{
-  const vm=require('node:vm');let listener;const urls=[];
-  const ctx={globalThis:{MatchPulseCore:C},chrome:{runtime:{onMessage:{addListener(fn){listener=fn;}}}},
-    URL,AbortController,Promise,Date,Map,Set,Number,String,Object,Error,setTimeout,clearTimeout,
-    fetch:async(url,opts)=>{urls.push({url,opts});return {status:200,ok:true,json:async()=>({events:[{
-      id:'888',date:'2026-11-07',competitions:[{competitors:[
-        {homeAway:'home',score:'1',team:{displayName:'Union Nord'}},
-        {homeAway:'away',score:'1',team:{displayName:'Racing Sud'}}],details:[{scoringPlay:true,clock:{displayValue:"50'"}}]
-      }]}]})};}}
-  vm.runInNewContext(fs.readFileSync(path.join(dir,'background.js'),'utf8'),vm.createContext(ctx));
-  const send=(action,extra={},url='https://www.betclic.fr/sports')=>new Promise(resolve=>listener({action,...extra},{url},resolve));
-  let r=await send('public-fixtures',{date:'2026-11-07',search:'Union Nord'});
-  assert.equal(r.ok,true);assert.ok(r.data.items.some(x=>x.home==='Union Nord'));
-  assert.ok(urls.length>0);assert.ok(urls.every(x=>x.url.startsWith('https://site.api.espn.com/')));
+test('ESPN sans clé : secours automatique quand SofaScore est indisponible',async()=>{
+  const urls=[];
+  const send=backgroundContext(async(url,opts)=>{urls.push({url,opts});
+    if(url.includes('sofascore'))return {ok:false,status:403,json:async()=>({})};
+    return json({events:[{id:'888',date:'2026-11-07',competitions:[{competitors:[
+      {homeAway:'home',score:'1',team:{displayName:'Union Nord'}},{homeAway:'away',score:'1',team:{displayName:'Racing Sud'}}],details:[{scoringPlay:true,clock:{displayValue:"50'"}}]}]}]});});
+  let r=await send('search',{date:'2026-11-07',search:'Union Nord',source:'auto'});
+  assert.equal(r.ok,true);assert.equal(r.data.source,'public');assert.ok(r.data.items.some(x=>x.home==='Union Nord'));
+  assert.match(r.data.fallback,/SofaScore/);
+  assert.ok(urls.filter(x=>x.url.includes('espn')).every(x=>x.url.startsWith('https://site.api.espn.com/')));
   assert.ok(urls.every(x=>x.opts.credentials==='omit'));
-  r=await send('public-events',{date:'2026-11-07',league:'mex.1',fixture:'888'});
-  assert.equal(r.ok,true);assert.equal(r.data.items[0].kind,'goal');
-  r=await send('public-events',{date:'2026-11-07',league:'../../../secrets',fixture:'888'});
+  r=await send('search',{date:'2026-11-07',search:'Union Nord'},'https://betclic.fr.evil.com/');
   assert.equal(r.ok,false);
-  r=await send('public-fixtures',{date:'2026-11-07',search:'Union Nord'},'https://betclic.fr.evil.com/');
-  assert.equal(r.ok,false);
+});
+test('Lecture des données SofaScore et rapprochement ticket → match',()=>{
+  const inc=C.sofaIncidents({incidents:[{id:9,incidentType:'goal',incidentClass:'penalty',time:90,addedTime:3,isHome:false,player:{name:'X'},homeScore:1,awayScore:1},{incidentType:'substitution'},{id:8,incidentType:'card',incidentClass:'yellowRed',time:70}]});
+  assert.deepEqual(inc.map(i=>i.kind),['second-yellow','penalty']);
+  assert.match(C.liveEventText(inc[1],'A','B'),/90\+3′ .*pénalty — X \(B\) · 1–1/);
+  assert.deepEqual(C.sofaStatistics({statistics:[{period:'ALL',groups:[{statisticsItems:[{name:'Fouls',home:'7',away:'5'}]}]}]}).fouls,{home:7,away:5,total:12});
+  assert.deepEqual(C.statChanges({fouls:{total:12}},{fouls:{home:7,away:6,total:13}},['fouls']).map(x=>x.key),['fouls']);
+  assert.equal(C.sofaRecord({id:'1;drop'}),null);
+  assert.deepEqual(C.parseFixtureTeams('Real Madrid vs FC Barcelone'),{home:'Real Madrid',away:'FC Barcelone'});
+  assert.equal(C.parseFixtureTeams('Résultat du match'),null);
+  assert.equal(C.teamSimilarity('OM','Olympique de Marseille'),1);
+  assert.equal(C.bestFixtureMatch([{home:'Lille',away:'Nice'}],{home:'Lens',away:'Brest'}),null);
+  assert.equal(C.isBetConfirmation('Votre pari a bien été enregistré'),true);
+  assert.equal(C.isBetConfirmation('Pari placé'),true);
+  assert.equal(C.isBetConfirmation('Paris sportifs en direct'),false);
 });

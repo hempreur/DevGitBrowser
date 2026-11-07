@@ -1,9 +1,9 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "private": true,
-  "description": "DevGitBrowser avec protection publicitaire native DevGitShield, MatchPulse, IE11 et analyse réseau",
+  "description": "DevGitBrowser : navigateur Chromium pour Windows avec DevGitShield (anti-pub YouTube/Twitch), historique, favoris, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, IE11 et analyse réseau",
   "author": {
     "name": "CodexHempreur",
     "organization": "CodexHempreur INC"
@@ -67,14 +67,36 @@
       "displayLanguageSelector": false,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico"
+      "installerHeaderIcon": "assets/icon.ico",
+      "differentialPackage": true
     },
     "asarUnpack": [
       "legacy/**/*",
       "extensions/**/*"
-    ]
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "hempreur",
+        "repo": "DevGitBrowser",
+        "releaseType": "release"
+      }
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true
+    }
   },
   "dependencies": {
-    "@ghostery/adblocker-electron": "2.20.3"
-  }
+    "@ghostery/adblocker-electron": "2.20.3",
+    "electron-updater": "^6.8.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hempreur/DevGitBrowser.git"
+  },
+  "homepage": "https://github.com/hempreur/DevGitBrowser"
 }
