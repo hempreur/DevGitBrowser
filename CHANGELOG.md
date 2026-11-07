@@ -1,3 +1,11 @@
+## 1.3.4 — Fenêtres IE persistantes et surimpression Win32
+
+- Remplacement du reparentage Win32 `SetParent` par une surface IE11 possédée, sans bordure, positionnée sur l'onglet : amélioration du rendu au-dessus de la composition Chromium.
+- Les navigations HTTP(S) restent dans une session IE11, y compris après changement de domaine ; l'autorisation automatique au prochain lancement reste limitée au domaine initialement accepté.
+- Capture de `NewWindow3` / `ppDisp` : fenêtres pop-up IE réelles pour les liens `target=_blank` et `window.open`, qui ne basculent pas vers Chromium. Les descendants conservent le moteur IE11.
+- Limites anti-abus des fenêtres IE (12 simultanées et 18/minute), rejet des protocoles non HTTP(S) et retour Chromium pour les domaines WebRTC incompatibles.
+- Nouveau test d'intégration Windows : page HTML locale + fenêtre enfant IE ouverte depuis cette page.
+
 ## 1.3.2 — Résolution du mode IE7 implicite et repli vidéo moderne
 
 - Hôte MSHTML Windows dédié, sans console visible, avec mode IE11 forcé pour cet exécutable uniquement (clé HKCU per-user `FEATURE_BROWSER_EMULATION=11001`).

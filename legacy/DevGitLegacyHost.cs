@@ -8,9 +8,8 @@ using System.Threading;
 using Microsoft.Win32;
 
 public sealed class DevGitLegacyHost : Form {
-    const int GWL_STYLE = -16;
-    const long WS_CHILD = 0x40000000L;
-    const long WS_POPUP = 0x80000000L;
+    const int GWLP_HWNDPARENT = -8;
+    const uint GW_OWNER = 4;
     const int SWP_NOACTIVATE = 0x0010;
     const int SWP_SHOWWINDOW = 0x0040;
     const int SWP_FRAMECHANGED = 0x0020;
@@ -18,9 +17,10 @@ public sealed class DevGitLegacyHost : Form {
     const int SW_HIDE = 0;
     const int SW_SHOW = 5;
 
-    [DllImport("user32.dll", SetLastError=true)] static extern IntPtr SetParent(IntPtr child, IntPtr parent);
-    [DllImport("user32.dll", SetLastError=true)] static extern IntPtr GetParent(IntPtr child);
-    [DllImport("user32.dll", SetLastError=true)] static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+    [DllImport("user32.dll", SetLastError=true)] static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+    [DllImport("user32.dll", SetLastError=true)] static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out WinRect bounds);
+    [StructLayout(LayoutKind.Sequential)] struct WinRect {public int Left,Top,Right,Bottom;}
     [DllImport("user32.dll", SetLastError=true)] static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
     [DllImport("user32.dll", SetLastError=true)] static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, int flags);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);
@@ -57,9 +57,12 @@ public sealed class DevGitLegacyHost : Form {
       return options.TryGetValue(key,out text) && int.TryParse(text,out n)?n:fallback;
     }
 
-    readonly WebBrowser browser;
+    readonly LegacyWebBrowser browser;
+    readonly System.Collections.Generic.List<LegacyPopupWindow> popups=new System.Collections.Generic.List<LegacyPopupWindow>();
+    readonly System.Collections.Generic.Queue<DateTime> popupTimes=new System.Collections.Generic.Queue<DateTime>();
+    BrowserPopupSink popupSink;
+    AxHost.ConnectionPointCookie popupCookie;
     readonly IntPtr parent;
-    readonly Uri initialOrigin;
     static readonly object writeLock = new object();
     static string Encode(string value) {return Convert.ToBase64String(Encoding.UTF8.GetBytes(value ?? ""));}
     static string Decode(string value) {return Encoding.UTF8.GetString(Convert.FromBase64String(value ?? ""));}
@@ -73,29 +76,24 @@ public sealed class DevGitLegacyHost : Form {
     }
     public DevGitLegacyHost(IntPtr parentHwnd, string address, int x,int y,int w,int h) {
       this.parent=parentHwnd;
-      this.initialOrigin=new Uri(address);
       FormBorderStyle=FormBorderStyle.None;
       ShowInTaskbar=false;
       StartPosition=FormStartPosition.Manual;
       Bounds=new Rectangle(x,y,Math.Max(1,w),Math.Max(1,h));
       BackColor=Color.White;
-      browser=new WebBrowser();
+      browser=new LegacyWebBrowser();
       browser.Dock=DockStyle.Fill;
       browser.AllowWebBrowserDrop=false;
       browser.ScriptErrorsSuppressed=true;
       browser.IsWebBrowserContextMenuEnabled=false;
-      browser.NewWindow+=(sender,e)=>{e.Cancel=true;}; // deny unfiltered IE pop-ups
       browser.WebBrowserShortcutsEnabled=true;
       browser.Navigating+=(sender,e)=>{
         Uri u=e.Url;
         if(u!=null && u.AbsoluteUri!="about:blank"){
           if(!SafeAddress(u.AbsoluteUri)){e.Cancel=true;return;}
-          // Switching to another site exits MSHTML; normal Chromium handles external links.
-          if(u.Host!=initialOrigin.Host || u.Port!=initialOrigin.Port || u.Scheme!=initialOrigin.Scheme){
-            e.Cancel=true;
-            // An embedded iframe cannot force the top-level tab to leave its site.
-            if(String.IsNullOrEmpty(e.TargetFrameName))Emit("EXTERNAL",u.AbsoluteUri);
-          }
+          // IE Tab-style session: HTTP(S) links stay in MSHTML after the site owner opted in.
+          // Legacy trust is NOT persisted for sites reached through links.
+          if(IsModernVideoHost(u.Host)){e.Cancel=true; if(String.IsNullOrEmpty(e.TargetFrameName))Emit("EXTERNAL",u.AbsoluteUri);}
         }
       };
       browser.Navigated+=(sender,e)=>{try{if(browser.Url!=null && SafeAddress(browser.Url.AbsoluteUri))Emit("URL", browser.Url.AbsoluteUri);}catch{}};
@@ -113,30 +111,34 @@ public sealed class DevGitLegacyHost : Form {
             if (browser.Document.GetElementsByTagName("video").Count>0 && browser.Url.Scheme=="https") {
               Emit("INCOMPATIBLE", "Cette page utilise de la vidéo HTML5. Le moteur IE11 ne prend pas en charge les webcams WebRTC. Retour à Chromium.");return;
             }
+            WinRect rect;
+            if(!IsWindowVisible(Handle)||!GetWindowRect(Handle,out rect)||rect.Right<=rect.Left||rect.Bottom<=rect.Top){
+              Emit("ERROR","Le rendu IE n’a pas de fenêtre visible; retour à Chromium.");return;
+            }
             Emit("READY",browser.Url.AbsoluteUri);
+            Emit("DISPLAY",browser.Url.AbsoluteUri);
             Emit("READYURL",browser.Url.AbsoluteUri);
           }
         } catch(Exception ex) {Emit("ERROR", "Chargement IE : " + ex.Message);}
       };
       Controls.Add(browser);
       Shown+=(sender,e)=>{
-        // This is a Windows child HWND, not a separate top-level application window.
-        // WS_CHILD must be set before SetParent (Microsoft Win32 contract).
-        long style=GetWindowLongPtr(Handle,GWL_STYLE).ToInt64();
-        long newStyle=(style & ~WS_POPUP) | WS_CHILD;
-        SetWindowLongPtr(Handle,GWL_STYLE,new IntPtr(newStyle));
-        SetParent(Handle,parent);
-        if (GetParent(Handle)!=parent) {
-          Emit("ERROR","Impossible d'intégrer le moteur IE dans l'onglet Windows. Erreur Windows : " + Marshal.GetLastWin32Error());Close();return;
+        // IE Tab-style owned overlay: unlike cross-process SetParent, a native
+        // top-level owned WS_POPUP paints reliably over Chromium's GPU surface.
+        // It visually occupies only the current tab content rectangle.
+        SetWindowLongPtr(Handle,GWLP_HWNDPARENT,parent);
+        if(GetWindow(Handle,GW_OWNER)!=parent){
+          Emit("ERROR","La surface IE native ne peut pas être liée à la fenêtre DevGitBrowser. Erreur : "+Marshal.GetLastWin32Error());Close();return;
         }
-        // Critical: keep the native child ABOVE Chromium's native window, not just reparented behind it.
         if(!SetWindowPos(Handle,HWND_TOP,x,y,Math.Max(1,w),Math.Max(1,h),SWP_FRAMECHANGED|SWP_SHOWWINDOW|SWP_NOACTIVATE)){
-          Emit("ERROR","Le contrôle IE ne peut pas être affiché dans l'onglet Windows. Erreur : " + Marshal.GetLastWin32Error());Close();return;
+          Emit("ERROR","La surface IE native ne peut pas être affichée. Erreur : "+Marshal.GetLastWin32Error());Close();return;
         }
-        Emit("ATTACHED","");
+        try {popupSink=new BrowserPopupSink(this,browser);popupCookie=new AxHost.ConnectionPointCookie(browser.ComObject,popupSink,typeof(ILegacyNewWindowEvents));}
+        catch(Exception ex){Emit("ERROR","Impossible de garder les fenêtres IE dans MSHTML : "+ex.Message);Close();return;}
+        Emit("ATTACHED","OWNED_OVERLAY");
         if(SafeAddress(address))browser.Navigate(address); else Emit("ERROR","Adresse HTTP(S) invalide.");
       };
-      FormClosed+=(sender,e)=>Emit("CLOSED","");
+      FormClosed+=(sender,e)=>{try{popupCookie?.Disconnect();}catch{} foreach(var p in popups.ToArray())try{p.Close();}catch{} Emit("CLOSED","");};
     }
     void ApplyCommand(string line) {
       if(IsDisposed || !IsHandleCreated) return;
@@ -157,9 +159,38 @@ public sealed class DevGitLegacyHost : Form {
         }
         else if(code=="SHOW"){ShowWindow(Handle,SW_SHOW);SetWindowPos(Handle,HWND_TOP,Left,Top,Width,Height,SWP_NOACTIVATE|SWP_SHOWWINDOW);}
         else if(code=="HIDE")ShowWindow(Handle,SW_HIDE);
+        else if(code=="TESTPOPUP") {var link=browser.Document?.GetElementById("popup");if(link!=null)link.InvokeMember("click");else Emit("ERROR","Lien de test popup absent.");}
         else if(code=="QUIT")Close();
       }catch(Exception ex){Emit("ERROR",ex.Message);}
     }
+    internal static bool IsModernVideoHost(string host) {
+      host=(host??"").ToLowerInvariant();
+      return host=="monvisio.com"||host.EndsWith(".monvisio.com")||host=="babelvisio.com"||host.EndsWith(".babelvisio.com");
+    }
+    // A popup is a real IE WebBrowser object, never an Electron/Chromium child.
+    // The ppDisp return preserves window.open's opener relationship and scripting.
+    internal void HandlePopup(ref object ppDisp,ref bool cancel,string target){
+      if(!String.IsNullOrWhiteSpace(target)&&target!="about:blank"&&(!SafeAddress(target)||IsModernVideoHost(new Uri(target).Host))){
+        cancel=true;Emit("POPUPBLOCKED","Cible IE non compatible ou adresse interdite.");return;
+      }
+      while(popupTimes.Count>0 && DateTime.UtcNow-popupTimes.Peek()>TimeSpan.FromMinutes(1))popupTimes.Dequeue();
+      if(popups.Count>=12||popupTimes.Count>=18){cancel=true;Emit("POPUPBLOCKED","Limite anti-abus des fenêtres IE atteinte.");return;}
+      LegacyPopupWindow popup=null;
+      try {
+        popup=new LegacyPopupWindow(this);
+        popup.Show(this);
+        popup.InitializeEvents();
+        ppDisp=popup.Browser.ComObject;
+        if(ppDisp==null)throw new InvalidOperationException("Objet MSHTML popup indisponible.");
+        popupTimes.Enqueue(DateTime.UtcNow);popups.Add(popup);
+        Emit("POPUP","Fenêtre IE ouverte");
+        cancel=false;
+      } catch(Exception ex){cancel=true;try{popup?.Close();}catch{} Emit("POPUPBLOCKED","Fenêtre IE impossible : "+ex.Message);}
+    }
+    internal void PopupClosed(LegacyPopupWindow p){popups.Remove(p);Emit("POPUPCLOSED","");}
+    internal void PopupReady(string url){Emit("POPUPREADY",url);}
+    internal void PopupError(string reason){Emit("POPUPBLOCKED",reason);}
+
     public static void Run(string handleText,string url,int x,int y,int w,int h) {
       if(!SafeAddress(url)) {Emit("ERROR","Adresse rejetée.");return;}
       ulong raw; if(!ulong.TryParse(handleText,out raw)||raw==0){Emit("ERROR","Fenêtre parent invalide.");return;}
@@ -176,4 +207,57 @@ public sealed class DevGitLegacyHost : Form {
       Application.Run(form);
       form.Dispose();
     }
+}
+
+// Minimal DWebBrowserEvents2 dispatch sink for the NewWindow3 event (DISPID 273).
+// Event subscriptions do not require a dependency on proprietary IE Tab files.
+[ComVisible(true),Guid("34A715A0-6587-11D0-924A-0020AFC7AC4D"),InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
+public interface ILegacyNewWindowEvents {
+  [DispId(273)]
+  void NewWindow3([In,Out,MarshalAs(UnmanagedType.IDispatch)] ref object ppDisp,
+    [In,Out,MarshalAs(UnmanagedType.VariantBool)] ref bool cancel,
+    uint flags,[MarshalAs(UnmanagedType.BStr)] string urlContext,
+    [MarshalAs(UnmanagedType.BStr)] string target);
+}
+
+public sealed class LegacyWebBrowser : WebBrowser {
+  public object ComObject { get {return ActiveXInstance;} }
+}
+
+[ComVisible(true),ClassInterface(ClassInterfaceType.None)]
+public sealed class BrowserPopupSink : StandardOleMarshalObject, ILegacyNewWindowEvents {
+  readonly DevGitLegacyHost root;
+  readonly LegacyWebBrowser browser;
+  public BrowserPopupSink(DevGitLegacyHost root,LegacyWebBrowser browser){this.root=root;this.browser=browser;}
+  public void NewWindow3(ref object ppDisp,ref bool cancel,uint flags,string context,string target){
+    root.HandlePopup(ref ppDisp,ref cancel,target);
+  }
+}
+
+public sealed class LegacyPopupWindow : Form {
+  readonly DevGitLegacyHost root;
+  readonly LegacyWebBrowser browser;
+  BrowserPopupSink sink;
+  AxHost.ConnectionPointCookie cookie;
+  public LegacyWebBrowser Browser {get{return browser;}}
+  public LegacyPopupWindow(DevGitLegacyHost root){
+    this.root=root;
+    Text="DevGitBrowser — IE11";StartPosition=FormStartPosition.CenterParent;
+    Size=new Size(760,540);ShowInTaskbar=false;
+    browser=new LegacyWebBrowser {Dock=DockStyle.Fill,ScriptErrorsSuppressed=true,AllowWebBrowserDrop=false};
+    browser.Navigating+=(sender,e)=>{
+      if(e.Url==null||e.Url.AbsoluteUri=="about:blank")return;
+      if(!DevGitLegacyHost.IsModernVideoHost(e.Url.Host) && (e.Url.Scheme=="http"||e.Url.Scheme=="https") && String.IsNullOrEmpty(e.Url.UserInfo))return;
+      e.Cancel=true;root.PopupError("Navigation externe dangereuse ou moderne bloquée dans IE.");
+    };
+    browser.DocumentCompleted+=(sender,e)=>{
+      if(browser.Url!=null && e.Url==browser.Url && browser.ReadyState==WebBrowserReadyState.Complete)root.PopupReady(browser.Url.AbsoluteUri);
+    };
+    Controls.Add(browser);
+    FormClosed+=(sender,e)=>{try{cookie?.Disconnect();}catch{} root.PopupClosed(this);};
+  }
+  public void InitializeEvents(){
+    sink=new BrowserPopupSink(root,browser);
+    cookie=new AxHost.ConnectionPointCookie(browser.ComObject,sink,typeof(ILegacyNewWindowEvents));
+  }
 }

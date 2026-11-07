@@ -59,4 +59,24 @@ test('Dedicated IE11 host and modern webcam fallback',()=>{
   assert.match(cs,/DevGitLegacyHost\.exe.*11001/);
   assert.match(cs,/document\.documentMode/);
   assert.equal(decodeEvent('MODE\t'+Buffer.from('11').toString('base64')).value,'11');
+  assert.equal(decodeEvent('POPUPREADY\t'+Buffer.from('https://site.test/popup').toString('base64')).event,'POPUPREADY');
+});
+
+test('IE Tab-style navigation is retained in the legacy session for links and windows',()=>{
+  const {preserveIEInSession}=require('../lib/legacy-embedded');
+  assert.equal(preserveIEInSession('https://old.example.com/a'),true);
+  assert.equal(preserveIEInSession('https://other.example.org/b'),true);
+  assert.equal(preserveIEInSession('https://www.monvisio.com/video'),false);
+  assert.equal(preserveIEInSession('javascript:alert(1)'),false);
+  const cs=fs.readFileSync(path.join(__dirname,'../legacy/DevGitLegacyHost.cs'),'utf8');
+  assert.match(cs,/GWLP_HWNDPARENT/); // owned overlay paints above Chromium
+  assert.match(cs,/GetWindow\(Handle,GW_OWNER\)/);
+  assert.match(cs,/NewWindow3/); // native window.open / target=_blank
+  assert.match(cs,/ppDisp=popup\.Browser\.ComObject/);
+  assert.match(cs,/new BrowserPopupSink\(this,browser\)/);
+  assert.match(cs,/popupTimes\.Count>=18/);
+  const main=fs.readFileSync(path.join(__dirname,'../main.js'),'utf8');
+  assert.match(main,/preserveIEInSession\(url\)/);
+  assert.match(main,/const bounds=s\.win\.getContentBounds\(\)/);
+  assert.match(main,/event==='DISPLAY'/);
 });

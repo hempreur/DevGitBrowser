@@ -1,4 +1,12 @@
-# DevGitBrowser 1.3.2 — mode IE11 corrigé
+## Version 1.3.4 — interface IE Tab et liens IE persistants
+
+- **Rendu natif visible dans l'onglet** : le moteur IE11 est présenté par une fenêtre Win32 **sans bordure**, liée comme fenêtre *possédée* à DevGitBrowser, exactement positionnée sur la zone du site. Cela évite le réaffichage noir des anciens essais `SetParent` entre processus. La surface est masquée lors du changement d'onglet, de l'ouverture d'un panneau ou de la minimisation.
+- **Liens et redirections dans IE** : une session IE11 conserve le moteur pour les navigations HTTP(S) que vous suivez, même lorsque vous changez de domaine. Les domaines supplémentaires ne sont **pas automatiquement ajoutés** aux autorisations persistantes IE.
+- **Fenêtres IE `window.open()` / `target=_blank`** : elles sont créées comme de véritables fenêtres WebBrowser/MSHTML, avec prise en charge de `ppDisp` afin que leurs liens et leurs éventuelles fenêtres enfants restent dans IE. Une limite de 12 fenêtres simultanées et 18 ouvertures/minute réduit les abus ; le contenu non HTTP(S) est refusé.
+- **Sécurité** : l'activation initiale reste volontaire par domaine et le moteur historique demeure moins sûr que Chromium. Les domaines de visioconférence modernes BabelVisio/MonVisio restent sous Chromium car IE11 ne gère pas WebRTC.
+- **Vérification Windows** : un test natif effectue un chargement dans la surface IE11 et vérifie qu'une fenêtre enfant de test est bien chargée par MSHTML. La compilation CI est bloquée si ce test échoue.
+
+# DevGitBrowser 1.3.4 — compatibilité IE Tab (moteur MSHTML natif)
 
 Le moteur MSHTML intégré utilise désormais `DevGitLegacyHost.exe` (compilé pendant GitHub Actions) plutôt que `powershell.exe`. Le programme configure la valeur par-utilisateur `FEATURE_BROWSER_EMULATION` **uniquement pour ce programme** (IE11 standards mode). Les sites de webcams modernes tels que MonVisio/BabelVisio utilisent Chromium, car MSHTML ne prend pas en charge la capture WebRTC ; ils ne sont pas présentés comme chargés en IE si l’écran demeure noir.
 

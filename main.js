@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {NetworkMonitor} = require('./lib/network-monitor');
 const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
-const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo} = require('./lib/legacy-embedded');
+const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo, preserveIEInSession} = require('./lib/legacy-embedded');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
@@ -160,9 +160,13 @@ function syncNativeHost(t){
   hostCommand(t,visible?'SHOW':'HIDE');
 }
 function nativeBounds(s) {
-  const [w,h] = s.win.getContentSize();
-  const scale = process.platform==='win32' ? screen.getDisplayMatching(s.win.getBounds()).scaleFactor || 1 : 1;
-  return [RAIL_WIDTH,SHELL_HEIGHT,Math.max(1,w-RAIL_WIDTH),Math.max(1,h-SHELL_HEIGHT-27)]
+  // MSHTML uses a borderless, Win32-owned overlay positioned on the content
+  // rectangle. Unlike cross-process WS_CHILD reparenting, it paints above
+  // Chromium's composited web surface while visually remaining in the tab.
+  const bounds=s.win.getContentBounds();
+  const scale=process.platform==='win32' ? screen.getDisplayMatching(s.win.getBounds()).scaleFactor || 1 : 1;
+  return [bounds.x+RAIL_WIDTH,bounds.y+SHELL_HEIGHT,
+    Math.max(1,bounds.width-RAIL_WIDTH),Math.max(1,bounds.height-SHELL_HEIGHT-27)]
     .map(v=>Math.max(0,Math.round(v*scale)));
 }
 function layout(s) {
@@ -265,7 +269,7 @@ function navigate(s,text) {
   const t = activeTab(s); if (!t) return;
   const url = normalizeAddress(text); if (!url) return;
   const origin=originOf(url);
-  if(t.engine==='mshtml' && settings.legacyTrustedOrigins[origin]===true){
+  if(t.engine==='mshtml' && preserveIEInSession(url)){
     t.url=url;t.title=(new URL(url)).hostname;t.legacy={likely:true,hints:[]};
     hostCommand(t,'NAV',url);sendState(s);return;
   }
@@ -303,6 +307,9 @@ function createWindow(initialTab=true) {
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('did-finish-load',()=>sendState(s));
   win.on('resize',()=>layout(s));
+  win.on('move',()=>layout(s));
+  win.on('hide',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
+  win.on('show',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
   win.on('minimize',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
   win.on('restore',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
   win.on('closed',()=>{
@@ -639,7 +646,7 @@ function registerNetworkIpc(){
 function stopEmbeddedLegacy(t,restore=true){
   if(!t)return;
   const host=t.legacyHost;
-  t.legacyHost=null;t.engine='chromium';
+  t.legacyHost=null;t.engine='chromium';t.legacyTrustOrigin='';
   if(host){
     if(host.watchdog)clearTimeout(host.watchdog);
     host.stopping=true;
@@ -655,7 +662,7 @@ function stopEmbeddedLegacy(t,restore=true){
   }
 }
 function embeddedHostFailed(t){
-  const origin=originOf(t.url);
+  const origin=t.legacyTrustOrigin||originOf(t.url);
   if(origin && settings.legacyTrustedOrigins[origin]===true){
     delete settings.legacyTrustedOrigins[origin];saveSettings();
   }
@@ -666,15 +673,21 @@ function handleEmbeddedEvent(t,host,message){
   if(event==='ATTACHED'){
     host.attached=true;sendState(t.owner);
   } else if(event==='READY'){
-    if(host.ready)return;
+    // Loading HTML is not proof of a painted window. Await the helper's
+    // verified native DISPLAY event before hiding the Chromium fallback.
+    host.documentLoaded=true;host.lastReadyUrl=value;
+  } else if(event==='DISPLAY'){
+    if(host.ready || !host.documentLoaded)return;
     if(host.watchdog)clearTimeout(host.watchdog);
     host.ready=true;host.starting=false;t.engine='mshtml';t.legacyError='';
-    if(!t.view.webContents.isDestroyed())t.view.setVisible(false);
+    // Only hide Chromium after the owned Win32 overlay is visible.
     syncNativeHost(t);layout(t.owner);
-    // After the native view is ready, unload Chromium's copy to avoid duplicate scripts, audio or camera capture.
+    if(!t.view.webContents.isDestroyed())t.view.setVisible(false);
     if(!t.view.webContents.isDestroyed())t.view.webContents.loadURL('about:blank').catch(()=>{});
     sendState(t.owner);
     if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-ready', value);
+  } else if(event==='POPUP' || event==='POPUPREADY' || event==='POPUPBLOCKED' || event==='POPUPCLOSED'){
+    if(event==='POPUPBLOCKED' && !t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',String(value).slice(0,250));
   } else if(event==='MODE'){
     host.documentMode=Number(value)||0;
   } else if(event==='INCOMPATIBLE'){
@@ -691,7 +704,7 @@ function handleEmbeddedEvent(t,host,message){
     embeddedHostFailed(t);t.legacyError=failure;stopEmbeddedLegacy(t,true);sendState(t.owner);
     if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',failure);
   } else if(event==='EXTERNAL'){
-    // A cross-origin redirect must return to the normal protected Chromium engine.
+    // Modern video targets deliberately fall back to Chromium (no WebRTC in IE11).
     try{const url=validateLegacyTarget(value);stopEmbeddedLegacy(t,false);navigate(t.owner,url);}catch{}
   }
 }
@@ -702,6 +715,7 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
   if(requiresModernVideo(url))throw new Error('Ce site utilise des webcams/vidéos modernes. MSHTML ne prend pas en charge WebRTC : Chromium est conservé pour éviter les pages noires.');
   if(t.legacyHost)return true;
   if(rememberTrust){settings.legacyTrustedOrigins[origin]=true;saveSettings();}
+  t.legacyTrustOrigin=origin;
   t.legacyError='';t.forceModern=false;
   const handle=s.win.getNativeWindowHandle();
   const winHandle=handle.length===8?handle.readBigUInt64LE(0).toString():String(handle.readUInt32LE(0));
@@ -743,7 +757,7 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
 async function toggleLegacyInTab(s){
   const tab=activeTab(s);if(!tab?.url)throw new Error('Ouvre d’abord un site ancien.');
   if(tab.engine==='mshtml' || tab.engine==='mshtml-pending'){
-    delete settings.legacyTrustedOrigins[originOf(tab.url)];saveSettings();
+    delete settings.legacyTrustedOrigins[tab.legacyTrustOrigin||originOf(tab.url)];saveSettings();
     tab.forceModern=true;stopEmbeddedLegacy(tab,true);sendState(s);return false;
   }
   return startEmbeddedLegacy(s,tab,true);
