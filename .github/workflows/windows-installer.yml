@@ -64,10 +64,12 @@ jobs:
             dist/DevGitBrowser-Setup-*.exe
             dist/DevGitBrowser-Setup-*.exe.blockmap
             dist/latest.yml
+          if-no-files-found: error
+          retention-days: 30
       # Chaque nouvelle version poussée sur main devient une release GitHub :
       # les navigateurs installés la détectent et se mettent à jour seuls.
       - name: Publier la release pour la mise à jour automatique
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,20 +87,3 @@ jobs:
           gh release create $tag --repo $env:GITHUB_REPOSITORY --title "DevGitBrowser $version" --notes-file release-notes.md --target $env:GITHUB_SHA `
             "dist/DevGitBrowser-Setup-$version.exe" "dist/DevGitBrowser-Setup-$version.exe.blockmap" dist/latest.yml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if-no-files-found: error
-          retention-days: 30
-      - name: Publier un EXE direct dans GitHub Releases
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          TAG="v$(node -p "require('./package.json').version")"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/DevGitBrowser-Setup-*.exe --clobber
-          else
-            gh release create "$TAG" dist/DevGitBrowser-Setup-*.exe \
-              --title "DevGitBrowser $(node -p "require('./package.json').version") — Windows" \
-              --notes "Installateur Windows x64 NSIS. Compilé automatiquement par GitHub Actions. Ce fichier n'est pas signé avec un certificat Authenticode." \
-              --target "$GITHUB_SHA"
-          fi
