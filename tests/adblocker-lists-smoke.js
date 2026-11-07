@@ -36,6 +36,7 @@ function nodeFetch(url,opts={},redirects=5){
   const blocked=url=>service.engine.match(Request.fromRawDetails({url,sourceUrl:'https://www.youtube.com/watch?v=x',type:'xmlhttprequest'})).match;
   assert.ok(blocked('https://www.youtube.com/pagead/viewthroughconversion/123'),'pagead YouTube bloqué');
   assert.ok(blocked('https://googleads.g.doubleclick.net/pagead/id'),'doubleclick bloqué');
+  service.enabled=true; // moteur non attaché à une vraie session dans ce test
   const yt=service.earlyScripts('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   console.log('Scriptlets YouTube :',yt.scripts.length);
   assert.ok(yt.scripts.length>=2,'scriptlets uBlock + protection dédiée YouTube');
