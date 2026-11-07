@@ -36,7 +36,7 @@ test('MSHTML stays hosted inside the current tab client area, not an external wi
   assert.match(helper,/browser\.Navigate\(address\)/);
   const main=fs.readFileSync(path.join(root,'main.js'),'utf8');
   assert.match(main,/const handle=s\.win\.getNativeWindowHandle\(\)/);
-  assert.match(main,/DevGitLegacyHost\.exe/);
+  assert.match(main,/legacyHostFilename\(url\)/);
   assert.doesNotMatch(main,/async function launchLegacyWindow\(/);
   assert.match(main,/dgb:legacy-error/);
   const html=fs.readFileSync(path.join(root,'ui/index.html'),'utf8');
@@ -56,7 +56,7 @@ test('Dedicated IE11 host and modern webcam fallback',()=>{
   assert.equal(shouldAutoEmbed({url:'https://www.monvisio.com',trustedOrigins:{'https://www.monvisio.com':true},platform:'win32'}),false);
   const cs=fs.readFileSync(path.join(__dirname,'../legacy/DevGitLegacyHost.cs'),'utf8');
   assert.match(cs,/FEATURE_BROWSER_EMULATION/);
-  assert.match(cs,/DevGitLegacyHost\.exe.*11001/);
+  assert.match(cs,/Path.GetFileName\(Application.ExecutablePath\), 11001/);
   assert.match(cs,/document\.documentMode/);
   assert.equal(decodeEvent('MODE\t'+Buffer.from('11').toString('base64')).value,'11');
   assert.equal(decodeEvent('POPUPREADY\t'+Buffer.from('https://site.test/popup').toString('base64')).event,'POPUPREADY');
@@ -79,4 +79,24 @@ test('IE Tab-style navigation is retained in the legacy session for links and wi
   assert.match(main,/preserveIEInSession\(url\)/);
   assert.match(main,/const bounds=s\.win\.getContentBounds\(\)/);
   assert.match(main,/event==='DISPLAY'/);
+});
+
+
+test('CamfrogWeb ActiveX uses a dedicated 32-bit MSHTML COM host with diagnostics',()=>{
+  const {legacyHostFilename,needs32BitActiveX,decodeEvent}=require('../lib/legacy-embedded');
+  assert.equal(needs32BitActiveX('https://www.monvisiocam.com/'),true);
+  assert.equal(legacyHostFilename('https://www.monvisiocam.com/salon/'), 'DevGitLegacyHost32.exe');
+  assert.equal(legacyHostFilename('https://babelvisio.com/'),'DevGitLegacyHost.exe');
+  assert.equal(legacyHostFilename('https://fake-monvisiocam.com/'),'DevGitLegacyHost.exe');
+  assert.equal(decodeEvent('HOSTARCH\t'+Buffer.from('32 bits').toString('base64')).value,'32 bits');
+  assert.equal(decodeEvent('PLUGIN\t'+Buffer.from('CamfrogWeb non trouvé').toString('base64')).event,'PLUGIN');
+  const cs=fs.readFileSync(path.join(__dirname,'../legacy/DevGitLegacyHost.cs'),'utf8');
+  const main=fs.readFileSync(path.join(__dirname,'../main.js'),'utf8');
+  const yaml=fs.readFileSync(path.join(__dirname,'../.github/workflows/windows-installer.yml'),'utf8');
+  assert.match(cs,/SetWindowLong32/);
+  assert.match(cs,/RegistryView.Registry32/);
+  assert.match(cs,/Path.GetFileName\(Application.ExecutablePath\)/);
+  assert.match(main,/legacyHostFilename\(url\)/);
+  assert.match(yaml,/platform:x86/);
+  assert.match(yaml,/windows-ie-smoke.js DevGitLegacyHost32.exe/);
 });

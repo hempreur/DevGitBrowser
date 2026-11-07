@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {NetworkMonitor} = require('./lib/network-monitor');
 const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
-const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo, preserveIEInSession} = require('./lib/legacy-embedded');
+const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo, preserveIEInSession, legacyHostFilename} = require('./lib/legacy-embedded');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
@@ -132,7 +132,7 @@ function publicState(s) {
     popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
     popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
     popupTopmostHere:origin ? nativePopupTopmost(origin):false, popupTopmostOverride:origin && Object.hasOwn(settings.popupTopmost,origin)?(settings.popupTopmost[origin]?'yes':'no'):'default',
-    legacyHere:{...(activeTab(s)?.legacy||{likely:false,hints:[]}), engine:activeTab(s)?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true, error:activeTab(s)?.legacyError||''},
+    legacyHere:{...(activeTab(s)?.legacy||{likely:false,hints:[]}), engine:activeTab(s)?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true, error:activeTab(s)?.legacyError||'', hostBits:activeTab(s)?.legacyBits||'', pluginDiagnostic:activeTab(s)?.legacyPluginInfo||''},
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
     zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
@@ -202,7 +202,7 @@ function newTab(s, url = '') {
     webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true
   }});
   view.setBackgroundColor('#f5f7fa');
-  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',forceModern:false };
+  const t = { id:++nextTabId, owner:s, view, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false };
   s.tabs.set(t.id, t);
   const wc = view.webContents;
   const update = () => {
@@ -646,7 +646,7 @@ function registerNetworkIpc(){
 function stopEmbeddedLegacy(t,restore=true){
   if(!t)return;
   const host=t.legacyHost;
-  t.legacyHost=null;t.engine='chromium';t.legacyTrustOrigin='';
+  t.legacyHost=null;t.engine='chromium';t.legacyTrustOrigin='';t.legacyBits='';t.legacyPluginInfo='';
   if(host){
     if(host.watchdog)clearTimeout(host.watchdog);
     host.stopping=true;
@@ -686,6 +686,14 @@ function handleEmbeddedEvent(t,host,message){
     if(!t.view.webContents.isDestroyed())t.view.webContents.loadURL('about:blank').catch(()=>{});
     sendState(t.owner);
     if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-ready', value);
+  } else if(event==='HOSTARCH'){
+    t.legacyBits=String(value).slice(0,32);sendState(t.owner);
+  } else if(event==='PLUGIN'){
+    t.legacyPluginInfo=String(value).slice(0,250);sendState(t.owner);
+    if(/non trouvé|indisponible/i.test(t.legacyPluginInfo) && !host.pluginNoticeSent){
+      host.pluginNoticeSent=true;
+      if(!t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error','Diagnostic CamfrogWeb : '+t.legacyPluginInfo);
+    }
   } else if(event==='POPUP' || event==='POPUPREADY' || event==='POPUPBLOCKED' || event==='POPUPCLOSED'){
     if(event==='POPUPBLOCKED' && !t.owner.win.isDestroyed())t.owner.win.webContents.send('dgb:legacy-error',String(value).slice(0,250));
   } else if(event==='MODE'){
@@ -716,11 +724,11 @@ async function startEmbeddedLegacy(s,t,rememberTrust){
   if(t.legacyHost)return true;
   if(rememberTrust){settings.legacyTrustedOrigins[origin]=true;saveSettings();}
   t.legacyTrustOrigin=origin;
-  t.legacyError='';t.forceModern=false;
+  t.legacyError='';t.legacyBits='';t.legacyPluginInfo='';t.forceModern=false;
   const handle=s.win.getNativeWindowHandle();
   const winHandle=handle.length===8?handle.readBigUInt64LE(0).toString():String(handle.readUInt32LE(0));
   const bounds=nativeBounds(s);
-  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy','DevGitLegacyHost.exe');
+  const helper=path.join(__dirname.replace(/app\.asar(?=[\\/]|$)/,'app.asar.unpacked'),'legacy',legacyHostFilename(url));
   const child=spawn(helper,['-ParentHandle',winHandle,'-InitialUrl',url,
     '-X',String(bounds[0]),'-Y',String(bounds[1]),'-Width',String(bounds[2]),
     '-Height',String(bounds[3])],{windowsHide:true,stdio:['pipe','pipe','pipe']});

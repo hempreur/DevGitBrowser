@@ -1,3 +1,11 @@
+### Version 1.3.5 — CamfrogWeb / anciens salons
+
+DevGitBrowser privilégie un hôte natif **IE11 32 bits pour `monvisiocam.com`**, car les contrôles ActiveX historiques CamfrogWeb peuvent être uniquement 32 bits. Les autres sites anciens utilisent l'hôte IE11 64 bits. Les deux sont compilés par GitHub Actions et intégrés à l'installateur Windows x64.
+
+L'application affiche, dans **Sécurité → Mode IE**, un diagnostic sur l'enregistrement local de certaines anciennes versions CamfrogWeb. Ce diagnostic ne prouve pas que le contrôle s'instancie ou que le serveur du salon fonctionne. Aucune désactivation globale des protections ActiveX, installation automatique ou élévation silencieuse n'est effectuée. Si la version CamfrogWeb de l'utilisateur est différente, sa classe COM peut ne pas être reconnue par le diagnostic.
+
+Pour les contrôles anciens non signés, privilégier un site autorisé de confiance et vérifier les propriétés de l'éditeur. Les contrôles ActiveX obsolètes peuvent être dangereux.
+
 ## Version 1.3.4 — interface IE Tab et liens IE persistants
 
 - **Rendu natif visible dans l'onglet** : le moteur IE11 est présenté par une fenêtre Win32 **sans bordure**, liée comme fenêtre *possédée* à DevGitBrowser, exactement positionnée sur la zone du site. Cela évite le réaffichage noir des anciens essais `SetParent` entre processus. La surface est masquée lors du changement d'onglet, de l'ouverture d'un panneau ou de la minimisation.

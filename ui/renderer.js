@@ -60,6 +60,8 @@ function updateSecurity(state){
     h.trusted?'Site déjà approuvé : mode IE automatique au prochain chargement.':
     h.likely?'⚠ Ancienne structure détectée : '+(h.hints||[]).join(' · ')+' — clique IE pour activer une première fois.':
     'Mode Chromium moderne. Le bouton IE permet de confier ce site au moteur historique et mémorise ton choix.';
+  if((inIE||pendingIE)&&h.pluginDiagnostic) $('legacy-status').textContent+=' · '+h.pluginDiagnostic;
+  else if((inIE||pendingIE)&&h.hostBits) $('legacy-status').textContent+=' · Processus IE '+h.hostBits;
   $('legacy-button').textContent=pendingIE?'IE …':inIE?'IE ✓':'IE';
   $('legacy-button').classList.toggle('attention',inIE||pendingIE||h.likely);
   $('legacy-button').title=pendingIE?'Annuler le chargement IE':inIE?'Revenir au mode moderne dans cet onglet':'Activer le moteur historique MSHTML dans cet onglet';

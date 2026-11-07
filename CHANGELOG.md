@@ -1,3 +1,12 @@
+## 1.3.5 — CamfrogWeb ActiveX / salon historique (Windows)
+
+- Détection ciblée de `monvisiocam.com` et de ses sous-domaines : IE11 s'exécute avec un hôte **32 bits** pour pouvoir charger d'anciens contrôles ActiveX 32 bits (contrairement au navigateur Electron 64 bits).
+- Le moteur IE64 reste sélectionné pour les autres sites anciens ; les liens et fenêtres enfant d'une session IE restent dans le moteur et la même architecture.
+- Ajout d'un diagnostic local, en lecture seule, pour les identifiants historiques CamfrogWeb du registre COM, sans installer, exécuter ou enregistrer automatiquement de contrôles non vérifiés. Il est affiché dans **Sécurité → Mode IE**.
+- Correction Win32 des appels de changement de propriétaire de fenêtre et de la conversion d'un handle 64 bits lors de l'exécution de l'hôte 32 bits.
+- Compilation de deux exécutables auxiliaires (`DevGitLegacyHost.exe` x64 et `DevGitLegacyHost32.exe` x86) ; tests natifs Windows des deux architectures et d'une fenêtre enfant IE.
+- Ne désactive pas les protections Windows ActiveX, ne modifie pas les zones de sécurité et ne garantit pas qu'un plugin obsolète fonctionne sur tous les systèmes.
+
 ## 1.3.4 — Fenêtres IE persistantes et surimpression Win32
 
 - Remplacement du reparentage Win32 `SetParent` par une surface IE11 possédée, sans bordure, positionnée sur l'onglet : amélioration du rendu au-dessus de la composition Chromium.

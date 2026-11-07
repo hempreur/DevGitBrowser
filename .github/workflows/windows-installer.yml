@@ -33,8 +33,20 @@ jobs:
           & $compiler /nologo /target:exe "/out:$out" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "$source"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path legacy/DevGitLegacyHost.exe)) { throw 'Programme IE11 dédié absent.' }
-      - name: Tester un vrai chargement MSHTML dans une fenêtre native Windows
-        run: node tests/windows-ie-smoke.js
+      - name: Compiler le moteur IE11 32 bits pour CamfrogWeb
+        shell: pwsh
+        run: |
+          $compiler32 = Join-Path $env:WINDIR 'Microsoft.NET/Framework/v4.0.30319/csc.exe'
+          if (!(Test-Path $compiler32)) { throw 'Compilateur .NET Framework 32 bits manquant.' }
+          $source = (Resolve-Path 'legacy/DevGitLegacyHost.cs').Path
+          $out = Join-Path (Get-Location).Path 'legacy/DevGitLegacyHost32.exe'
+          & $compiler32 /nologo /target:exe /platform:x86 "/out:$out" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "$source"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path legacy/DevGitLegacyHost32.exe)) { throw 'Hôte IE x86 absent.' }
+      - name: Vérifier MSHTML IE11 en 64 bits
+        run: node tests/windows-ie-smoke.js DevGitLegacyHost.exe
+      - name: Vérifier MSHTML IE11 et fenêtres de salon en 32 bits
+        run: node tests/windows-ie-smoke.js DevGitLegacyHost32.exe
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
       - name: Conserver l'installateur comme artefact

@@ -21,7 +21,12 @@ public sealed class DevGitLegacyHost : Form {
     [DllImport("user32.dll", SetLastError=true)] static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out WinRect bounds);
     [StructLayout(LayoutKind.Sequential)] struct WinRect {public int Left,Top,Right,Bottom;}
-    [DllImport("user32.dll", SetLastError=true)] static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
+    // A 32-bit .NET process must call SetWindowLongW; SetWindowLongPtrW is 64-bit only.
+    [DllImport("user32.dll", EntryPoint="SetWindowLongW", SetLastError=true)] static extern IntPtr SetWindowLong32(IntPtr hwnd, int index, IntPtr value);
+    [DllImport("user32.dll", EntryPoint="SetWindowLongPtrW", SetLastError=true)] static extern IntPtr SetWindowLong64(IntPtr hwnd, int index, IntPtr value);
+    static IntPtr SetWindowLongPtr(IntPtr hwnd,int index,IntPtr value) {
+      return IntPtr.Size==4 ? SetWindowLong32(hwnd,index,value) : SetWindowLong64(hwnd,index,value);
+    }
     [DllImport("user32.dll", SetLastError=true)] static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, int flags);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);
 
@@ -29,8 +34,30 @@ public sealed class DevGitLegacyHost : Form {
     static void ConfigureEmulation() {
       using (RegistryKey key=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION")) {
         if(key==null)throw new InvalidOperationException("Impossible de configurer IE11 dans le profil Windows.");
-        key.SetValue("DevGitLegacyHost.exe", 11001, RegistryValueKind.DWord);
+        key.SetValue(Path.GetFileName(Application.ExecutablePath), 11001, RegistryValueKind.DWord);
       }
+    }
+    // Inspect registration without instantiating the untrusted COM object. A 32-bit
+    // control is invisible to a 64-bit host even when the installer is present.
+    static string DiagnoseCamfrogRegistration() {
+      string[] known={"{2357B3CF-7F8D-4451-8D81-FD6097610AEE}","{62D90588-609E-4208-A260-A6CEC45BB92C}"};
+      try {
+        using(RegistryKey root=RegistryKey.OpenBaseKey(RegistryHive.ClassesRoot,
+             IntPtr.Size==4 ? RegistryView.Registry32 : RegistryView.Registry64)) {
+          foreach(string guid in known) {
+            using(RegistryKey cls=root.OpenSubKey("CLSID\\"+guid)) {
+              if(cls==null)continue;
+              using(RegistryKey server=cls.OpenSubKey("InprocServer32")) {
+                string file=server==null ? "" : Convert.ToString(server.GetValue("")) ?? "";
+                if(!String.IsNullOrEmpty(file) && File.Exists(Environment.ExpandEnvironmentVariables(file.Trim('\"'))))
+                  return "CamfrogWeb ActiveX enregistré ("+guid+", "+(IntPtr.Size*8)+" bits). Fichier COM présent.";
+                return "CamfrogWeb ActiveX enregistré ("+guid+", "+(IntPtr.Size*8)+" bits) mais fichier COM non confirmé.";
+              }
+            }
+          }
+        }
+      }catch(Exception e){return "Diagnostic ActiveX indisponible : "+e.Message;}
+      return "CamfrogWeb non trouvé parmi les identifiants ActiveX historiques connus en "+(IntPtr.Size*8)+" bits. Vérifier la version et l’enregistrement de votre plugin.";
     }
     static int ReadDocumentMode(WebBrowser control) {
       try {
@@ -136,6 +163,9 @@ public sealed class DevGitLegacyHost : Form {
         try {popupSink=new BrowserPopupSink(this,browser);popupCookie=new AxHost.ConnectionPointCookie(browser.ComObject,popupSink,typeof(ILegacyNewWindowEvents));}
         catch(Exception ex){Emit("ERROR","Impossible de garder les fenêtres IE dans MSHTML : "+ex.Message);Close();return;}
         Emit("ATTACHED","OWNED_OVERLAY");
+        Emit("HOSTARCH",(IntPtr.Size*8)+" bits");
+        if(new Uri(address).Host.EndsWith("monvisiocam.com",StringComparison.OrdinalIgnoreCase))
+          Emit("PLUGIN",DiagnoseCamfrogRegistration());
         if(SafeAddress(address))browser.Navigate(address); else Emit("ERROR","Adresse HTTP(S) invalide.");
       };
       FormClosed+=(sender,e)=>{try{if(popupCookie!=null)popupCookie.Disconnect();}catch{} foreach(var p in popups.ToArray())try{p.Close();}catch{} Emit("CLOSED","");};
@@ -188,7 +218,11 @@ public sealed class DevGitLegacyHost : Form {
       } catch(Exception ex){cancel=true;try{if(popup!=null)popup.Close();}catch{} Emit("POPUPBLOCKED","Fenêtre IE impossible : "+ex.Message);}
     }
     internal void PopupClosed(LegacyPopupWindow p){popups.Remove(p);Emit("POPUPCLOSED","");}
-    internal void PopupReady(string url){Emit("POPUPREADY",url);}
+    internal void PopupReady(string url){
+      Emit("POPUPREADY",url);
+      if(url.IndexOf("monvisiocam.com",StringComparison.OrdinalIgnoreCase)>=0)
+        Emit("PLUGIN",DiagnoseCamfrogRegistration());
+    }
     internal void PopupError(string reason){Emit("POPUPBLOCKED",reason);}
 
     public static void Run(string handleText,string url,int x,int y,int w,int h) {
