@@ -1,3 +1,13 @@
+# DevGitBrowser — historique
+
+## 1.3.6 — MatchPulse inclus
+
+- MatchPulse 0.1.0 livré avec le navigateur et chargé automatiquement dans la session Chromium, sans GitHub.
+- Ajout du dossier officiel `extensions/matchpulse` au dépôt public et à l'installateur EXE.
+- Le gestionnaire distingue les extensions **INCLUSE** et **GitHub privé**.
+- Déconnexion GitHub sans retirer MatchPulse ; dépôt GitHub privé ne peut pas remplacer l'extension incluse.
+- Tickets et clés API conservés uniquement en mémoire par l'extension. Aucune automatisation de pari.
+
 ## 1.3.5 — CamfrogWeb ActiveX / salon historique (Windows)
 
 - Détection ciblée de `monvisiocam.com` et de ses sous-domaines : IE11 s'exécute avec un hôte **32 bits** pour pouvoir charger d'anciens contrôles ActiveX 32 bits (contrairement au navigateur Electron 64 bits).

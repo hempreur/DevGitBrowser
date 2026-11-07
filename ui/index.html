@@ -54,7 +54,7 @@
       <h1>Le web, en mode<br><em>nouvelle génération.</em></h1>
       <p>Développe tes extensions GitHub privées, analyse le trafic en direct et garde tes fenêtres vidéo sous les yeux, dans un navigateur pensé pour créer.</p>
       <form id="start-search" class="hero-search"><span>⌕</span><input id="start-address" type="text" placeholder="Explorer une adresse ou rechercher..."><button type="submit">Explorer <span>↗</span></button></form>
-      <div class="feature-chips"><span><b>✓</b> GitHub privé</span><span><b>✓</b> Outils réseau</span><span><b>✓</b> Multi-fenêtres</span><span><b>✓</b> Mode legacy</span></div>
+      <div class="feature-chips"><span><b>✓</b> MatchPulse inclus</span><span><b>✓</b> GitHub privé</span><span><b>✓</b> Outils réseau</span><span><b>✓</b> Multi-fenêtres</span><span><b>✓</b> Mode legacy</span></div>
     </section>
     <aside class="promo promo-babel" aria-label="Découvrir la communauté BabelVisio">
       <div class="promo-top"><span class="spotlight">✦ SITE À LA UNE</span><span class="star">EN LIGNE</span></div>
@@ -77,7 +77,7 @@
 
 <section id="panel-github" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">DÉVELOPPEMENT • INTÉGRATION</span><h2>GitHub privé</h2><p>Seules les extensions du dépôt privé lié à <em>ton compte</em> peuvent être chargées.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">DÉVELOPPEMENT • INTÉGRATION</span><h2>GitHub privé</h2><p>MatchPulse est fournie avec DevGitBrowser. Tes extensions personnelles restent réservées au dépôt privé lié à <em>ton compte</em>.</p></div><button class="x" data-close="1">✕</button></div>
     <div id="git-connected" class="notice">Non connecté à GitHub</div>
     <form id="github-connect-form" class="section-card">
       <h3>1. Connecter ton compte</h3><p>Crée un <strong>fine-grained personal access token</strong> sur GitHub, avec la permission <strong>Contents: Read</strong> uniquement pour ton dépôt privé. Le jeton est chiffré localement avec les services Windows, jamais intégré à l’installeur.</p>
@@ -89,15 +89,15 @@
       <div class="two-fields"><div><label for="github-repo">Nom du dépôt</label><input id="github-repo" type="text" placeholder="mes-extensions-privees" spellcheck="false"></div><div><label for="github-branch">Branche</label><input id="github-branch" type="text" value="main" spellcheck="false"></div></div>
       <div class="form-buttons"><button type="submit" class="primary">Enregistrer le dépôt</button><button id="github-sync" type="button" class="outline">↻ Synchroniser maintenant</button></div>
     </form>
-    <div class="notice good"><strong>Ajout automatique</strong><span>Après chaque <em>push</em> sur GitHub, l’application vérifie le dépôt toutes les 90 secondes et ajoute les extensions compatibles. Aucun dossier local externe n’est accepté.</span></div>
+    <div class="notice good"><strong>Ajout automatique</strong><span>Après chaque <em>push</em> sur GitHub, l’application vérifie le dépôt toutes les 90 secondes et ajoute les extensions compatibles. Aucun dossier local externe n’est accepté. MatchPulse est incluse automatiquement.</span></div>
   </div>
 </section>
 
 <section id="panel-extensions" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Extensions autorisées</h2><p>Provenance exclusivement GitHub, depuis le dépôt privé sélectionné.</p></div><button class="x" data-close="1">✕</button></div>
-    <div class="notice"><strong>Aucun import manuel</strong><span>Les extensions téléchargées sont vérifiées grâce aux empreintes des objets Git. Electron ne prend pas en charge toutes les API d’extensions de Chrome.</span></div>
-    <div class="section-card"><h3>Extensions synchronisées <span id="extension-total" class="count">0</span></h3><div id="extension-list" class="extension-list"></div><div class="form-buttons"><button id="extension-sync" type="button" class="primary">↻ Rechercher les nouvelles extensions</button><button id="goto-git" class="outline" type="button">Configurer GitHub</button></div></div>
+    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Mes extensions</h2><p>Extensions officielles préinstallées et extensions personnelles provenant de ton dépôt GitHub privé.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="notice"><strong>Aucun import manuel</strong><span>MatchPulse est installée avec le navigateur et ne requiert pas GitHub. Les extensions personnelles téléchargées sont vérifiées grâce aux empreintes des objets Git. Electron ne prend pas en charge toutes les API de Chrome.</span></div>
+    <div class="section-card"><h3>Extensions installées <span id="extension-total" class="count">0</span></h3><div id="extension-list" class="extension-list"></div><div class="form-buttons"><button id="extension-sync" type="button" class="primary">↻ Rechercher les nouvelles extensions</button><button id="goto-git" class="outline" type="button">Configurer GitHub</button></div></div>
     <div class="tip"><strong>Exemple de structure GitHub :</strong><pre>mon-depot-prive/
   extensions/
     ma-premiere-extension/

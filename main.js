@@ -12,6 +12,7 @@ const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVide
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
+const { BUILTIN_KEYS, bundledDescriptor, reservedGitHubKey } = require('./lib/bundled-extensions');
 
 const SHELL_HEIGHT = 118;
 const RAIL_WIDTH = 0;
@@ -20,7 +21,8 @@ const MAX_TABS = 30;
 const popupLimiter = new PopupLimiter();
 const windows = new Map();
 const networkWindows = new Map(); // owner-window id -> {win, monitor}
-const installed = new Map(); // key -> {id, name, fingerprint, directory, error}
+const installed = new Map(); // private GitHub only; key -> {id, name, fingerprint, directory, error}
+const bundledInstalled = new Map(); // official extensions shipped with DevGitBrowser; never removed by GitHub
 const popupOrigins = new WeakMap(); // popup webContents -> opener origin for about:blank windows
 const ephemeralMedia = new Map();
 let nextWindowId = 0, nextTabId = 0;
@@ -141,7 +143,10 @@ function publicState(s) {
     github: { connected: Boolean(token && account), user: account?.login || '', avatar: '',
       repo: settings.github?.repo || '', branch: settings.github?.branch || 'main',
       lastSync, syncing, lastError },
-    extensions: [...installed.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.id)}))
+    extensions: [
+      ...[...bundledInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version||'',error:info.error||null,loaded:Boolean(info.id),source:'included'})),
+      ...[...installed.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.id),source:'github'}))
+    ]
   };
 }
 function sendState(s) {
@@ -545,6 +550,19 @@ async function selectRepository(name, branchValue) {
   settings.github={...info,branch};saveSettings();
   lastError='';await syncGithub();return publicGitInfo();
 }
+async function loadBundledExtensions() {
+  for (const key of BUILTIN_KEYS) {
+    try {
+      const resourceRoot = app.isPackaged ? path.join(process.resourcesPath,'app.asar.unpacked') : __dirname;
+      const descriptor = bundledDescriptor(resourceRoot, key);
+      const loaded = await browsingSession.extensions.loadExtension(descriptor.directory, {allowFileAccess:false});
+      bundledInstalled.set(key,{id:loaded.id,name:loaded.name||descriptor.name,version:descriptor.version,directory:descriptor.directory,error:null});
+    } catch (err) {
+      bundledInstalled.set(key,{id:null,name:key,version:'',error:String(err.message||err)});
+    }
+  }
+  broadcast();
+}
 function clearExtensions() {
   for(const ext of installed.values()){
     if(ext.id)try{browsingSession.extensions.removeExtension(ext.id);}catch{}
@@ -572,6 +590,8 @@ async function syncGithub() {
     const groups=groupExtensions(await client.getTree(repo.owner,repo.repo,repo.branch));
     const processed=new Set();
     for(const [key,files] of groups){
+      // Official extensions are bundled by the publisher, not replaceable by a GitHub repo.
+      if(reservedGitHubKey(key))continue;
       processed.add(key);
       const fingerprint=revision(files);
       if(installed.get(key)?.fingerprint===fingerprint && installed.get(key)?.id)continue;
@@ -877,6 +897,8 @@ else {
     token=restoreToken();
     if(token){try{const u=await api().getUser();account={id:u.id,login:u.login};}
       catch{token='';account=null;lastError='Session GitHub expirée. Reconnecte-toi.';}}
+    // Built-in extensions work for every Windows profile, with or without GitHub.
+    await loadBundledExtensions();
     registerIpc();registerNetworkIpc();createWindow();
     if(token&&settings.github) syncGithub().catch(()=>{});
     resetSyncTimer();

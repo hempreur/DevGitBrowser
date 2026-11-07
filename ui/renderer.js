@@ -84,13 +84,13 @@ function updateGithub(state){
   const list=$('extension-list');list.replaceChildren();
   $('extension-counter').textContent=String(state.extensions.filter(x=>x.loaded).length);
   $('extension-total').textContent=String(state.extensions.length);
-  if(!state.extensions.length)list.append(elem('div','empty-list','Aucune extension chargée. Ajoute un dossier dans « extensions/ » sur ton dépôt privé et publie-le sur GitHub.'));
+  if(!state.extensions.length)list.append(elem('div','empty-list','MatchPulse est incluse avec le navigateur. Tes extensions personnelles peuvent être synchronisées depuis un dépôt GitHub privé.'));
   for(const ext of state.extensions){
     const item=elem('div','extension-row');
     const ico=elem('div','extension-ico',ext.loaded?'✓':'!');
-    const detail=elem('div','ext-detail');detail.append(elem('strong','',ext.name||ext.key),elem('small','',`extensions/${ext.key} • ${ext.version||'version inconnue'}`));
+    const detail=elem('div','ext-detail');detail.append(elem('strong','',ext.name||ext.key),elem('small','',ext.source==='included'?`Officielle · fournie avec le navigateur · ${ext.version||'version inconnue'}`:`Dépôt GitHub privé · extensions/${ext.key} · ${ext.version||'version inconnue'}`));
     if(ext.error)detail.append(elem('small','error-message',ext.error));
-    const stateLabel=elem('span',ext.loaded?'ext-ok':'ext-bad',ext.loaded?'CHARGÉE':'ERREUR');
+    const stateLabel=elem('span',ext.loaded?'ext-ok':'ext-bad',ext.loaded?(ext.source==='included'?'INCLUSE':'CHARGÉE'):'ERREUR');
     item.append(ico,detail,stateLabel);list.append(item);
   }
 }

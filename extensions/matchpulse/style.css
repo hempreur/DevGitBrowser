@@ -1,0 +1,31 @@
+#mp-root,#mp-root *{box-sizing:border-box!important}
+#mp-root{all:initial!important;font-family:'Segoe UI',Arial,sans-serif!important;color:#eaf4ff!important;position:fixed!important;z-index:2147483646!important;right:18px!important;bottom:18px!important;display:block!important;line-height:1.4!important;direction:ltr!important;pointer-events:none!important}
+#mp-root button,#mp-root input,#mp-root select{font:inherit!important}
+#mp-root .mp-launch{pointer-events:auto!important;display:flex!important;align-items:center!important;gap:9px!important;border:1px solid #43d9fc!important;border-radius:26px!important;background:#101637!important;color:#eaf4ff!important;box-shadow:0 2px 20px #00aeff65!important;font-size:13px!important;font-weight:700!important;padding:11px 15px!important;cursor:pointer!important;float:right!important}
+#mp-root .mp-pulse{height:9px;width:9px;background:#2af3cf;border-radius:50%;box-shadow:0 0 8px #2af3cf}
+#mp-root .mp-panel{pointer-events:auto!important;clear:both!important;margin-bottom:9px!important;width:min(440px,calc(100vw - 32px))!important;max-height:min(78vh,780px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;border:1px solid #3c5ac1!important;border-radius:16px!important;background:linear-gradient(147deg,#0c1434,#131038 70%,#1a0c34)!important;box-shadow:0 14px 55px #000b,0 0 20px #3b15f944!important;color:#eaf4ff!important;padding:0!important}
+#mp-root .mp-hidden{display:none!important}
+#mp-root .mp-head{padding:16px!important;display:flex!important;justify-content:space-between!important;align-items:start!important;border-bottom:1px solid #34457d!important}
+#mp-root .mp-head b{font-size:18px!important;color:#70e8ff!important}
+#mp-root .mp-head small{display:block!important;color:#9ab7da!important;margin-top:4px!important;font-size:11px!important}
+#mp-root .mp-x{font-size:17px!important;border:0!important;background:transparent!important;color:#b4c7e4!important;cursor:pointer!important}
+#mp-root .mp-body{padding:14px 16px 18px!important}
+#mp-root .mp-section{border:1px solid #38436c!important;border-radius:11px!important;background:#10192d!important;padding:12px!important;margin-bottom:13px!important}
+#mp-root .mp-section h3{margin:0 0 10px!important;color:#f9e9ff!important;font-size:13px!important}
+#mp-root p,#mp-root .mp-note{font-size:11px!important;color:#a7b8d8!important;line-height:1.5!important;margin:7px 0!important}
+#mp-root .mp-group{display:flex!important;gap:7px!important;flex-wrap:wrap!important;margin:7px 0!important}
+#mp-root input,#mp-root select{background:#080e25!important;color:#f0f6ff!important;border:1px solid #3c567d!important;border-radius:7px!important;padding:8px!important;min-width:0!important;max-width:100%!important;font-size:12px!important;flex:1!important}
+#mp-root .mp-btn{border:1px solid #537eaf!important;background:#22345b!important;color:#eaf4ff!important;border-radius:8px!important;padding:8px 10px!important;font-size:12px!important;cursor:pointer!important}
+#mp-root .mp-btn.mp-primary{color:#07172f!important;background:linear-gradient(90deg,#63e8ff,#ae90ff)!important;border:0!important;font-weight:750!important}
+#mp-root .mp-btn.mp-danger{border-color:#95406d!important;background:#4d1d3b!important}
+#mp-root .mp-label{display:block!important;color:#d8e5fa!important;font-size:11px!important;margin:8px 0 4px!important}
+#mp-root .mp-items{display:grid!important;gap:6px!important}
+#mp-root .mp-item{padding:8px!important;border-radius:7px!important;background:#1b2543!important;font-size:11px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:7px!important}
+#mp-root .mp-item b{font-size:12px!important;color:#68eaff!important}
+#mp-root .mp-strong{font-size:23px!important;font-weight:800!important;color:#58f4df!important}
+#mp-root .mp-muted{color:#93aac8!important;font-size:10px!important}
+#mp-root .mp-good{color:#8bffcf!important}
+#mp-root .mp-bad{color:#ffa5b5!important}
+#mp-root .mp-foot{font-family:Georgia,serif!important;font-style:italic!important;text-align:right!important;color:#e5b4f0!important;font-size:10px!important}
+#mp-root .mp-alert{color:#fdf2a5!important;font-size:11px!important;padding:8px!important;border-left:2px solid #ffe38c!important;background:#2b2c44!important;margin-bottom:5px!important;border-radius:4px!important}
+@media(max-width:550px){#mp-root{right:8px!important;bottom:8px!important}#mp-root .mp-panel{max-height:70vh!important}}

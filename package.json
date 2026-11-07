@@ -1,9 +1,9 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "private": true,
-  "description": "Navigateur Windows de développement néon : extensions GitHub privées, popups webcam natifs, réseau LIVE et compatibilité legacy IE",
+  "description": "DevGitBrowser avec MatchPulse officiel inclus, extensions GitHub privées, IE11 natif et analyse réseau",
   "author": {
     "name": "CodexHempreur",
     "organization": "CodexHempreur INC"
@@ -37,6 +37,7 @@
       "assets/**/*",
       "legacy/**/*",
       "network/**/*",
+      "extensions/**/*",
       "package.json"
     ],
     "win": {
@@ -69,7 +70,8 @@
       "installerHeaderIcon": "assets/icon.ico"
     },
     "asarUnpack": [
-      "legacy/**/*"
+      "legacy/**/*",
+      "extensions/**/*"
     ]
   }
 }

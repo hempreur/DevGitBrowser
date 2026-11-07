@@ -49,6 +49,8 @@ jobs:
         run: node tests/windows-ie-smoke.js DevGitLegacyHost32.exe
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
+      - name: Contrôler MatchPulse dans le paquet Windows
+        run: node tests/check-windows-bundle.js
       - name: Conserver l'installateur comme artefact
         uses: actions/upload-artifact@v4
         with:
