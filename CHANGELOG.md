@@ -1,3 +1,13 @@
+# DevGitBrowser 1.3.7 — MatchPulse 0.2.0
+
+- Réparation de la lecture Betclic « En cours / Combiné » : extraction des sélections sans imposer de cote.
+- Rapport explicite des sélections détectées et des cotes absentes, avec saisie optionnelle de la cote du ticket.
+- Source publique ESPN sans clé en mode expérimental pour scores, buts, cartons et pénaltys, selon couverture.
+- API-Football facultative maintenue pour les statistiques de fautes quand disponibles.
+- Aucun accès aux comptes ou au paiement.
+
+---
+
 # DevGitBrowser — historique
 
 ## 1.3.6 — MatchPulse inclus

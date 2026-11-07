@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "private": true,
   "description": "DevGitBrowser avec MatchPulse officiel inclus, extensions GitHub privées, IE11 natif et analyse réseau",
   "author": {

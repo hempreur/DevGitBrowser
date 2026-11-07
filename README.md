@@ -1,4 +1,4 @@
-# DevGitBrowser 1.3.6 — MatchPulse intégré
+# DevGitBrowser 1.3.7 — MatchPulse intégré
 
 ### Version 1.3.5 — CamfrogWeb / anciens salons
 
@@ -36,13 +36,22 @@ Sur Windows, le bouton **IE** tente d’afficher la page actuelle dans le même 
 Par sécurité, les pages inconnues restent en Chromium, même quand des indices d’ActiveX/VBScript sont détectés. Les sites modernes, BabelVisio et la visioconférence ne doivent pas utiliser MSHTML. Le partage des cookies et de la session, les DevTools réseau Chromium et les webcams ne sont pas garantis dans ce mode. La disponibilité de MSHTML et la capacité d’intégration des fenêtres dépendent de Windows et de ses règles DPI/sécurité ; un échec provoque un retour au mode moderne. Aucun test graphique réel sur tous les systèmes Windows n’est possible depuis l’environnement de développement.
 
 
-## MatchPulse — extension officielle préinstallée (1.3.6)
+## MatchPulse — extension officielle préinstallée (1.3.7)
 
-MatchPulse 0.1.0 est incluse dans `extensions/matchpulse/` et chargée dans le profil Chromium de chaque utilisateur au démarrage (ressources non compressées dans `app.asar.unpacked`), **sans compte GitHub**. Ouvre Betclic, Winamax, Unibet France ou Unibet Belgique dans un onglet Chromium, puis utilise le bouton « MatchPulse » pour suivre tes sélections visibles et éventuellement demander des alertes via une clé API-Football personnelle. Recharge la page si elle était déjà ouverte pendant l'installation.
+MatchPulse 0.2.0 est incluse dans `extensions/matchpulse/` et chargée dans le profil Chromium de chaque utilisateur au démarrage (ressources non compressées dans `app.asar.unpacked`), **sans compte GitHub**. Ouvre Betclic, Winamax, Unibet France ou Unibet Belgique dans un onglet Chromium, puis utilise le bouton « MatchPulse » pour suivre tes sélections visibles et éventuellement demander des alertes via une clé API-Football personnelle. Recharge la page si elle était déjà ouverte pendant l'installation.
 
 Le gestionnaire **Extensions** distingue les extensions « INCLUSE » et celles de ton GitHub privé. Une déconnexion de GitHub ne retire pas MatchPulse. Le dossier `extensions/matchpulse` du dépôt **public** contient seulement le code de l'extension officielle, sans tickets, clé API ni identifiants. Les extensions personnalisées doivent toujours venir d'un dépôt **privé** distinct ; un dépôt privé ne peut pas écraser MatchPulse.
 
 **Limites actuelles :** extraction automatique de ticket expérimentale ; cotes calculées en probabilités *implicites* et non en chances prédites ; alertes en direct facultatives avec clé API-Football, couverture et délais variables ; incompatible avec les pages MSHTML/IE. Ne place aucun pari automatiquement. Les API d'extensions compatibles avec Electron sont limitées ; la présence dans l'installateur ne garantit pas le fonctionnement sur chaque site, à tester sur Windows.
+
+### Nouveau dans la 1.3.7 — MatchPulse 0.2.0
+
+- Lecture des **tickets combinés déjà validés** sur Betclic (onglet **En cours**), même quand les cotes individuelles ne sont pas affichées. Les candidats sont signalés comme non vérifiés.
+- Champ facultatif de **cote totale du ticket** : calcul de sa probabilité implicite, sans estimation infondée si les cotes sont absentes.
+- **ESPN public, sans clé** : recherche de rencontres et alertes buts/cartons/pénaltys, si ces événements existent dans les données. Flux non officiel et non garanti ; couverture et disponibilité variables. Fautes non disponibles via ce flux.
+- **API-Football reste facultative** avec clé personnelle pour les données détaillées et fautes agrégées, dans la limite du quota.
+- Aucun cookie, identifiant, montant ni sélection du bookmaker n’est envoyé à un fournisseur.
+
 
 ## Contenu
 

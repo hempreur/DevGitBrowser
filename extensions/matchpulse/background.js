@@ -3,6 +3,9 @@
   'use strict';
   const Core = globalThis.MatchPulseCore;
   const BASE = 'https://v3.football.api-sports.io';
+  const PUBLIC_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/';
+  const publicCache=new Map();
+  const publicPending=new Map();
   let sessionKey = null; // Clé API gardée en mémoire ; jamais écrite sur disque.
   let keyGeneration = 0;
   const cache = new Map();
@@ -48,6 +51,45 @@
     pending.set(path, promise);
     try { return await promise; } finally { pending.delete(path); }
   }
+  // Flux ESPN sans clé, non officiel : uniquement les tableaux de scores sportifs publics.
+  // Les tickets, cotes, identifiants et cookies des bookmakers ne sont jamais envoyés.
+  async function getPublicBoard(league,date,ttl=120000){
+    if(!Core.allowedEspnLeague(league))throw new Error('Championnat non autorisé.');
+    const day=assertDate(date).replace(/-/g,'');
+    const path=league+'/scoreboard?dates='+day;
+    const previous=publicCache.get(path);
+    if(previous && Date.now()-previous.at<ttl)return previous.events;
+    if(publicPending.has(path))return publicPending.get(path);
+    const task=(async()=>{
+      const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),11000);
+      try{
+        const response=await fetch(PUBLIC_BASE+path,{
+          method:'GET',mode:'cors',redirect:'error',cache:'no-store',credentials:'omit',signal:ctrl.signal
+        });
+        if(response.status===429)throw new Error('Source ESPN temporairement limitée.');
+        if(!response.ok)throw new Error('Source ESPN indisponible : HTTP '+response.status);
+        const body=await response.json();
+        if(!Array.isArray(body?.events))throw new Error('Format de données ESPN non reconnu.');
+        const records=body.events.slice(0,350).map(e=>Core.espnRecord(e,league)).filter(Boolean);
+        publicCache.set(path,{at:Date.now(),events:records});
+        if(publicCache.size>50)publicCache.delete(publicCache.keys().next().value);
+        return records;
+      }catch(e){if(e?.name==='AbortError')throw new Error('ESPN ne répond pas.');throw e;}
+      finally{clearTimeout(timer);}
+    })();
+    publicPending.set(path,task);
+    try{return await task;}finally{publicPending.delete(path);}
+  }
+  async function searchPublic(date,search){
+    if(String(search||'').trim().length<2)throw new Error('Nom d’équipe trop court.');
+    const results=await Promise.allSettled(Core.ESPN_LEAGUES.map(l=>getPublicBoard(l.id,date,180000)));
+    const all=[];let available=0;
+    results.forEach(r=>{if(r.status==='fulfilled'){available++;all.push(...r.value);}});
+    if(!available)throw new Error('Source ESPN inaccessible : réessaie plus tard ou utilise API-Football.');
+    return {items:Core.searchPublicMatches(all,search), partial:available<Core.ESPN_LEAGUES.length,
+      source:'public',checkedLeagues:available};
+  }
+
   async function handle(message) {
     if (!message || typeof message !== 'object') throw new Error('Requête non reconnue.');
     switch(message.action) {
@@ -57,7 +99,16 @@
         sessionKey = key;keyGeneration++;cache.clear();return { configured:true };
       }
       case 'clear-key': sessionKey=null;keyGeneration++;cache.clear();return { configured:false };
-      case 'status': return { configured:Boolean(sessionKey) };
+      case 'status': return { configured:Boolean(sessionKey), publicAvailable:true };
+      case 'public-fixtures': return searchPublic(assertDate(message.date),message.search);
+      case 'public-events': {
+        const fixture=String(message.fixture||'');
+        if(!/^\d{1,12}$/.test(fixture))throw new Error('Identifiant ESPN invalide.');
+        const board=await getPublicBoard(message.league,assertDate(message.date),115000);
+        const match=board.find(x=>x.id===fixture);
+        if(!match)throw new Error('Match absent du flux ESPN pour ce championnat ou cette date.');
+        return {items:match.events,score:match.score,status:match.status,source:'public',fouls:null};
+      }
       case 'fixtures': {
         const date=assertDate(message.date);
         return { items:Core.matchingFixtures(await getJSON('/fixtures?date='+date, 10*60*1000),message.search) };

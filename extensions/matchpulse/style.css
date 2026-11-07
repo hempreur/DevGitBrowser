@@ -29,3 +29,9 @@
 #mp-root .mp-foot{font-family:Georgia,serif!important;font-style:italic!important;text-align:right!important;color:#e5b4f0!important;font-size:10px!important}
 #mp-root .mp-alert{color:#fdf2a5!important;font-size:11px!important;padding:8px!important;border-left:2px solid #ffe38c!important;background:#2b2c44!important;margin-bottom:5px!important;border-radius:4px!important}
 @media(max-width:550px){#mp-root{right:8px!important;bottom:8px!important}#mp-root .mp-panel{max-height:70vh!important}}
+
+#mp-root .mp-selection-row{align-items:stretch!important;justify-content:flex-start!important}
+#mp-root .mp-selection-info{flex:1!important;min-width:0!important;display:flex!important;flex-direction:column!important;gap:3px!important;overflow-wrap:anywhere!important}
+#mp-root .mp-selection-info b{font-size:12px!important;color:#eaf4ff!important}
+#mp-root .mp-selection-info small{display:block!important;font-size:10px!important;line-height:1.4!important;color:#adc0dd!important}
+#mp-root .mp-odd-input{width:72px!important;min-width:72px!important;max-width:72px!important;flex:0 0 72px!important;align-self:center!important}

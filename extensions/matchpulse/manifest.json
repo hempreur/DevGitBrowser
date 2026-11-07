@@ -2,11 +2,12 @@
   "manifest_version": 2,
   "name": "MatchPulse — DevGitBrowser",
   "short_name": "MatchPulse",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Suivi sportif en lecture seule : Betclic, Winamax, Unibet France et Belgique. Cotes implicites, buts, cartons, penaltys et statistiques de fautes.",
   "author": "CodexHempreur INC",
   "permissions": [
-    "https://v3.football.api-sports.io/*"
+    "https://v3.football.api-sports.io/*",
+    "https://site.api.espn.com/*"
   ],
   "background": {
     "scripts": [

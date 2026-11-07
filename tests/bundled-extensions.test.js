@@ -9,7 +9,7 @@ test('MatchPulse is part of the shipped application and its assets are complete'
   assert.deepEqual(BUILTIN_KEYS,['matchpulse']);
   const ext=bundledDescriptor(root,'matchpulse');
   assert.equal(ext.key,'matchpulse');
-  assert.equal(ext.version,'0.1.0');
+  assert.equal(ext.version,'0.2.0');
   assert.ok(ext.name.includes('MatchPulse'));
   assert.throws(()=>bundledDescriptor(root,'other'),/inconnue/);
 });
