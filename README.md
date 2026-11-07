@@ -1,4 +1,14 @@
-# DevGitBrowser 1.3.8 — MatchPulse intégré
+# DevGitShield — bloqueur de publicités intégré (1.3.9)
+
+Sur les pages Chromium, DevGitBrowser charge automatiquement un moteur de filtres compatible EasyList et uBlock Origin : https://github.com/ghostery/adblocker (`@ghostery/adblocker-electron`, MPL-2.0). Il ne redistribue **pas** l'extension uBlock Origin. Par défaut, le blocage réseau et cosmétique est actif, avec un cache local des filtres mis à jour sur le réseau et un petit ensemble de règles de secours hors ligne.
+
+Listes : EasyList, EasyPrivacy, listes uBlock Origin (Ads, Privacy, Annoyances, Badware, Quick Fixes, Unbreak) et EasyList France. Les listes uBlock sont publiées par les mainteneurs d'uAssets sous GPL-3.0 ; les listes EasyList et EasyPrivacy ont leurs propres conditions (GPL/Creative Commons). Chaque liste est téléchargée de sa source officielle et conservée localement pour le fonctionnement hors ligne, sans être incluse dans ce dépôt. Sources et licences : https://github.com/gorhill/uBlock/wiki/Filter-list-licenses ; https://easylist.to/.
+
+**Limites** : aucun logiciel ne peut supprimer toutes les publicités. Les publicités diffusées directement dans une vidéo ou les éléments intégrés au contenu peuvent rester visibles. Le moteur IE/MSHTML dispose de sa propre pile réseau Windows et n'est pas soumis à ce blocage Chromium. Les filtres agressifs peuvent gêner des flux vidéo, des connexions ou des sites de paris ; l'interrupteur dans **Sécurité** permet de les désactiver. Le bloqueur n'est pas un antivirus et n'offre aucune garantie d'anonymat.
+
+---
+
+# DevGitBrowser 1.3.9 — MatchPulse intégré
 
 ### Version 1.3.5 — CamfrogWeb / anciens salons
 

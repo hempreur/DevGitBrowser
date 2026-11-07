@@ -109,6 +109,13 @@
 <section id="panel-security" class="panel hidden">
   <div class="panel-wrap">
     <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="section-card">
+      <h3>🛡 DevGitShield — anti-publicités intégré</h3>
+      <p>Mode strict activé par défaut sur toutes les pages Chromium et leurs pop-ups : publicités, traceurs, éléments promotionnels et nuisances. Moteur compatible avec les filtres uBlock Origin et EasyList, mis à jour automatiquement. Un filtre n’élimine pas toutes les annonces et peut perturber certains sites.</p>
+      <div class="setting-line"><div><strong>Protection maximale sur Chromium</strong><p>La désactivation est globale, avec effet immédiat. Actualise le site si certaines zones restent cachées.</p></div><label class="switch"><input id="adblock-enabled" type="checkbox" checked><span></span></label></div>
+      <div class="setting-line"><div><strong>État des filtres</strong><p id="adblock-status" aria-live="polite">Initialisation du moteur anti-publicités…</p></div><button type="button" id="adblock-refresh" class="outline">Actualiser les filtres</button></div>
+      <div class="notice warning"><strong>Mode IE historique</strong><span>Le rendu MSHTML utilise un processus Windows indépendant : le filtre réseau Chromium ne peut pas intercepter ses annonces. DevGitShield n'affaiblit pas les contrôles ActiveX et ne modifie pas les paramètres de sécurité IE.</span></div>
+    </div>
     <div class="section-card"><div class="site-head"><span class="site-icon">◈</span><div><small>SITE ACTIF</small><h3 id="origin-label">Ouvrir un site HTTPS</h3></div></div>
       <div class="setting-line"><div><strong>Fenêtres pop-up et webcam détachée</strong>
         <p>BabelVisio est autorisé par défaut : les fenêtres vidéo <code>window.open()</code> restent utilisables. Les autres sites sont bloqués tant que tu ne les autorises pas. Des limites de fréquence et de nombre de fenêtres restent actives.</p></div>

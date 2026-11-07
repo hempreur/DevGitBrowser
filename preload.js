@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   zoom:value=>invoke('nav:zoom',value),
   downloadFolder:()=>invoke('downloads:folder'),
   clearCache:()=>invoke('privacy:clear-cache'),clearSiteData:()=>invoke('privacy:clear-site-data'),
+  adblockToggle:enabled=>invoke('privacy:adblock-toggle',enabled),adblockRefresh:()=>invoke('privacy:adblock-refresh'),
   githubConnect:token=>invoke('github:connect',token),
   githubRepo:(repo,branch)=>invoke('github:choose-repo',repo,branch),
   githubSync:()=>invoke('github:sync'),githubDisconnect:()=>invoke('github:disconnect'),

@@ -7,6 +7,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {NetworkMonitor} = require('./lib/network-monitor');
+const {AdBlockService} = require('./lib/adblocker');
 const {DETECTOR_SOURCE,validateLegacyTarget} = require('./lib/legacy');
 const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVideo, preserveIEInSession, legacyHostFilename} = require('./lib/legacy-embedded');
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
@@ -27,6 +28,7 @@ const popupOrigins = new WeakMap(); // popup webContents -> opener origin for ab
 const ephemeralMedia = new Map();
 let nextWindowId = 0, nextTabId = 0;
 let browsingSession, settings, account = null, token = '', syncTimer = null;
+let adBlocker = null, adBlockTimer = null;
 let syncing = false, lastSync = null, lastError = '';
 let syncTimerCadence = 90_000;
 
@@ -39,7 +41,7 @@ function writeAtomic(target, contents) {
   finally { try { fs.rmSync(tmp, { force: true }); } catch {} }
 }
 function loadSettings() {
-  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{} });
+  const fallback = () => ({ proxy: { ...DEFAULT_PROXY }, github: null, popupModes: {}, mediaGrants: {}, sitePrivacy: {}, performance:{mode:'balanced',hardwareAcceleration:true}, downloads:{folder:''}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true });
   try {
     const raw = JSON.parse(fs.readFileSync(userDataFile('preferences.json'), 'utf8'));
     const p = fallback();
@@ -49,6 +51,8 @@ function loadSettings() {
         if (isSecureOrigin(origin) && ['allow','block'].includes(mode)) p.popupModes[origin]=mode;
       }
     }
+    // Ad blocking is enabled for every new Windows profile.
+    if (typeof raw.adblockEnabled==='boolean') p.adblockEnabled=raw.adblockEnabled;
     // Migrate version 1.0 manually allowlisted origins; preserve user choices.
     if (Array.isArray(raw.popupAllowed)) for(const origin of raw.popupAllowed.filter(isSecureOrigin).slice(0,80)) {
       if (!Object.hasOwn(p.popupModes,origin))p.popupModes[origin]='allow';
@@ -138,6 +142,7 @@ function publicState(s) {
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads')},
     zoom:activeTab(s)?.url && !activeTab(s).view.webContents.isDestroyed() ? activeTab(s).view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
+    adblock: adBlocker ? adBlocker.state() : {enabled:settings.adblockEnabled,ready:false,quality:'initialisation',updating:false,error:'',scope:'chromium'},
     currentOrigin: origin, blockedPopups: s.blockedPopups,
     mediaHere: { camera:origin?mediaGranted(origin,'camera'):false, microphone:origin?mediaGranted(origin,'microphone'):false },
     github: { connected: Boolean(token && account), user: account?.login || '', avatar: '',
@@ -828,6 +833,18 @@ function registerIpc(){
       else settings.popupModes[origin]=mode;
       saveSettings();broadcast();
     },
+    'privacy:adblock-toggle':(_s,enabled)=>{
+      if(typeof enabled!=='boolean')throw new Error('Réglage de protection publicitaire invalide.');
+      settings.adblockEnabled=enabled;
+      if(adBlocker)adBlocker.setEnabled(enabled);
+      saveSettings();broadcast();
+      return adBlocker?.state() || null;
+    },
+    'privacy:adblock-refresh':()=>{
+      if(!adBlocker)throw new Error('Moteur de blocage non disponible.');
+      adBlocker.refresh().catch(()=>{});
+      return adBlocker.state();
+    },
     'site:privacy':(s,key,mode)=>{
       const origin=activeOriginRequired(s);
       if(!['camera','microphone','notifications','geolocation'].includes(key)||!['ask','block','allow'].includes(mode))throw new Error('Autorisation invalide.');
@@ -891,6 +908,13 @@ else {
     settings=loadSettings();
     // Electron's userData path and persistent partition are isolated per OS user profile.
     browsingSession=session.fromPartition('persist:devgitbrowser-user');
+    // Native network + cosmetic ad filtering in the Chromium partition only.
+    // The separate Windows MSHTML host cannot share Electron's request hooks.
+    adBlocker=new AdBlockService({webSession:browsingSession,dataFolder:app.getPath('userData'),
+      enabled:settings.adblockEnabled,onState:()=>broadcast()});
+    try{await adBlocker.start();}catch(err){console.error('DevGitShield:',err?.message||err);}
+    adBlockTimer=setInterval(()=>adBlocker?.refresh().catch(()=>{}),24*60*60*1000);
+    adBlockTimer.unref?.();
     configurePermissionPolicy();configureDownloads();
     try{await browsingSession.setProxy(proxyForElectron(settings.proxy));}
     catch{settings.proxy={...DEFAULT_PROXY};}
@@ -903,6 +927,6 @@ else {
     if(token&&settings.github) syncGithub().catch(()=>{});
     resetSyncTimer();
   }).catch(err=>{dialog.showErrorBox('Démarrage impossible',String(err.stack||err));app.quit();});
-  app.on('before-quit',()=>{if(syncTimer)clearInterval(syncTimer);for(const inspector of networkWindows.values())inspector.monitor.stop();});
+  app.on('before-quit',()=>{if(adBlockTimer)clearInterval(adBlockTimer);if(syncTimer)clearInterval(syncTimer);for(const inspector of networkWindows.values())inspector.monitor.stop();});
   app.on('window-all-closed',()=>app.quit());
 }

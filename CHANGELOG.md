@@ -1,3 +1,13 @@
+## 1.3.9 — DevGitShield : protection publicitaire native
+
+- Intégration du moteur de filtres Ghostery pour Electron (compatible syntaxes uBlock Origin et EasyList) à la session Chromium persistante ; aucune extension à ajouter manuellement.
+- Mode maximal activé par défaut : sources EasyList, EasyPrivacy, listes uBlock pour publicités, confidentialité, nuisances, corrections, risques et compatibilité, ainsi qu'EasyList France. Téléchargement via HTTPS et mises à jour quotidiennes.
+- Cache local des listes pour le démarrage hors ligne ; ensemble minimal de filtres préinstallé en cas d'absence de cache ou de réseau.
+- Interrupteur d'activation globale et actualisation des filtres dans Sécurité, sans changer les autorisations caméra et microphone.
+- Compatibilité conservée avec MatchPulse et les pop-ups Chromium ; l'hôte MSHTML (IE11) reste hors du périmètre des interceptions réseau d'Electron.
+- Les annonces intégrées à des médias ou diffusées directement depuis le site ne peuvent pas toutes être détectées ; une protection à 100 % n'est pas garantie.
+- Moteur tiers sous licence MPL-2.0 ; les listes de filtres conservent leurs licences et leurs auteurs respectifs.
+
 ## 1.3.8 — MatchPulse 0.3.0 : lecture native du DOM et alertes du bookmaker
 
 - Lecture du ticket Betclic à partir de la structure HTML vivante (`textContent`, `innerText`, noeuds de cotes), sans capture d’écran ni API de compte.

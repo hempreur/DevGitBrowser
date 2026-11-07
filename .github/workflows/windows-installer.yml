@@ -18,6 +18,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Exécuter les tests
         run: npm test
+      - name: Vérifier le vrai moteur de filtrage DevGitShield
+        run: node tests/adblocker-runtime-smoke.js
       - name: Vérifier la compilation du moteur MSHTML Windows
         shell: pwsh
         run: |

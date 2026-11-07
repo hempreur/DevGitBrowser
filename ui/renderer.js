@@ -38,6 +38,10 @@ function updateTabs(state){
 }
 function updateSecurity(state){
   const hasSite=Boolean(state.currentOrigin);
+  const guard=state.adblock||{enabled:true,ready:false,quality:'initialisation'};
+  $('adblock-enabled').checked=guard.enabled;
+  $('adblock-refresh').disabled=Boolean(guard.updating);
+  $('adblock-status').textContent=(guard.enabled?'Activé':'Désactivé')+' · '+String(guard.quality||'initialisation')+(guard.updating?' · mise à jour…':'')+(guard.error?' · téléchargement : '+guard.error:'');
   $('origin-label').textContent=state.currentOrigin||'Ouvrir un site HTTPS';
   $('popup-mode').disabled=!hasSite;
   $('popup-mode').value=state.popupOverrideHere;
@@ -143,6 +147,8 @@ const panelBindings={ 'security-button':'security','github-button':'github','ext
   'card-github':'github','card-extensions':'extensions','card-security':'security','goto-git':'github'};
 for(const [id,name] of Object.entries(panelBindings))$(id).addEventListener('click',()=>run(()=>showPanel(name)));
 for(const item of document.querySelectorAll('[data-close]'))item.addEventListener('click',()=>run(()=>showPanel('')));
+$('adblock-enabled').addEventListener('change',()=>run(()=>api.adblockToggle($('adblock-enabled').checked),'Protection publicitaire mise à jour.'));
+$('adblock-refresh').addEventListener('click',()=>run(()=>api.adblockRefresh(),'Mise à jour des filtres demandée.'));
 $('popup-mode').addEventListener('change',()=>run(()=>api.allowPopups($('popup-mode').value),'Politique des fenêtres mise à jour.'));
 $('popup-topmost').addEventListener('change',()=>run(()=>api.topmost($('popup-topmost').value),'Comportement des fenêtres Windows enregistré.'));
 for(const key of ['camera','microphone','notifications','geolocation']){
