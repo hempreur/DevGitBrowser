@@ -138,7 +138,7 @@ public sealed class DevGitLegacyHost : Form {
         Emit("ATTACHED","OWNED_OVERLAY");
         if(SafeAddress(address))browser.Navigate(address); else Emit("ERROR","Adresse HTTP(S) invalide.");
       };
-      FormClosed+=(sender,e)=>{try{popupCookie?.Disconnect();}catch{} foreach(var p in popups.ToArray())try{p.Close();}catch{} Emit("CLOSED","");};
+      FormClosed+=(sender,e)=>{try{if(popupCookie!=null)popupCookie.Disconnect();}catch{} foreach(var p in popups.ToArray())try{p.Close();}catch{} Emit("CLOSED","");};
     }
     void ApplyCommand(string line) {
       if(IsDisposed || !IsHandleCreated) return;
@@ -159,7 +159,7 @@ public sealed class DevGitLegacyHost : Form {
         }
         else if(code=="SHOW"){ShowWindow(Handle,SW_SHOW);SetWindowPos(Handle,HWND_TOP,Left,Top,Width,Height,SWP_NOACTIVATE|SWP_SHOWWINDOW);}
         else if(code=="HIDE")ShowWindow(Handle,SW_HIDE);
-        else if(code=="TESTPOPUP") {var link=browser.Document?.GetElementById("popup");if(link!=null)link.InvokeMember("click");else Emit("ERROR","Lien de test popup absent.");}
+        else if(code=="TESTPOPUP") {var link=(browser.Document==null ? null : browser.Document.GetElementById("popup"));if(link!=null)link.InvokeMember("click");else Emit("ERROR","Lien de test popup absent.");}
         else if(code=="QUIT")Close();
       }catch(Exception ex){Emit("ERROR",ex.Message);}
     }
@@ -185,7 +185,7 @@ public sealed class DevGitLegacyHost : Form {
         popupTimes.Enqueue(DateTime.UtcNow);popups.Add(popup);
         Emit("POPUP","Fenêtre IE ouverte");
         cancel=false;
-      } catch(Exception ex){cancel=true;try{popup?.Close();}catch{} Emit("POPUPBLOCKED","Fenêtre IE impossible : "+ex.Message);}
+      } catch(Exception ex){cancel=true;try{if(popup!=null)popup.Close();}catch{} Emit("POPUPBLOCKED","Fenêtre IE impossible : "+ex.Message);}
     }
     internal void PopupClosed(LegacyPopupWindow p){popups.Remove(p);Emit("POPUPCLOSED","");}
     internal void PopupReady(string url){Emit("POPUPREADY",url);}
@@ -254,7 +254,7 @@ public sealed class LegacyPopupWindow : Form {
       if(browser.Url!=null && e.Url==browser.Url && browser.ReadyState==WebBrowserReadyState.Complete)root.PopupReady(browser.Url.AbsoluteUri);
     };
     Controls.Add(browser);
-    FormClosed+=(sender,e)=>{try{cookie?.Disconnect();}catch{} root.PopupClosed(this);};
+    FormClosed+=(sender,e)=>{try{if(cookie!=null)cookie.Disconnect();}catch{} root.PopupClosed(this);};
   }
   public void InitializeEvents(){
     sink=new BrowserPopupSink(root,browser);
