@@ -1,4 +1,4 @@
-/* MatchPulse 0.2 — fonctions déterministes partagées, sans dépendance externe. */
+/* MatchPulse 0.3 — fonctions déterministes partagées, sans dépendance externe. */
 (function (root, build) {
   const api = build();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -116,7 +116,8 @@
       for(let j=i-1;j>=Math.max(0,i-4);j--){
         const candidate=lines[j];
         if(!candidate || statusPattern.test(candidate) || marketPattern.test(candidate) || scorePattern.test(candidate))continue;
-        if(candidate.length>=2 && candidate.length<=80 && /[A-Za-zÀ-ÿ]/.test(candidate)) {label=candidate;break;}
+        const cleanCandidate=candidate.replace(/(?:\s+\d{1,3}[,.]\d{1,3}){1,3}$/, '').trim();
+        if(cleanCandidate.length>=2 && cleanCandidate.length<=80 && /[A-Za-zÀ-ÿ]/.test(cleanCandidate)) {label=cleanCandidate;break;}
       }
       let fixture='';
       let odds=null;
@@ -126,6 +127,10 @@
         if(!fixture && scorePattern.test(line) && /[A-Za-zÀ-ÿ]/.test(line)) fixture=niceLabel(line,120);
         const explicit=line.match(/\bcote(?:\s+(?:du pari|s[eé]lection))?\s*[:：]?\s*(\d{1,3}[.,]\d{1,3})\b/i);
         if(explicit)odds=parseOdds(explicit[1]);
+        // Ticket Betclic : ancienne cote barrée, puis cote actuelle. « innerText »
+        // expose parfois ces nombres sans la mention « cote ». Un score 0-0 n'en fait pas partie.
+        const onlyOdds=line.match(/^(?:\d{1,3}[,.]\d{1,3})(?:\s+\d{1,3}[,.]\d{1,3})*$/);
+        if(onlyOdds) for(const value of line.split(/\s+/)) odds=parseOdds(value)||odds;
       }
       // Ne pas intégrer des libellés isolés hors d'un ticket sportif structuré.
       if(!label || (!fixture && !expected))continue;
@@ -133,6 +138,21 @@
       if(!items.some(s=>s.label===item.label&&s.market===item.market&&s.fixture===item.fixture))items.push(item);
     }
     return {items,expected,complete:expected!==null && items.length===expected};
+  }
+  function scoreFromFixture(fixture){
+    const line=niceLabel(fixture,170);
+    const m=line.match(/^(.{2,70}?)\s+(\d{1,2})\s*[-:]\s*(\d{1,2})\s+(.{2,70})$/);
+    if(!m)return null;
+    return {home:niceLabel(m[1],70),away:niceLabel(m[4],70),homeGoals:Number(m[2]),awayGoals:Number(m[3])};
+  }
+  function scoreChange(prev,next){
+    if(!prev||!next||normalizeTeam(prev.home)!==normalizeTeam(next.home)||normalizeTeam(prev.away)!==normalizeTeam(next.away))return null;
+    if(prev.homeGoals===next.homeGoals&&prev.awayGoals===next.awayGoals)return null;
+    const before=`${prev.homeGoals}–${prev.awayGoals}`,after=`${next.homeGoals}–${next.awayGoals}`;
+    const increased=next.homeGoals>=prev.homeGoals&&next.awayGoals>=prev.awayGoals;
+    const goalCount=next.homeGoals+next.awayGoals-prev.homeGoals-prev.awayGoals;
+    if(increased&&goalCount===1)return `⚽ But signalé sur la page : ${next.home} – ${next.away} (${before} → ${after})`;
+    return `Score rectifié sur la page : ${next.home} – ${next.away} (${before} → ${after})`;
   }
   const ESPN_LEAGUES=Object.freeze([
     {id:'mex.1',name:'Mexique · Liga MX'}, {id:'arg.1',name:'Argentine · Primera'},
@@ -176,7 +196,7 @@
       .slice(0,30).map(r=>({id:r.id,league:r.league,home:r.home,away:r.away,date:r.date,score:r.score,status:r.status,source:'public'}));
   }
 
-  return { parsePlacedTicketText, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
+  return { parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
     niceLabel, extractOddsAndLabel, eventKind, eventText, eventId, foulCount,
     validFixtureId, matchingFixtures };
 });

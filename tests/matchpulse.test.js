@@ -64,6 +64,7 @@ test('Manifeste chargé uniquement par DevGitBrowser et aux domaines déclarés'
   assert.equal(manifest.background.persistent,true);
   assert.equal(manifest.content_scripts.length,1);
   assert.ok(manifest.content_scripts[0].js.includes('content.js'));
+  assert.ok(manifest.content_scripts[0].js.includes('dom-reader.js'));
   assert.ok(manifest.content_scripts[0].css.includes('style.css'));
   assert.deepEqual(manifest.permissions,['https://v3.football.api-sports.io/*','https://site.api.espn.com/*']);
   assert.ok(manifest.content_scripts[0].matches.some(s=>s.includes('unibetsports.be')));

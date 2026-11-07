@@ -2,11 +2,15 @@
 (function(){
   'use strict';
   const core=globalThis.MatchPulseCore;
+  const domReader=globalThis.MatchPulseDOM;
   const bookmaker=core?.detectBookmaker(location.hostname);
-  if(!bookmaker || !document.documentElement || document.getElementById('mp-root')) return;
+  if(!bookmaker || !domReader || !document.documentElement || document.getElementById('mp-root')) return;
   const selections=[];
   let ticketExpected=null;
   let ticketCombinedOdds=null;
+  let ticketScoreBaseline=new Map(), ticketMarkerBaseline=new Set(), ticketScanBusy=false;
+  // Les données restent en mémoire dans cet onglet. Pas de collecte de cookies ni d'API privées.
+  const ticketWatchInterval=15000;
   const tracked=[];
   const latestAlerts=[];
   let active=false, apiConfigured=false, pollTimer=null, pollBusy=false, pollNumber=0;
@@ -17,7 +21,7 @@
     <div class="mp-body">
       <section class="mp-section">
         <h3>🎟️ Mon ticket visible</h3>
-        <p>Ouvre ton ticket sur le bookmaker, puis lance sa lecture. Aucun identifiant, cookie ou montant de mise n'est collecté.</p>
+        <p>Lit le DOM vivant du ticket (structure HTML et cotes à jour). Aucune capture d'écran, aucun identifiant, cookie ou montant de mise n'est collecté.</p>
         <div class="mp-group"><button type="button" class="mp-btn" id="mp-scan">Lire les sélections affichées</button><button type="button" class="mp-btn" id="mp-clear">Effacer</button></div>
         <div class="mp-items" id="mp-selections"></div>
         <div id="mp-ticket-status" class="mp-note" role="status">Aucun ticket lu.</div>
@@ -26,11 +30,11 @@
         <label class="mp-label">Ajouter/corriger manuellement une sélection</label>
         <div class="mp-group"><input id="mp-selection-label" placeholder="Ex. Équipe A gagne" aria-label="Libellé de la sélection"><input id="mp-selection-odds" placeholder="Cote 2,10" style="flex:0 1 100px!important" aria-label="Cote décimale"><button type="button" class="mp-btn" id="mp-add">Ajouter</button></div>
         <div id="mp-probability" class="mp-note">Ajoute des cotes pour calculer la probabilité implicite.</div>
-        <p>⚠️ Probabilité déduite des cotes, jamais une prédiction fiable. Une cote manque dans les tickets déjà validés ? Laisse-la vide. La lecture ne confirme pas le statut du pari.</p>
+        <p>⚠️ Probabilité déduite des cotes visibles sur le site, jamais une prédiction fiable. Une cote actuelle affichée peut différer de celle acceptée au moment du pari. La lecture ne confirme pas le statut du ticket.</p>
       </section>
       <section class="mp-section">
         <h3>🔴 Matchs et alertes en direct</h3>
-        <p>Alertes buts, cartons et pénaltys selon les événements disponibles. ESPN public fonctionne sans clé (non officiel, couverture variable). Fautes d’équipe : seulement via API-Football si statistiques disponibles.</p>
+        <p>Sur Betclic, les scores et les événements explicitement indiqués dans le DOM du ticket sont surveillés sans API. ESPN public reste disponible pour suivre d'autres rencontres sans clé (non officiel, couverture variable). Les fautes non affichées nécessitent une source sportive externe.</p>
         <label class="mp-label">Source des résultats</label>
         <select id="mp-source"><option value="public">ESPN public · sans clé (expérimental)</option><option value="api-football">API-Football · clé personnelle</option></select>
         <div id="mp-api-key-group" class="mp-hidden"><label class="mp-label">Clé personnelle API-Football (non enregistrée)</label>
@@ -45,7 +49,7 @@
         <div class="mp-note" id="mp-poll-status">Suivi arrêté.</div>
         <div id="mp-alerts"></div>
       </section>
-      <div class="mp-foot">By CodexHempreur · Extension incluse 0.2</div>
+      <div class="mp-foot">By CodexHempreur · Extension incluse 0.3</div>
     </div>
   </div>
   <button type="button" class="mp-launch" id="mp-launch"><span class="mp-pulse"></span> MatchPulse</button>
@@ -65,7 +69,7 @@
   }
   function el(tag,className,text){const e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
   function button(text,fn,cls='mp-btn'){const e=el('button',cls,text);e.type='button';e.addEventListener('click',fn);return e;}
-  function openPanel(force){$('mp-panel').classList.toggle('mp-hidden',!force);if(force&&!selections.length&&bookmaker.name==='Betclic')extractVisibleSlip();}
+  function openPanel(force){$('mp-panel').classList.toggle('mp-hidden',!force);if(force&&bookmaker.name==='Betclic')extractVisibleSlip();}
   $('mp-launch').addEventListener('click',()=>openPanel($('mp-panel').classList.contains('mp-hidden')));
   $('mp-close').addEventListener('click',()=>openPanel(false));
   function renderSelections(){
@@ -77,15 +81,16 @@
       detail.append(el('b','',s.label));
       if(s.market)detail.append(el('small','',s.market));
       if(s.fixture)detail.append(el('small','mp-muted',s.fixture));
+      if(s.oddsSource==='dom')detail.append(el('small','mp-muted','Cote lue dans le HTML du site'));
       const odd=el('input','mp-odd-input');odd.type='text';odd.inputMode='decimal';odd.placeholder='Cote ?';
       odd.title='Cote individuelle (facultative)';odd.setAttribute('aria-label','Cote de '+s.label);
       odd.value=s.odds?String(s.odds).replace('.',','):'';
       odd.addEventListener('change',()=>{
         const value=odd.value.trim();
-        if(!value){s.odds=null;renderSelections();return;}
+        if(!value){s.odds=null;s.oddsSource='manual';renderSelections();return;}
         const n=core.parseOdds(value);
         if(!n){setText('mp-ticket-status','Cote non reconnue : utilise une cote décimale, ex. 1,85.');odd.focus();return;}
-        s.odds=n;renderSelections();
+        s.odds=n;s.oddsSource='manual';renderSelections();
       });
       row.append(detail,odd,button('✕',()=>{selections.splice(i,1);renderSelections();}));area.append(row);
     });
@@ -118,8 +123,9 @@
     if(text && !odd){setText('mp-ticket-status','Cote totale non reconnue. Exemple : 8,75');return;}
     ticketCombinedOdds=odd;renderSelections();
   });
-  // Sur les tickets VALIDÉS, Betclic n’affiche souvent aucune cote individuelle.
-  // Chercher d'abord les blocs « Combiné (N) », puis les listes de sélections.
+  // Le DOM d'un ticket VALIDÉ contient souvent les cotes dans des noeuds voisins,
+  // non dans le même texte que le marché. Lire le DOM vivant, jamais les pixels.
+  // Chercher d'abord les blocs « Combiné (N) », puis leurs lignes de sélections.
   function findTicketContainers(){
     const selectors=[
       '[data-testid*="betslip" i]','[data-testid*="bet-slip" i]','[data-test-id*="bet" i]',
@@ -149,8 +155,8 @@
     }
     return [...nodes];
   }
-  function extractVisibleSlip(){
-    let best={items:[],expected:null,complete:false};
+  function readTicketFromPage(){
+    let best={items:[],expected:null,complete:false,container:null};
     const candidates=findTicketContainers();
     for(const container of candidates){
       const rect=container.getBoundingClientRect(),style=getComputedStyle(container);
@@ -158,9 +164,10 @@
       const text=(container.innerText||'').slice(0,14000);
       if(!text)continue;
       const parsed=core.parsePlacedTicketText(text);
-      if(parsed.items.length>best.items.length || (parsed.items.length===best.items.length&&parsed.complete&&!best.complete))best=parsed;
+      if(parsed.items.length>best.items.length || (parsed.items.length===best.items.length&&parsed.complete&&!best.complete))
+        best={...parsed,container};
     }
-    // Ancien lecteur des coupons AVANT validation, quand les cotes sont présentes.
+    // Ancien lecteur des coupons AVANT validation.
     if(!best.items.length){
       const found=[];
       for(const container of candidates.slice(0,45)){
@@ -174,25 +181,79 @@
         }
         if(found.length)break;
       }
-      best={items:found,expected:null,complete:false};
+      best={items:found,expected:null,complete:false,container:null};
     }
+    if(best.container&&best.items.length)best.items=domReader.enrichTicketOdds(best.container,best.items,core);
+    return best;
+  }
+  function snapshotTicket(best){
+    const scores=new Map();
+    for(const item of best.items){
+      const parsed=core.scoreFromFixture(item.fixture);
+      if(parsed)scores.set(item.label+'|'+item.market,parsed);
+    }
+    return {scores,markers:best.container?domReader.explicitMatchMarkers(best.container,best.items):new Map()};
+  }
+  function baselineTicket(best){
+    const snap=snapshotTicket(best);
+    ticketScoreBaseline=snap.scores;
+    ticketMarkerBaseline=new Set([...snap.markers.values()].flat().map(x=>x.id));
+  }
+  function extractVisibleSlip(){
+    const best=readTicketFromPage();
     if(best.items.length){
       ticketExpected=best.expected;
-      // Une nouvelle lecture du ticket remplace les anciennes suggestions, mais pas les cotes
-      // corrigées par l'utilisateur pour la même sélection.
+      // Préserver les corrections manuelles si le DOM ne fournit pas une cote.
       const previous=new Map(selections.map(s=>[s.label+'|'+(s.market||''),s]));
       selections.splice(0,selections.length,...best.items.map(s=>{
         const prior=previous.get(s.label+'|'+(s.market||''));
-        return {...s,odds:s.odds||prior?.odds||null};
+        return prior?.oddsSource==='manual'?{...s,odds:prior.odds,oddsSource:'manual'}:
+          {...s,odds:s.odds??prior?.odds??null,oddsSource:s.oddsSource||prior?.oddsSource||null};
       }));
+      baselineTicket(best);
       renderSelections();
+      const oddsFound=selections.filter(s=>s.odds!==null).length;
       setText('mp-ticket-status',best.expected?
-        `${selections.length} sélection(s) candidate(s) sur ${best.expected} annoncée(s) par le combiné.${best.complete?' Liste complète détectée.':' Liste partielle : fais défiler le ticket et relance la lecture.'} Vérifie les libellés.`:
-        `${selections.length} sélection(s) candidate(s) détectée(s). Vérifie les libellés.`);
+        `${selections.length} sélection(s) sur ${best.expected} annoncée(s). ${oddsFound} cote(s) extraite(s) du HTML (anciennes cotes barrées ignorées). ${best.complete?'Liste complète détectée.':'Liste partielle : fais défiler le ticket puis relance la lecture.'} Source : page du bookmaker, données à vérifier.`:
+        `${selections.length} sélection(s) détectée(s), dont ${oddsFound} cote(s) extraite(s) du HTML. Vérifie les informations.`);
     }else{
-      setText('mp-ticket-status','Aucune sélection identifiable. Ouvre « En cours » puis déplie ton combiné Betclic et réessaie. Les tickets n’ont pas toujours des cotes visibles.');
+      setText('mp-ticket-status','Aucune sélection identifiable. Ouvre « En cours », déplie ton combiné et réessaie.');
     }
   }
+  // Les scores ne sont pas envoyés vers un fournisseur extérieur. Des modifications
+  // réellement présentes dans le DOM Betclic deviennent des alertes locales.
+  function watchBookmakerEvents(){
+    if(bookmaker.name!=='Betclic'||ticketScanBusy||!selections.length)return;
+    ticketScanBusy=true;
+    try{
+      const sample=readTicketFromPage();
+      if(!sample.items.length)return;
+      const now=snapshotTicket(sample);
+      for(const [key,score] of now.scores){
+        const old=ticketScoreBaseline.get(key);
+        const change=core.scoreChange(old,score);
+        if(change)toast('Betclic : '+change);
+      }
+      for(const events of now.markers.values())for(const event of events){
+        if(!ticketMarkerBaseline.has(event.id))toast('Betclic : événement indiqué sur le site — '+event.text);
+      }
+      ticketScoreBaseline=now.scores;
+      ticketMarkerBaseline=new Set([...now.markers.values()].flat().map(x=>x.id));
+      // Les cotes restent locales et peuvent être rafraîchies si le bookmaker
+      // modifie leur affichage. Ne jamais écraser une correction manuelle.
+      const found=new Map(sample.items.map(s=>[s.label+'|'+s.market,s]));
+      let changed=false;
+      for(const s of selections){
+        const latest=found.get(s.label+'|'+s.market);
+        if(latest?.oddsSource==='dom'&&s.oddsSource==='dom'&&latest.odds!==s.odds){
+          s.odds=latest.odds;changed=true;
+        }
+      }
+      if(changed)renderSelections();
+    }catch(e){console.debug('MatchPulse : suivi du DOM temporairement indisponible',e?.message);}
+    finally{ticketScanBusy=false;}
+  }
+  if(bookmaker.name==='Betclic')setInterval(watchBookmakerEvents,ticketWatchInterval);
   $('mp-scan').addEventListener('click',extractVisibleSlip);
   function msg(action,details={}){
     return new Promise((resolve,reject)=>{

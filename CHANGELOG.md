@@ -1,3 +1,12 @@
+## 1.3.8 — MatchPulse 0.3.0 : lecture native du DOM et alertes du bookmaker
+
+- Lecture du ticket Betclic à partir de la structure HTML vivante (`textContent`, `innerText`, noeuds de cotes), sans capture d’écran ni API de compte.
+- Association de chaque cote à son marché et sa sélection, sans emprunter celle d’un pari voisin ; exclusion des anciennes cotes barrées.
+- Les sélections et les cotes visibles sont présentées avec leur provenance et une mise en garde sur leur statut (les cotes affichées peuvent différer de celles validées).
+- Surveillance locale toutes les 15 secondes des scores du ticket et des annotations explicites de cartons, pénaltys et fautes déjà présentes dans le DOM de Betclic. Alerte uniquement après une modification observée.
+- ESPN public et API-Football restent disponibles pour les compétitions et événements non couverts par la page.
+- Ajout de tests sur la lecture d’éléments HTML, les anciennes cotes barrées, les scores et les limites d’attribution.
+
 # DevGitBrowser 1.3.7 — MatchPulse 0.2.0
 
 - Réparation de la lecture Betclic « En cours / Combiné » : extraction des sélections sans imposer de cote.
