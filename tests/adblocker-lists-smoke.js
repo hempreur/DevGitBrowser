@@ -8,10 +8,26 @@ const path=require('node:path');
 const {ElectronBlocker}=require('@ghostery/adblocker-electron');
 const {Request}=require('@ghostery/adblocker');
 const {AdBlockService}=require('../lib/adblocker');
+// Le navigateur télécharge les listes avec le réseau de Chromium (session.fetch).
+// Ici on utilise le module https de Node (le fetch/undici de Node 22 peut
+// planter sur certaines fermetures TLS des serveurs de listes).
+const https=require('node:https');
+function nodeFetch(url,opts={},redirects=5){
+  return new Promise((resolve,reject)=>{
+    const req=https.get(url,{headers:{'user-agent':'Mozilla/5.0 DevGitShield-CI','accept-encoding':'identity'},signal:opts.signal},res=>{
+      if(res.statusCode>=300&&res.statusCode<400&&res.headers.location&&redirects>0){res.resume();resolve(nodeFetch(new URL(res.headers.location,url).href,opts,redirects-1));return;}
+      const chunks=[];res.on('data',c=>chunks.push(c));res.on('error',reject);
+      res.on('end',()=>{const text=Buffer.concat(chunks).toString('utf8');
+        resolve({ok:res.statusCode>=200&&res.statusCode<300,status:res.statusCode,text:async()=>text,body:{cancel:async()=>{}}});});
+    });
+    req.on('error',reject);
+    req.setTimeout(20000,()=>req.destroy(new Error('timeout')));
+  });
+}
 (async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dgb-lists-'));
   const fakeSession={registerPreloadScript:()=> 'id',unregisterPreloadScript(){},webRequest:{onBeforeRequest(){},onHeadersReceived(){}}};
-  const service=new AdBlockService({webSession:fakeSession,dataFolder:dir,Engine:ElectronBlocker,enabled:false});
+  const service=new AdBlockService({webSession:fakeSession,dataFolder:dir,Engine:ElectronBlocker,enabled:false,fetcher:nodeFetch});
   await service.refresh();
   const state=service.state();
   console.log('Listes :',state.quality,'· échecs :',state.lists.failed.join(', ')||'aucun');
