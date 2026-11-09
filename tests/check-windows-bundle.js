@@ -27,3 +27,8 @@ const latest=fs.readFileSync(path.join(__dirname,'..','dist','latest.yml'),'utf8
 assert.match(latest,new RegExp('version: '+require('../package.json').version.replace(/\./g,'\\.')));
 assert.ok(packed.includes(Buffer.from('electron-updater')), 'electron-updater doit être inclus dans app.asar.');
 console.log('OK — configuration de mise à jour automatique présente (app-update.yml + latest.yml).');
+
+// VPN DevGit : tor.exe embarqué (avertissement seulement si le téléchargement a échoué).
+const torExe=path.join(resources,'tor','tor','tor.exe');
+if(fs.existsSync(torExe)) console.log('OK — VPN DevGit : tor.exe présent dans les ressources.');
+else console.warn('::warning::tor.exe absent : le VPN DevGit sera indisponible dans cet installateur.');

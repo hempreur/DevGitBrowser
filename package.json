@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "DevGitBrowser : navigateur Chromium pour Windows avec DevGitShield (anti-pub YouTube/Twitch), historique, favoris, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, IE11 et analyse réseau",
   "author": {
@@ -88,7 +88,16 @@
       "enableNodeOptionsEnvironmentVariable": false,
       "enableNodeCliInspectArguments": false,
       "onlyLoadAppFromAsar": true
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/tor",
+        "to": "tor",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "2.20.3",

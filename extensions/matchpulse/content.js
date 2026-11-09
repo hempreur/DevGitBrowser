@@ -51,14 +51,15 @@
             <label><input type="checkbox" data-kind="goals" checked> Buts</label><label><input type="checkbox" data-kind="cards" checked> Cartons</label>
             <label><input type="checkbox" data-kind="penalties" checked> Pénaltys</label><label><input type="checkbox" data-kind="var" checked> VAR</label>
             <label><input type="checkbox" data-kind="fouls" checked> Fautes</label><label><input type="checkbox" data-kind="corners" checked> Corners</label>
-            <label><input type="checkbox" id="mp-notify" checked> Notifications Windows</label><label><input type="checkbox" id="mp-autodetect" checked> Détection automatique des tickets</label>
+            <label><input type="checkbox" id="mp-notify" checked> Notifications Windows</label><label><input type="checkbox" id="mp-autodetect" checked> Détection automatique des tickets</label><label><input type="checkbox" id="mp-analyze" checked> Probabilité avant validation</label>
           </div>
         </details>
         <div id="mp-alerts"></div>
       </section>
-      <div class="mp-foot">By CodexHempreur · Extension incluse 0.4</div>
+      <div class="mp-foot">By CodexHempreur · Extension incluse 0.5 · Jeu responsable : 09 74 75 13 13</div>
     </div>
   </div>
+  <div id="mp-slip" class="mp-slip mp-hidden" role="status" aria-live="polite"></div>
   <button type="button" class="mp-launch" id="mp-launch"><span class="mp-pulse"></span> MatchPulse</button>
   <div id="mp-toast" class="mp-alert mp-hidden" role="status" style="clear:both!important;max-width:340px!important;pointer-events:auto!important"></div>`;
   document.documentElement.appendChild(root);
@@ -385,6 +386,56 @@
     new MutationObserver(()=>{if(!autoTimer)autoTimer=setTimeout(checkForNewTicket,1500);})
       .observe(document.body||document.documentElement,{subtree:true,childList:true,characterData:true});
   }catch{}
+  // ---------------------------------------------------------------- Ticket en préparation
+  // Lit le panier (sélections non validées) et affiche une probabilité estimée.
+  let analyzeEnabled=true, lastSlipSignature='', slipTimer=null, slipBusy=false;
+  $('mp-analyze').addEventListener('change',()=>{analyzeEnabled=$('mp-analyze').checked;if(!analyzeEnabled)$('mp-slip').classList.add('mp-hidden');});
+  function readBetslip(){
+    const containers=[...document.querySelectorAll('[class*="betslip" i],[class*="bet-slip" i],[data-testid*="betslip" i],[data-qa*="betslip" i],[class*="coupon" i],[class*="panier" i],[class*="basket" i],bcdk-bet-slip,[class*="BetSlip"]')]
+      .filter(el=>!el.closest('#mp-root')).slice(0,40);
+    let best={items:[],totalOdds:null};
+    for(const el of containers){
+      const r=el.getBoundingClientRect();if(r.width<40||r.height<40)continue;
+      const parsed=core.parseBetslipText((el.innerText||'').slice(0,14000));
+      if(parsed.items.length>best.items.length)best=parsed;
+    }
+    return best;
+  }
+  function renderSlip(data){
+    const box=$('mp-slip');box.replaceChildren();
+    const head=el('div','mp-slip-head');
+    head.append(el('b','',`🎯 Ticket en préparation · ${data.results.length} sélection(s)`),button('✕',()=>box.classList.add('mp-hidden')));
+    box.append(head);
+    for(const r of data.results){
+      const row=el('div','mp-slip-row');
+      const pct=el('span','mp-pct '+(r.probability>=0.6?'mp-good':r.probability>=0.4?'mp-mid':'mp-low'),core.percent(r.probability));
+      const info=el('div','mp-selection-info');
+      info.append(el('b','',`${r.label}${r.odds?' @ '+r.odds.toFixed(2):''}`),el('small','',`${r.match||r.fixture} · ${r.market}`),
+        el('small','mp-muted',`${r.source}${r.form?` · forme ${r.form.home} / ${r.form.away}`:''}${r.value!==null&&r.value!==undefined?` · valeur ${r.value>=0?'+':''}${Math.round(r.value*100)} %`:''}`));
+      row.append(pct,info);box.append(row);
+    }
+    const total=el('div','mp-slip-total');
+    total.append(el('span','','Réussite estimée du ticket'),el('b','',data.combined!==null?core.percent(data.combined):'—'));
+    box.append(total);
+    if(data.totalOdds)box.append(el('small','mp-muted',`Cote totale ${data.totalOdds.toFixed(2)} · probabilité implicite du bookmaker ${core.percent(1/data.totalOdds)}`));
+    if(data.sameMatch)box.append(el('small','mp-muted','⚠ Plusieurs sélections sur le même match : elles ne sont pas indépendantes, l’estimation combinée est approximative.'));
+    box.append(el('small','mp-muted','Estimation statistique (cotes du marché SofaScore, forme récente), jamais une garantie. Joue avec modération.'));
+    box.classList.remove('mp-hidden');
+  }
+  async function checkBetslip(){
+    slipTimer=null;
+    if(!analyzeEnabled||slipBusy)return;
+    const slip=readBetslip();
+    if(!slip.items.length){if(lastSlipSignature){lastSlipSignature='';$('mp-slip').classList.add('mp-hidden');}return;}
+    const signature=slip.items.map(i=>[i.label,i.market,i.fixture,i.odds].join('|')).join('#');
+    if(signature===lastSlipSignature)return;
+    lastSlipSignature=signature;slipBusy=true;
+    try{renderSlip(await msg('analyze-slip',{items:slip.items,date:localDate()}));}
+    catch(e){note('Analyse du ticket : '+e.message,true);}
+    finally{slipBusy=false;}
+  }
+  try{new MutationObserver(()=>{if(!slipTimer)slipTimer=setTimeout(checkBetslip,1800);}).observe(document.body||document.documentElement,{subtree:true,childList:true,characterData:true});}catch{}
+  setTimeout(checkBetslip,2500);
   // Ne demande aucun accès au compte bookmaker ni au paiement.
   renderSelections();updateSource();refresh();
 })();

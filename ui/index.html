@@ -27,9 +27,12 @@
       <input id="address" type="text" list="address-suggestions" autocomplete="off" spellcheck="false" aria-label="Adresse web ou recherche" placeholder="Rechercher ou saisir une adresse">
       <datalist id="address-suggestions"></datalist>
       <span id="engine-badge" class="engine-badge hidden">IE</span>
+      <button type="button" id="pw-key" class="star-btn key-btn hidden" title="Mots de passe enregistrés pour ce site" aria-label="Mots de passe"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12.2 19.5 3.7M16.5 6.7l2.5 2.5M14.5 8.7l2 2"/></svg></button>
       <button type="button" id="bookmark-star" class="star-btn" title="Ajouter aux favoris (Ctrl+D)" aria-label="Favori"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z"/></svg></button>
     </form>
     <div class="nav-tools">
+      <button id="radio-button" class="nav-tool icon" title="Radio : stations françaises et du monde" aria-label="Radio"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8 16 3.5"/><circle cx="15.5" cy="14" r="3"/><path d="M6.5 12.5h3M6.5 15.5h3"/></svg></button>
+      <button id="vpn-button" class="nav-tool icon vpn-button" title="VPN DevGit (gratuit)" aria-label="VPN"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/></svg><em id="vpn-badge" class="hidden">ON</em></button>
       <button id="pip-button" class="nav-tool icon" title="Picture-in-Picture : vidéo flottante au-dessus des fenêtres" aria-label="Picture-in-Picture"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11.5" width="6.5" height="5" rx="1" class="fill"/></svg></button>
       <button id="shield-button" class="nav-tool icon shield-button" title="DevGitShield — bloqueur de publicités" aria-label="DevGitShield"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l7.5 2.8v5.6c0 4.4-3.1 7.9-7.5 9.2-4.4-1.3-7.5-4.8-7.5-9.2V6z"/></svg><em id="shield-count">0</em></button>
       <button id="extensions-button" class="nav-tool icon" title="Extensions (MatchPulse…)" aria-label="Extensions"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><em id="extension-counter">0</em></button>
@@ -38,6 +41,7 @@
     </div>
   </div>
   <nav id="bookmarks-bar" class="bookmarks-bar" aria-label="Barre de favoris"></nav>
+  <div id="pw-banner" class="pw-banner hidden" role="dialog" aria-label="Enregistrer le mot de passe"><span class="pw-ico">🔑</span><span id="pw-text">Enregistrer le mot de passe ?</span><input id="pw-master" type="password" class="hidden" placeholder="Mot de passe maître" aria-label="Mot de passe maître" autocomplete="off"><button id="pw-save" class="primary small-btn" type="button">Enregistrer</button><button id="pw-never" class="outline small-btn" type="button">Jamais pour ce site</button><button id="pw-dismiss" class="outline small-btn" type="button" aria-label="Fermer">✕</button></div>
   <div id="update-banner" class="update-banner hidden" role="status"><span id="update-text">Mise à jour prête.</span><button id="update-restart" class="primary small-btn" type="button">Redémarrer et mettre à jour</button><button id="update-later" class="outline small-btn" type="button">Plus tard</button></div>
   <div id="find-bar" class="find-bar hidden" role="search"><span class="find-ico"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M20 20l-4.6-4.6"/></svg></span><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><span id="find-count" class="find-count"></span><button id="find-prev" title="Précédent (Maj+Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button id="find-next" title="Suivant (Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button id="find-close" title="Fermer (Échap)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </header>
@@ -153,6 +157,68 @@
   </div>
 </section>
 
+
+<section id="panel-passwords" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">COFFRE CHIFFRÉ • LOCAL</span><h2>Mots de passe</h2><p>Chiffrés en AES-256 avec une clé dérivée de ton mot de passe maître (scrypt) et liés à ton compte Windows. Rien ne quitte ton ordinateur.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div id="vault-setup" class="section-card hidden">
+      <h3>Crée ton mot de passe maître</h3>
+      <p>Il protège tous tes identifiants. Il n’est jamais enregistré : s’il est perdu, le coffre ne peut pas être ouvert. Choisis au moins 12 caractères variés.</p>
+      <div class="two-fields"><div><label for="vault-new">Mot de passe maître</label><input id="vault-new" type="password" autocomplete="new-password"></div><div><label for="vault-new2">Confirmation</label><input id="vault-new2" type="password" autocomplete="new-password"></div></div>
+      <div class="strength"><span id="vault-strength-bar"></span></div><small id="vault-strength-label" class="muted">Force : —</small>
+      <div class="form-buttons"><button id="vault-create" class="primary" type="button">Créer le coffre</button></div>
+    </div>
+    <div id="vault-locked" class="section-card hidden">
+      <h3>🔒 Coffre verrouillé</h3><p>Saisis ton mot de passe maître. Le coffre se verrouille seul après 15 minutes d’inactivité, à la mise en veille et au verrouillage de Windows.</p>
+      <form id="vault-unlock-form" class="toolbar"><input id="vault-master" type="password" placeholder="Mot de passe maître" autocomplete="current-password" aria-label="Mot de passe maître"><button class="primary" type="submit">Déverrouiller</button></form>
+    </div>
+    <div id="vault-open" class="hidden">
+      <div class="toolbar"><input id="vault-search" type="search" placeholder="Rechercher un site ou un identifiant" aria-label="Rechercher"><button id="vault-add" class="primary" type="button">＋ Ajouter</button><button id="vault-lock" class="outline" type="button">🔒 Verrouiller</button></div>
+      <form id="vault-form" class="section-card hidden">
+        <h3 id="vault-form-title">Nouvel identifiant</h3>
+        <div class="two-fields"><div><label for="vf-origin">Site (https://…)</label><input id="vf-origin" placeholder="https://www.exemple.fr"></div><div><label for="vf-user">Identifiant / e-mail</label><input id="vf-user" autocomplete="off"></div>
+        <div><label for="vf-pass">Mot de passe</label><div class="toolbar tight"><input id="vf-pass" type="text" autocomplete="off" spellcheck="false"><button id="vf-gen" type="button" class="outline">Générer</button></div></div><div><label for="vf-note">Note</label><input id="vf-note" maxlength="300"></div></div>
+        <div class="form-buttons"><button class="primary" type="submit">Enregistrer</button><button id="vf-cancel" class="outline" type="button">Annuler</button></div>
+      </form>
+      <div id="vault-list" class="item-list"></div>
+      <details class="section-card"><summary>Changer le mot de passe maître</summary>
+        <div class="two-fields"><div><label for="vault-old">Actuel</label><input id="vault-old" type="password"></div><div><label for="vault-next">Nouveau</label><input id="vault-next" type="password"></div></div>
+        <div class="form-buttons"><button id="vault-change" class="outline" type="button">Changer</button></div></details>
+    </div>
+  </div>
+</section>
+
+<section id="panel-tasks" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">PERFORMANCES • TEMPS RÉEL</span><h2>Gestionnaire de tâches</h2><p>Mémoire et processeur utilisés par chaque onglet. Les onglets en veille ne consomment presque plus rien et se rechargent quand tu les ouvres.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="section-card gaming-card">
+      <div class="setting-line"><div><strong>🎮 Mode gaming</strong><p>Pendant tes parties : onglets inactifs mis en veille après 1 minute, priorité du navigateur abaissée pour laisser le processeur au jeu, et rafraîchissements en arrière-plan ralentis. La lecture audio (radio, musique) continue.</p></div><label class="switch"><input id="gaming-toggle" type="checkbox"><span></span></label></div>
+      <div class="stats-row"><div><small>Mémoire du navigateur</small><b id="perf-mem">—</b></div><div><small>Processeur</small><b id="perf-cpu">—</b></div><div><small>Mémoire libre du PC</small><b id="perf-free">—</b></div><div><small>Onglets en veille</small><b id="perf-sleeping">—</b></div></div>
+      <div class="form-buttons"><button id="perf-sleep-all" class="outline" type="button">Mettre en veille les onglets inactifs</button></div>
+    </div>
+    <div class="section-card"><h3>Onglets</h3><div id="perf-tabs" class="item-list"></div></div>
+    <div class="section-card"><h3>Processus</h3><div id="perf-groups" class="item-list"></div></div>
+  </div>
+</section>
+
+<section id="panel-welcome" class="panel welcome-panel hidden">
+  <div class="panel-wrap welcome-wrap">
+    <div class="welcome-step" data-step="0">
+      <img src="../assets/logo-mark.png" alt="" width="110" height="110" class="welcome-logo">
+      <h2>Bienvenue dans DevGitBrowser</h2>
+      <p>Merci d’avoir installé le navigateur de CodexHempreur. En quelques secondes, personnalise-le : couleurs, coffre à mots de passe et moteur de recherche.</p>
+      <div class="welcome-features"><span>🛡 Anti-pub YouTube &amp; Twitch</span><span>🌍 VPN gratuit</span><span>🔑 Coffre à mots de passe</span><span>📻 Radios du monde</span><span>🎮 Mode gaming</span><span>⚽ MatchPulse</span></div>
+    </div>
+    <div class="welcome-step hidden" data-step="1"><h2>Choisis ton thème</h2><p>Tu pourras le changer à tout moment dans le menu ☰ → Thème ou dans les Paramètres.</p><div id="welcome-themes" class="theme-grid"></div></div>
+    <div class="welcome-step hidden" data-step="2"><h2>Ton coffre à mots de passe</h2><p>Définis un mot de passe maître : il chiffrera tous les mots de passe que tu enregistres. Il n’est stocké nulle part — retiens-le bien.</p>
+      <div class="two-fields"><div><label for="welcome-master">Mot de passe maître</label><input id="welcome-master" type="password" autocomplete="new-password"></div><div><label for="welcome-master2">Confirmation</label><input id="welcome-master2" type="password" autocomplete="new-password"></div></div>
+      <div class="strength"><span id="welcome-strength-bar"></span></div><small id="welcome-strength" class="muted">Au moins 8 caractères (12 conseillés).</small></div>
+    <div class="welcome-step hidden" data-step="3"><h2>Dernière étape</h2><p>Moteur de recherche utilisé quand tu tapes autre chose qu’une adresse :</p><select id="welcome-engine" class="compact-select"></select>
+      <p class="muted">DevGitBrowser se met à jour tout seul : tu seras prévenu quand une nouvelle version est prête.</p></div>
+    <div class="welcome-nav"><span id="welcome-dots" class="welcome-dots"></span><button id="welcome-skip" class="outline" type="button">Passer</button><button id="welcome-next" class="primary" type="button">Commencer</button></div>
+  </div>
+</section>
+
 <section id="panel-settings" class="panel hidden">
   <div class="panel-wrap">
     <div class="panel-header"><div><span class="kicker">CONFIGURATION</span><h2>Paramètres</h2><p>Démarrage, confidentialité, performances, téléchargements et réseau.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
@@ -164,7 +230,20 @@
       <div class="setting-line"><div><strong>Mises à jour automatiques</strong><p>Téléchargées en arrière-plan depuis les versions publiées sur GitHub, installées au prochain redémarrage.</p></div><label class="switch"><input type="checkbox" data-pref="autoUpdate"><span></span></label></div>
     </div>
     <div class="section-card">
+      <h3>Apparence</h3><p class="muted">Choisis les couleurs de l’interface (également dans le menu ☰ → Thème).</p>
+      <div id="settings-themes" class="theme-grid"></div>
+    </div>
+    <div class="section-card" id="vpn-section">
+      <h3>🌍 VPN DevGit (gratuit)</h3>
+      <p>Le trafic du navigateur passe par le réseau chiffré <b>Tor</b> : ton adresse IP est masquée et tu peux choisir le pays de sortie pour accéder à des contenus bloqués dans ton pays. Gratuit, sans compte, sans limite de données. Plus lent qu’une connexion directe ; certains sites (streaming, banques) peuvent refuser les connexions via Tor. Ne protège que DevGitBrowser, pas les autres logiciels.</p>
+      <div class="setting-line"><div><strong>État</strong><p id="vpn-status">Déconnecté</p></div><div class="inline-buttons"><select id="vpn-country" class="compact-select" aria-label="Pays de sortie"></select><button id="vpn-toggle" class="primary" type="button">Connecter</button></div></div>
+      <div class="progress hidden" id="vpn-progress"><span></span></div>
+    </div>
+    <div class="section-card">
       <h3>Confidentialité et sécurité</h3>
+      <div class="setting-line"><div><strong>Protection anti-hameçonnage et anti-malware</strong><p id="phishing-status">Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus (listes publiques mises à jour chaque jour, vérification locale).</p></div><label class="switch"><input type="checkbox" data-pref="phishingProtection"><span></span></label></div>
+      <div class="setting-line"><div><strong>DNS sécurisé (DNS over HTTPS)</strong><p>Tes requêtes DNS sont chiffrées : ton fournisseur d’accès ne voit plus les sites consultés et ne peut pas les bloquer par DNS.</p></div><div class="inline-buttons"><select id="dns-mode" class="compact-select" aria-label="Mode DNS"><option value="automatic">Automatique</option><option value="secure">Toujours (strict)</option><option value="off">Désactivé</option></select><select id="dns-provider" class="compact-select" aria-label="Fournisseur DNS"></select></div></div>
+      <div class="setting-line"><div><strong>Proposer d’enregistrer les mots de passe</strong><p>Dans le coffre chiffré local (menu ☰ → Mots de passe).</p></div><label class="switch"><input type="checkbox" data-pref="savePasswords"><span></span></label></div>
       <div class="setting-line"><div><strong>Mode HTTPS prioritaire</strong><p>Les adresses http:// sont d’abord ouvertes en connexion chiffrée. Si le site ne le prend pas en charge, une page te propose de continuer en HTTP.</p></div><label class="switch"><input type="checkbox" data-pref="httpsOnly"><span></span></label></div>
       <div class="setting-line"><div><strong>Signal « Ne pas vendre / partager » (GPC)</strong><p>Envoie Global Privacy Control et Do Not Track à tous les sites.</p></div><label class="switch"><input type="checkbox" data-pref="gpc"><span></span></label></div>
       <div class="setting-line"><div><strong>Protection de l’adresse IP locale (WebRTC)</strong><p>Les sites de visioconférence fonctionnent, sans pouvoir lire l’adresse IP de ton réseau local.</p></div><label class="switch"><input type="checkbox" data-pref="webrtcProtection"><span></span></label></div>
@@ -193,6 +272,7 @@
     <div class="section-card">
       <h3>Outils avancés</h3>
       <div class="setting-line"><div><strong>Analyse réseau en direct</strong><p>Fenêtre indépendante : requêtes, statuts et en-têtes de l’onglet actif (données sensibles masquées).</p></div><button id="settings-network" class="outline" type="button">Ouvrir</button></div>
+      <div class="setting-line"><div><strong>Réparer DevGitBrowser</strong><p>En cas d’affichage anormal, de page qui ne charge plus ou de réglage cassé. Tes favoris, historique, mots de passe et extensions sont conservés.</p></div><div class="inline-buttons"><button class="outline" type="button" data-repair="cache">Vider le cache</button><button class="outline" type="button" data-repair="filters">Mettre à jour les filtres</button><button class="outline danger" type="button" data-repair="settings">Réinitialiser les réglages</button><button id="open-log" class="outline" type="button">Journal</button></div></div>
       <div class="setting-line" id="legacy-line"><div><strong>Mode IE (MSHTML) — Windows</strong><p id="legacy-status">Pour les anciens sites ActiveX/VBScript, affichés dans le même onglet.</p></div><button id="settings-legacy" class="outline" type="button">Activer pour ce site</button></div>
     </div>
   </div>
@@ -209,11 +289,11 @@
     </div>
     <div class="section-card"><h3>Informations techniques</h3><dl id="about-table" class="about-table"></dl>
       <div class="form-buttons"><button id="about-copy" type="button" class="outline">Copier les informations de diagnostic</button><button id="about-repo" type="button" class="outline">Dépôt GitHub</button></div></div>
-    <div class="section-card"><h3>Crédits et licences</h3><p>Conçu et développé par <strong>CodexHempreur INC</strong>. Basé sur Electron et Chromium. DevGitShield utilise le moteur <em>@ghostery/adblocker</em> (MPL-2.0) et les listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles. MatchPulse utilise des flux sportifs publics non officiels (SofaScore, ESPN) et, en option, API-Football.</p><p class="signature-line">By CodexHempreur</p></div>
+    <div class="section-card"><h3>Crédits et licences</h3><p>Conçu et développé par <strong>CodexHempreur INC</strong>. Basé sur Electron et Chromium. DevGitShield utilise le moteur <em>@ghostery/adblocker</em> (MPL-2.0) et les listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles. MatchPulse utilise des flux sportifs publics non officiels (SofaScore, ESPN) et, en option, API-Football. Le VPN DevGit utilise le logiciel libre Tor (The Tor Project, licence BSD) ; la radio, l’annuaire libre radio-browser.info ; la protection anti-hameçonnage, les listes malware-filter (URLhaus / PhishTank / OpenPhish).</p><p class="signature-line">By CodexHempreur</p></div>
   </div>
 </section>
 
-<footer class="statusbar"><span class="footer-brand"><img src="../assets/logo-mark.png" alt="" width="20" height="20"><strong>DEVGITBROWSER</strong> · CodexHempreur INC</span><span id="status-message" class="status-message">Navigateur indépendant · Profil local isolé</span><span class="signature">By CodexHempreur</span></footer>
+<footer class="statusbar"><span class="footer-brand"><img src="../assets/logo-mark.png" alt="" width="20" height="20"><strong>DEVGITBROWSER</strong> · CodexHempreur INC</span><span id="status-message" class="status-message">Navigateur indépendant · Profil local isolé</span><span class="status-right"><span id="radio-pill" class="radio-pill" title="Ouvrir le lecteur radio">♪ <span id="radio-now">Radio</span></span><span id="gaming-pill" class="gaming-pill" title="Mode gaming actif">🎮 GAMING</span><span id="vpn-pill" class="vpn-pill" title="VPN DevGit">🛡 VPN</span><span class="signature">By <b>CodexHempreur</b></span></span></footer>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>

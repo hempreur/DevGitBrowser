@@ -1,4 +1,4 @@
-/* MatchPulse 0.4 — fonctions déterministes partagées, sans dépendance externe. */
+/* MatchPulse 0.5 — fonctions déterministes partagées, sans dépendance externe. */
 (function (root, build) {
   const api = build();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -314,7 +314,119 @@
   const CONFIRMATION=/(?:pari|ticket|coupon|mise)s?\s+(?:a\s+(?:bien\s+)?été\s+)?(?:valid[ée]e?s?|plac[ée]e?s?|enregistr[ée]e?s?|accept[ée]e?s?|confirm[ée]e?s?|pris\s+en\s+compte)|votre\s+(?:pari|ticket)\s+(?:est|a)\b|bet\s+(?:placed|accepted|confirmed)/i;
   function isBetConfirmation(text){return CONFIRMATION.test(String(text||'').slice(0,4000));}
 
-  return { validSofaId, sofaRecord, sofaIncidents, sofaStatistics, statChanges, liveEventText, STAT_LABELS, parseFixtureTeams, teamSimilarity, bestFixtureMatch, isBetConfirmation, parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
+  // ------------------------------------------------- Ticket AVANT validation
+  // Panier de paris : « Sélection / Marché / Équipe A - Équipe B / cote ».
+  function parseBetslipText(source){
+    const lines=String(source||'').slice(0,14000).split(/\r?\n/).map(s=>niceLabel(s,160)).filter(Boolean);
+    const marketPattern=/(?:r[eé]sultat|vainqueur|1x2|1n2|double chance|les deux [eé]quipes|deux [eé]quipes marquent|nombre de buts|total de buts|handicap|buteur|but(?:s)?\b|mi-temps|corners?|cartons?|qualifi|remporte|victoire|score exact|draw no bet|rembours)/i;
+    const items=[];
+    for(let i=0;i<lines.length&&items.length<20;i++){
+      if(!marketPattern.test(lines[i])||lines[i].length>120)continue;
+      let label='';
+      for(let j=i-1;j>=Math.max(0,i-3);j--){
+        const c=lines[j].replace(/(?:\s+\d{1,3}[,.]\d{2,3})+$/,'').trim();
+        if(c&&!marketPattern.test(c)&&!parseFixtureTeams(c)&&!/^(?:cote|mise|gain|supprimer|retirer|simple|combin|panier|\d)/i.test(c)&&c.length<=80&&/[A-Za-zÀ-ÿ]/.test(c)){label=c;break;}
+      }
+      let fixture='',odds=null;
+      for(let j=i+1;j<Math.min(lines.length,i+6);j++){
+        if(j>i+1&&marketPattern.test(lines[j]))break;
+        if(!fixture&&parseFixtureTeams(lines[j]))fixture=lines[j];
+        const m=lines[j].match(/^(?:cote\s*:?\s*)?(\d{1,3}[,.]\d{1,3})$/i)||lines[j].match(/(?:^|\s)(\d{1,3}[,.]\d{2})$/);
+        if(m&&!odds)odds=parseOdds(m[1]);
+      }
+      if(!odds){const inline=(lines[i-1]||'').match(/(\d{1,3}[,.]\d{2})$/);if(inline)odds=parseOdds(inline[1]);}
+      if(!label||!fixture)continue;
+      const item={label,market:lines[i],fixture,odds};
+      if(!items.some(x=>x.label===item.label&&x.market===item.market&&x.fixture===item.fixture))items.push(item);
+    }
+    const total=String(source||'').match(/cote\s+(?:totale|combin[eé]e|globale)\s*:?\s*(\d{1,5}[,.]\d{1,3})/i);
+    return {items,totalOdds:total?parseOdds(total[1]):null};
+  }
+  function fractionalToDecimal(value){
+    const t=String(value||'').trim();
+    const f=t.match(/^(\d{1,5})\/(\d{1,5})$/);
+    if(f&&Number(f[2])>0)return 1+Number(f[1])/Number(f[2]);
+    const d=Number(t.replace(',','.'));
+    return Number.isFinite(d)&&d>1?d:null;
+  }
+  // Probabilités « sans marge » du marché, à partir des cotes publiées par SofaScore.
+  function marketProbabilities(body){
+    const out={};
+    for(const m of Array.isArray(body?.markets)?body.markets.slice(0,80):[]){
+      const name=String(m?.marketName||'').toLowerCase();
+      const choices=(m?.choices||[]).map(c=>({name:String(c?.name||''),odds:fractionalToDecimal(c?.fractionalValue??c?.decimalValue)})).filter(c=>c.odds);
+      if(choices.length<2)continue;
+      const sum=choices.reduce((a,c)=>a+1/c.odds,0);
+      const probs=Object.fromEntries(choices.map(c=>[c.name.toLowerCase(),(1/c.odds)/sum]));
+      if(/^full time$|1x2/.test(name)&&probs['1']!==undefined)out['1x2']={home:probs['1'],draw:probs['x'],away:probs['2']};
+      else if(/double chance/.test(name))out.dc={'1x':probs['1x'],'x2':probs['x2'],'12':probs['12']};
+      else if(/both teams to score/.test(name))out.btts={yes:probs.yes,no:probs.no};
+      else if(/match goals|total goals/.test(name)){const line=Number(String(m.choiceGroup||'').replace(',','.'));if(Number.isFinite(line))(out.goals||(out.goals={}))[line]={over:probs.over,under:probs.under};}
+    }
+    return out;
+  }
+  function formPoints(form){return (Array.isArray(form)?form.slice(-5):[]).reduce((a,r)=>a+(r==='W'?3:r==='D'?1:0),0);}
+  function lineFrom(text){const m=String(text||'').match(/(\d{1,2})[,.](5)/);return m?Number(m[1]+'.'+m[2]):null;}
+  // Interprète la sélection du ticket par rapport aux équipes du match.
+  function classifySelection(item,teams){
+    const label=String(item?.label||''), market=String(item?.market||'').toLowerCase(), both=(label+' '+market).toLowerCase();
+    if(/double chance/.test(market)||/\bou\s+(?:match\s+)?nul\b|^1x$|^x2$|^12$/i.test(label)){
+      if(/^1x$/i.test(label)||(teams&&/nul/i.test(label)&&teamSimilarity(label.replace(/\s+ou\s+.*$/i,''),teams.home)>=0.6))return {type:'dc',outcome:'1x'};
+      if(/^x2$/i.test(label)||(teams&&/nul/i.test(label)&&teamSimilarity(label.replace(/\s+ou\s+.*$/i,''),teams.away)>=0.6))return {type:'dc',outcome:'x2'};
+      if(/^12$/.test(label)||/pas de (?:match )?nul/i.test(label))return {type:'dc',outcome:'12'};
+    }
+    if(/les deux [eé]quipes|deux [eé]quipes marquent|btts/.test(both)){
+      if(/\boui\b|\byes\b/.test(both))return {type:'btts',outcome:'yes'};
+      if(/\bnon\b|\bno\b/.test(both))return {type:'btts',outcome:'no'};
+    }
+    if(/plus de|moins de|over|under/.test(both)&&/but|goal|total/.test(both)||/^(?:plus|moins) de \d/i.test(label)){
+      const line=lineFrom(label)??lineFrom(market);
+      if(line!==null)return {type:'goals',line,outcome:/plus|over/i.test(label)?'over':/moins|under/i.test(label)?'under':(/plus|over/.test(market)?'over':'under')};
+    }
+    if(/r[eé]sultat|vainqueur|1x2|1n2|remporte|victoire|gagne/.test(market)){
+      if(/^(?:match\s+)?nul$|^x$|^n$/i.test(label.trim()))return {type:'1x2',outcome:'draw'};
+      if(teams){
+        const h=teamSimilarity(label,teams.home),a=teamSimilarity(label,teams.away);
+        if(Math.max(h,a)>=0.6)return {type:'1x2',outcome:h>=a?'home':'away'};
+      }
+      if(/^1$/.test(label.trim()))return {type:'1x2',outcome:'home'};
+      if(/^2$/.test(label.trim()))return {type:'1x2',outcome:'away'};
+    }
+    return null;
+  }
+  // Estimation : consensus du marché (sans marge) ajusté par la forme récente.
+  // Sans données de marché, repli sur la cote du bookmaker (marge ~6 % retirée).
+  function estimateSelection(item,{teams=null,markets=null,form=null}={}){
+    const kind=classifySelection(item,teams);
+    const bookOdds=Number(item?.odds)>1?Number(item.odds):null;
+    let p=null,source='';
+    if(kind&&markets){
+      if(kind.type==='1x2'&&markets['1x2']){
+        let {home,draw,away}=markets['1x2'];
+        if(form&&Number.isFinite(home)&&Number.isFinite(away)){
+          const delta=(formPoints(form.home)-formPoints(form.away))/15; // -1..1
+          home=Math.max(0.01,home+0.04*delta);away=Math.max(0.01,away-0.04*delta);
+          const t=home+(draw||0)+away;home/=t;away/=t;draw=(draw||0)/t;
+        }
+        p={home,draw,away}[kind.outcome];source=form?'cotes du marché + forme':'cotes du marché';
+      }else if(kind.type==='dc'&&markets.dc)p=markets.dc[kind.outcome],source='cotes du marché';
+      else if(kind.type==='dc'&&markets['1x2']){const m=markets['1x2'];p={'1x':m.home+m.draw,'x2':m.draw+m.away,'12':m.home+m.away}[kind.outcome];source='cotes du marché';}
+      else if(kind.type==='btts'&&markets.btts)p=markets.btts[kind.outcome],source='cotes du marché';
+      else if(kind.type==='goals'&&markets.goals?.[kind.line])p=markets.goals[kind.line][kind.outcome],source='cotes du marché';
+    }
+    if(!(p>0)&&bookOdds){p=Math.min(0.97,(1/bookOdds)*0.94);source='cote du ticket (marge retirée)';}
+    if(!(p>0))return {probability:null,source:'données insuffisantes',kind,value:null};
+    p=Math.max(0.01,Math.min(0.99,p));
+    return {probability:p,source,kind,value:bookOdds?p*bookOdds-1:null};
+  }
+  function combineProbabilities(list){
+    const ps=list.map(x=>x?.probability).filter(x=>x>0);
+    if(!ps.length||ps.length!==list.length)return null;
+    return ps.reduce((a,b)=>a*b,1);
+  }
+  function percent(p){return p===null||p===undefined?'—':(p*100>=10?Math.round(p*100):Math.round(p*1000)/10)+' %';}
+
+  return { parseBetslipText, fractionalToDecimal, marketProbabilities, formPoints, classifySelection, estimateSelection, combineProbabilities, percent, validSofaId, sofaRecord, sofaIncidents, sofaStatistics, statChanges, liveEventText, STAT_LABELS, parseFixtureTeams, teamSimilarity, bestFixtureMatch, isBetConfirmation, parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
     niceLabel, extractOddsAndLabel, eventKind, eventText, eventId, foulCount,
     validFixtureId, matchingFixtures };
 });

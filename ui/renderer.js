@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -43,6 +43,8 @@ async function showPanel(name){
   await api.panel(Boolean(panel));
   if(panel==='library')loadLibrary();
   if(panel==='about')loadAbout();
+  if(panel==='passwords')loadVault();
+  if(panel==='tasks')startPerf();else stopPerf();
   if(panel && current)render(current);
 }
 function openLibrary(view){libraryView=view;return showPanel('library');}
@@ -307,11 +309,13 @@ function updateSettings(state){
 }
 function render(state){
   current=state;
-  updateTabs(state);updateToolbar(state);updateBookmarksBar(state);updateHome(state);
+  updateTabs(state);updateToolbar(state);updateBookmarksBar(state);updateHome(state);updateExtras(state);
   if(panel==='security')updateSecurity(state);
   if(panel==='github'||panel==='extensions')updateGithub(state);
   if(panel==='settings'){updateProxy(state);updateSettings(state);updateSecurity(state);}
   if(panel==='library'||panel==='about')updateSettings(state);
+  if(panel==='settings'){renderThemes('settings-themes',state.theme);updateSecurityExtras(state);}
+  if(panel==='passwords')updateVaultView(state);
   document.title=(activeTab()?.title||'Nouvel onglet')+' — DevGitBrowser';
 }
 
@@ -558,6 +562,8 @@ api.onCommand(command=>{
   else if(value==='bookmarks')openLibrary('bookmarks');
   else if(value==='downloads')openLibrary('downloads');
   else if(value.startsWith('rename-bookmark:')){openLibrary('bookmarks').then(()=>startRename(value.slice(16)));}
+  else if(value==='unlock-fill'){showPanel('passwords');}
+  else if(value==='vpn-info'){showPanel('settings').then(()=>$('vpn-section').scrollIntoView({behavior:'smooth'}));}
   else if(panels.includes(value))showPanel(panel===value?'':value);
 });
 api.onNotice(n=>notify(n?.message||'',Boolean(n?.bad)));
@@ -570,4 +576,218 @@ api.onLegacyError(message=>notify('Mode historique IE : '+message,true));
 api.onLegacyReady(()=>notify('Mode IE chargé et affiché dans cet onglet.'));
 api.onFocusFind(openFind);api.onState(render);
 api.onFocusAddress(()=>{if(panel)showPanel('').catch(()=>{});$('address').focus();$('address').select();});
-api.initial().then(state=>{render(state);reportChromeHeight();}).catch(err=>notify(err.message||String(err),true));
+api.initial().then(state=>{render(state);reportChromeHeight();if(!state.welcomed)startWelcome();}).catch(err=>notify(err.message||String(err),true));
+
+// ======================================================================== 1.5
+const THEME_SWATCH='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="34"><defs><linearGradient id="g"><stop offset="0" stop-color="#06091c"/><stop offset=".35" stop-color="#267bfd"/><stop offset=".75" stop-color="#a03ef0"/><stop offset="1" stop-color="#45e6fa"/></linearGradient></defs><rect width="120" height="34" rx="8" fill="url(#g)"/></svg>');
+const THEME_FILTERS={neon:'none',ocean:'hue-rotate(-38deg)',emeraude:'hue-rotate(-125deg) saturate(.9)',rubis:'hue-rotate(75deg) saturate(1.05)',solaire:'hue-rotate(150deg) saturate(.95)',graphite:'saturate(.18) brightness(1.04)',clair:'invert(.93) hue-rotate(180deg) brightness(1.02)'};
+function applyTheme(theme){const value=theme&&theme!=='neon'?theme:'';if((document.documentElement.dataset.theme||'')!==value){if(value)document.documentElement.dataset.theme=value;else delete document.documentElement.dataset.theme;}}
+function renderThemes(hostId,active){
+  const host=$(hostId);if(!host||!current)return;
+  host.replaceChildren(...(current.themes||[]).map(th=>{
+    const card=elem('button','theme-card'+(th.id===active?' active':''));card.type='button';
+    const swatch=elem('span','swatch');swatch.style.filter=THEME_FILTERS[th.id]||'none';
+    const img=elem('img');img.src=THEME_SWATCH;img.alt='';swatch.append(img);
+    card.append(swatch,elem('b','',th.name));
+    card.addEventListener('click',()=>run(()=>api.preference('theme',th.id)));
+    return card;
+  }));
+}
+function strength(pw){let n=0;if(pw.length>=8)n++;if(pw.length>=12)n++;if(/[a-z]/.test(pw)&&/[A-Z]/.test(pw))n++;if(/\d/.test(pw))n++;if(/[^A-Za-z0-9]/.test(pw))n++;return Math.min(4,n);}
+function showStrength(input,bar,label){const n=strength(input.value);bar.style.width=(n/4*100)+'%';bar.dataset.level=String(n);label.textContent='Force : '+['très faible','faible','moyenne','bonne','excellente'][n];}
+function updateExtras(state){
+  applyTheme(state.theme);
+  // VPN
+  const vpn=state.vpn||{};
+  const on=vpn.status==='on',busy=vpn.status==='starting';
+  $('vpn-button').classList.toggle('active',on);$('vpn-button').classList.toggle('busy',busy);
+  $('vpn-badge').classList.toggle('hidden',!(on||busy));$('vpn-badge').textContent=on?(vpn.country||'ON').toUpperCase():`${vpn.progress||0}%`;
+  $('vpn-button').title=on?`VPN connecté (${(vpn.countries||[]).find(c=>c.code===vpn.country)?.name||'automatique'})`:busy?`Connexion au VPN… ${vpn.progress||0} %`:'VPN DevGit (gratuit) — déconnecté';
+  const pill=$('vpn-pill');pill.classList.toggle('on',on);pill.classList.toggle('connecting',busy);pill.textContent=on?`🛡 VPN · ${(vpn.country||'auto').toUpperCase()}`:busy?`🛡 VPN ${vpn.progress||0}%`:'';
+  // Gaming et radio
+  $('gaming-pill').classList.toggle('on',Boolean(state.gaming));
+  $('radio-pill').classList.toggle('on',Boolean(state.radio?.now));$('radio-now').textContent=state.radio?.now||'Radio';
+  $('radio-button').classList.toggle('active',Boolean(state.radio?.now));
+  // Mots de passe
+  const pw=state.passwords;const t=activeTab();
+  const showKey=Boolean(pw&&t?.url&&(pw.here.form||pw.here.count));
+  $('pw-key').classList.toggle('hidden',!showKey);$('pw-key').classList.toggle('on',Boolean(pw?.here.count));
+  $('pw-key').title=pw?.here.count?`${pw.here.count} identifiant(s) enregistré(s) pour ce site — cliquer pour remplir`:pw?.unlocked?'Aucun identifiant pour ce site':'Coffre verrouillé — cliquer pour déverrouiller';
+  const offer=pw?.offer;const banner=$('pw-banner');
+  banner.classList.toggle('hidden',!offer);
+  if(offer){
+    let host='';try{host=new URL(offer.origin).hostname;}catch{}
+    $('pw-text').textContent=`${offer.update?'Mettre à jour':'Enregistrer'} le mot de passe${offer.username?' de '+offer.username:''} pour ${host} ?`;
+    const needMaster=!pw.unlocked;$('pw-master').classList.toggle('hidden',!needMaster);
+    $('pw-master').placeholder=pw.exists?'Mot de passe maître':'Nouveau mot de passe maître (8+ caractères)';
+    $('pw-save').textContent=offer.update?'Mettre à jour':'Enregistrer';
+  }
+  if(panel==='tasks')$('gaming-toggle').checked=Boolean(state.gaming);
+}
+function updateSecurityExtras(state){
+  const dns=state.security?.dns;
+  if(dns){
+    if(!$('dns-provider').options.length)for(const p of dns.providers){const o=elem('option','',p.name);o.value=p.id;$('dns-provider').append(o);}
+    if(document.activeElement!==$('dns-mode'))$('dns-mode').value=dns.mode;
+    if(document.activeElement!==$('dns-provider'))$('dns-provider').value=dns.provider;
+    $('dns-provider').disabled=dns.mode==='off';
+  }
+  const ph=state.security?.phishing;
+  if(ph)$('phishing-status').textContent=`Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus · ${ph.domains.toLocaleString('fr-FR')} domaines${ph.updatedAt?' · listes du '+new Date(ph.updatedAt).toLocaleDateString('fr-FR'):''}${ph.error?' · '+ph.error:''}`;
+  const vpn=state.vpn||{};
+  const sel=$('vpn-country');
+  if(!sel.options.length)for(const c of vpn.countries||[]){const o=elem('option','',c.name);o.value=c.code;sel.append(o);}
+  if(document.activeElement!==sel)sel.value=vpn.status==='on'||vpn.status==='starting'?vpn.country:(state.preferences?.vpnCountry??sel.value);
+  const labels={off:'Déconnecté : connexion directe.',starting:`Connexion en cours… ${vpn.progress||0} % ${vpn.step?'('+vpn.step+')':''}`,on:`Connecté depuis ${vpn.since?new Date(vpn.since).toLocaleTimeString('fr-FR'):'—'} · adresse IP masquée`,error:'Erreur : '+(vpn.error||'inconnue')};
+  $('vpn-status').textContent=vpn.available===false?'Composant VPN absent de cette installation (version de développement).':labels[vpn.status]||'—';
+  $('vpn-toggle').textContent=vpn.status==='on'||vpn.status==='starting'?'Déconnecter':'Connecter';
+  $('vpn-toggle').disabled=vpn.available===false;
+  $('vpn-progress').classList.toggle('hidden',vpn.status!=='starting');$('vpn-progress').firstElementChild.style.width=(vpn.progress||0)+'%';
+}
+$('vpn-button').addEventListener('click',()=>run(()=>api.vpnMenu()));
+$('vpn-pill').addEventListener('click',()=>run(()=>api.vpnMenu()));
+$('vpn-toggle').addEventListener('click',()=>run(()=>current?.vpn?.status==='on'||current?.vpn?.status==='starting'?api.vpnDisconnect():api.vpnConnect($('vpn-country').value)));
+$('radio-button').addEventListener('click',()=>run(()=>api.radio()));
+$('radio-pill').addEventListener('click',()=>run(()=>api.radio()));
+$('gaming-pill').addEventListener('click',()=>showPanel('tasks'));
+$('dns-mode').addEventListener('change',()=>run(()=>api.preference('secureDns',$('dns-mode').value),'DNS sécurisé mis à jour.'));
+$('dns-provider').addEventListener('change',()=>run(()=>api.preference('dnsProvider',$('dns-provider').value),'Fournisseur DNS enregistré.'));
+for(const b of document.querySelectorAll('[data-repair]'))b.addEventListener('click',async()=>{
+  if(b.dataset.repair==='settings'&&!confirm('Réinitialiser tous les réglages ? Favoris, historique, mots de passe et extensions sont conservés.'))return;
+  const message=await run(()=>api.repair(b.dataset.repair));if(message)notify(message);
+});
+$('open-log').addEventListener('click',()=>run(()=>api.openLog()));
+// ---------------------------------------------------------------- Mots de passe
+$('pw-key').addEventListener('click',()=>run(()=>api.pwMenu()));
+$('pw-save').addEventListener('click',async()=>{const m=$('pw-master').value;$('pw-master').value='';const msg=await run(()=>api.pwOffer('save',m));if(msg)notify(msg);});
+$('pw-never').addEventListener('click',async()=>{const m=$('pw-master').value;$('pw-master').value='';const msg=await run(()=>api.pwOffer('never',m));if(msg)notify(msg);});
+$('pw-dismiss').addEventListener('click',()=>run(()=>api.pwOffer('dismiss')));
+$('pw-master').addEventListener('keydown',e=>{if(e.key==='Enter')$('pw-save').click();});
+let vaultEditing=null;
+function updateVaultView(state){
+  const pw=state.passwords||{};
+  $('vault-setup').classList.toggle('hidden',pw.exists!==false);
+  $('vault-locked').classList.toggle('hidden',!(pw.exists&&!pw.unlocked));
+  $('vault-open').classList.toggle('hidden',!pw.unlocked);
+}
+async function loadVault(){
+  if(!current)return;
+  updateVaultView(current);
+  const pw=current.passwords||{};
+  if(pw.exists&&!pw.unlocked)setTimeout(()=>$('vault-master').focus(),50);
+  if(pw.exists===false)setTimeout(()=>$('vault-new').focus(),50);
+  if(!pw.unlocked)return;
+  const data=await run(()=>api.pwList($('vault-search').value));if(!data)return;
+  const flags=new Map(data.audit.map(a=>[a.id,a]));
+  const list=$('vault-list');list.replaceChildren();
+  if(!data.entries.length)list.append(elem('div','empty-list','Aucun mot de passe. Ils sont proposés à l’enregistrement quand tu te connectes à un site, ou ajoute-les avec « ＋ Ajouter ».'));
+  for(const e of data.entries){
+    const row=elem('div','item-row');
+    const open=elem('button','item-open');open.type='button';
+    const text=elem('span','item-text');
+    const f=flags.get(e.id)||{};
+    text.append(elem('strong','',hostOf(e.origin)),elem('small','',(e.username||'(sans identifiant)')+(f.reused?' · ⚠ réutilisé':'')+(f.weak?' · ⚠ faible':'')+(e.note?' · '+e.note:'')));
+    open.append(letterIcon(e.origin,e.origin),text);
+    open.addEventListener('click',()=>run(async()=>{await showPanel('');return api.openLink(e.origin,'tab');}));
+    const pass=elem('code','secret','••••••••');
+    const eye=elem('button','icon-btn','👁');eye.type='button';eye.title='Afficher';
+    eye.addEventListener('click',async()=>{if(pass.textContent!=='••••••••'){pass.textContent='••••••••';return;}const v=await run(()=>api.pwReveal(e.id));if(v!==null){pass.textContent=v;setTimeout(()=>{pass.textContent='••••••••';},20000);}});
+    const copyU=elem('button','icon-btn','👤');copyU.type='button';copyU.title='Copier l’identifiant';copyU.addEventListener('click',()=>run(()=>api.pwCopy(e.id,'username'),'Identifiant copié.'));
+    const copyP=elem('button','icon-btn','⧉');copyP.type='button';copyP.title='Copier le mot de passe (effacé du presse-papiers après 30 s)';copyP.addEventListener('click',()=>run(()=>api.pwCopy(e.id,'password'),'Mot de passe copié pour 30 secondes.'));
+    const edit=elem('button','icon-btn','✎');edit.type='button';edit.title='Modifier';edit.addEventListener('click',async()=>{const v=await run(()=>api.pwReveal(e.id));if(v===null)return;openVaultForm({...e,password:v});});
+    const del=elem('button','icon-btn','✕');del.type='button';del.title='Supprimer';del.addEventListener('click',async()=>{if(!confirm(`Supprimer l’identifiant de ${hostOf(e.origin)} ?`))return;await run(()=>api.pwDelete(e.id),'Identifiant supprimé.');loadVault();});
+    let here='';try{here=new URL(activeTab()?.url||'').origin;}catch{}
+    if(here===e.origin){const fill=elem('button','primary small-btn','Remplir');fill.type='button';fill.title='Remplir le formulaire de la page affichée';
+      fill.addEventListener('click',()=>run(async()=>{await showPanel('');return api.pwFill(e.id);},'Identifiants remplis.'));row.append(open,pass,fill,eye,copyU,copyP,edit,del);}
+    else row.append(open,pass,eye,copyU,copyP,edit,del);
+    list.append(row);
+  }
+}
+function openVaultForm(entry=null){
+  vaultEditing=entry?.id||null;
+  $('vault-form-title').textContent=entry?'Modifier l’identifiant':'Nouvel identifiant';
+  $('vf-origin').value=entry?.origin||(activeTab()?.url?(()=>{try{return new URL(activeTab().url).origin;}catch{return '';}})():'');
+  $('vf-origin').disabled=Boolean(entry);
+  $('vf-user').value=entry?.username||'';$('vf-pass').value=entry?.password||'';$('vf-note').value=entry?.note||'';
+  $('vault-form').classList.remove('hidden');$('vf-user').focus();
+}
+$('vault-add').addEventListener('click',()=>openVaultForm());
+$('vf-cancel').addEventListener('click',()=>{$('vault-form').classList.add('hidden');$('vf-pass').value='';});
+$('vf-gen').addEventListener('click',async()=>{const v=await run(()=>api.pwGenerate(20));if(v)$('vf-pass').value=v;});
+$('vault-form').addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const data={origin:$('vf-origin').value.trim(),username:$('vf-user').value,password:$('vf-pass').value,note:$('vf-note').value};
+  const ok=await run(()=>vaultEditing?api.pwUpdate(vaultEditing,data):api.pwSave(data),'Identifiant enregistré.');
+  if(ok!==null){$('vault-form').classList.add('hidden');$('vf-pass').value='';loadVault();}
+});
+$('vault-search').addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(loadVault,200);});
+$('vault-lock').addEventListener('click',()=>run(()=>api.pwLock(),'Coffre verrouillé.'));
+$('vault-unlock-form').addEventListener('submit',async ev=>{ev.preventDefault();const m=$('vault-master').value;$('vault-master').value='';const ok=await run(()=>api.pwUnlock(m));if(ok){await new Promise(r=>setTimeout(r,60));loadVault();}});
+$('vault-new').addEventListener('input',()=>showStrength($('vault-new'),$('vault-strength-bar'),$('vault-strength-label')));
+$('vault-create').addEventListener('click',async()=>{
+  if($('vault-new').value!==$('vault-new2').value){notify('Les deux mots de passe ne correspondent pas.',true);return;}
+  const m=$('vault-new').value;const ok=await run(()=>api.pwCreate(m),'Coffre créé et déverrouillé.');
+  if(ok){$('vault-new').value='';$('vault-new2').value='';setTimeout(loadVault,60);}
+});
+$('vault-change').addEventListener('click',async()=>{const a=$('vault-old').value,b=$('vault-next').value;$('vault-old').value='';$('vault-next').value='';await run(()=>api.pwChangeMaster(a,b),'Mot de passe maître changé.');});
+// ---------------------------------------------------------------- Gestionnaire de tâches
+let perfTimerId=null;
+async function refreshPerf(){
+  const m=await api.perfMetrics().catch(()=>null);if(!m)return;
+  $('perf-mem').textContent=m.total.memory.toLocaleString('fr-FR')+' Mo';
+  $('perf-cpu').textContent=m.total.cpu+' %';
+  $('perf-free').textContent=(m.total.systemFreeMB/1024).toFixed(1)+' / '+(m.total.systemTotalMB/1024).toFixed(1)+' Go';
+  $('perf-sleeping').textContent=String(m.tabs.filter(t=>t.sleeping).length)+' / '+m.tabs.length;
+  $('gaming-toggle').checked=m.gaming;
+  $('perf-tabs').replaceChildren(...m.tabs.map(t=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',(t.active?'● ':'')+(t.title||'Nouvel onglet')),elem('small','',t.sleeping?'💤 En veille · ~0 Mo':`${t.memory} Mo · ${t.cpu} % CPU${t.audible?' · 🔊 son':''}`));
+    row.append(letterIcon(t.title,t.url),text);
+    const sleep=elem('button','outline small-btn',t.sleeping?'En veille':'Mettre en veille');sleep.type='button';sleep.disabled=t.sleeping||t.active;
+    sleep.addEventListener('click',()=>run(()=>api.sleepTab(t.id)).then(refreshPerf));
+    const close=elem('button','icon-btn','✕');close.type='button';close.title='Fermer l’onglet';close.disabled=t.windowId!==current?.windowId;
+    close.addEventListener('click',()=>run(()=>api.closeTab(t.id)).then(refreshPerf));
+    row.append(sleep,close);return row;
+  }));
+  const names={Browser:'Navigateur (principal)',Tab:'Pages web',GPU:'Processus graphique (GPU)',Utility:'Services (réseau, audio…)',Zygote:'Zygote','Pepper Plugin':'Plugin',Unknown:'Autres'};
+  $('perf-groups').replaceChildren(...m.groups.sort((a,b)=>b.memory-a.memory).map(g=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',`${names[g.type]||g.type} ×${g.count}`),elem('small','',`${g.memory} Mo · ${g.cpu} % CPU`));row.append(text);return row;
+  }));
+}
+function startPerf(){refreshPerf();if(!perfTimerId)perfTimerId=setInterval(refreshPerf,2000);}
+function stopPerf(){if(perfTimerId){clearInterval(perfTimerId);perfTimerId=null;}}
+$('gaming-toggle').addEventListener('change',()=>run(()=>api.gaming($('gaming-toggle').checked),$('gaming-toggle').checked?'🎮 Mode gaming activé.':'Mode gaming désactivé.').then(refreshPerf));
+$('perf-sleep-all').addEventListener('click',async()=>{const n=await run(()=>api.sleepAll());if(n!==null)notify(`${n} onglet(s) mis en veille.`);refreshPerf();});
+// ---------------------------------------------------------------- Bienvenue (première installation)
+let welcomeStep=0;
+function startWelcome(){
+  welcomeStep=0;showPanel('welcome');
+  const engine=$('welcome-engine');
+  if(!engine.options.length)for(const e of current?.searchEngines||[]){const o=elem('option','',e.name);o.value=e.id;engine.append(o);}
+  engine.value=current?.preferences?.searchEngine||'duckduckgo';
+  showWelcomeStep();
+}
+function showWelcomeStep(){
+  for(const el of document.querySelectorAll('.welcome-step'))el.classList.toggle('hidden',Number(el.dataset.step)!==welcomeStep);
+  $('welcome-dots').replaceChildren(...[0,1,2,3].map(i=>elem('i',i===welcomeStep?'on':'')));
+  $('welcome-next').textContent=welcomeStep===0?'Commencer':welcomeStep===3?'Terminer':'Continuer';
+  $('welcome-skip').textContent=welcomeStep===2?'Plus tard':'Passer';
+  if(welcomeStep===1)renderThemes('welcome-themes',current?.theme);
+  if(welcomeStep===2&&current?.passwords?.exists){welcomeStep=3;showWelcomeStep();}
+}
+async function finishWelcome(){await run(()=>api.preference('searchEngine',$('welcome-engine').value));await run(()=>api.welcomed());await showPanel('');notify('Bienvenue dans DevGitBrowser ! Bonne navigation.');}
+$('welcome-next').addEventListener('click',async()=>{
+  if(welcomeStep===2){
+    const a=$('welcome-master').value,b=$('welcome-master2').value;
+    if(a||b){
+      if(a!==b){notify('Les deux mots de passe ne correspondent pas.',true);return;}
+      const ok=await run(()=>api.pwCreate(a),'Coffre à mots de passe créé.');if(!ok)return;
+      $('welcome-master').value='';$('welcome-master2').value='';
+    }
+  }
+  if(welcomeStep>=3){finishWelcome();return;}
+  welcomeStep++;showWelcomeStep();
+});
+$('welcome-skip').addEventListener('click',()=>{if(welcomeStep===2){welcomeStep=3;showWelcomeStep();}else finishWelcome();});
+$('welcome-master').addEventListener('input',()=>showStrength($('welcome-master'),$('welcome-strength-bar'),$('welcome-strength')));

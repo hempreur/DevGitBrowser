@@ -1,6 +1,6 @@
-# DevGitBrowser 1.4.0 — CodexHempreur INC
+# DevGitBrowser 1.5.0 — CodexHempreur INC
 
-Navigateur Chromium pour **Windows 10/11 64 bits**, en français, avec bloqueur de publicités intégré, historique et favoris locaux, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, mode IE11 et analyse réseau. Détails des versions : [CHANGELOG.md](CHANGELOG.md).
+Navigateur Chromium pour **Windows 10/11 64 bits**, en français, avec bloqueur de publicités intégré, VPN gratuit (Tor), coffre à mots de passe chiffré, lecteur radio, mode gaming, thèmes, historique et favoris locaux, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, mode IE11 et analyse réseau. Détails des versions : [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation et mises à jour
 
@@ -23,6 +23,11 @@ Pour publier une version : augmenter `version` dans `package.json`, ajouter la s
 | DevGitShield | Bouton bouclier : compteur, pause sur le site, mise à jour des filtres |
 | Rechercher dans la page | Ctrl+F (Entrée / Maj+Entrée) |
 | Outils de développement / réseau | F12, menu ☰ → Outils de développement |
+| VPN (pays de sortie, nouvelle IP) | Bouton 🌐 |
+| Mots de passe | Clé 🔑 dans la barre d'adresse, menu ☰ → Mots de passe |
+| Radio | Bouton 📻 |
+| Gestionnaire de tâches / mode gaming | Maj+Échap, menu ☰ |
+| Thème | Menu ☰ → Thème |
 
 ## DevGitShield — bloqueur intégré
 

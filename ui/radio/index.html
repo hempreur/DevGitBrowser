@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https: http:; media-src https: http: blob:; connect-src https://*.api.radio-browser.info; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Radio — DevGitBrowser</title>
+<link rel="stylesheet" href="radio.css"><script defer src="radio.js"></script>
+</head>
+<body>
+<header class="player">
+  <img id="logo" class="logo" src="../../assets/logo-mark.png" alt="">
+  <div class="now"><small id="now-country">Radio DevGit</small><strong id="now-name">Choisis une station</strong><span id="now-meta" class="meta">Des milliers de radios françaises et du monde entier</span></div>
+  <button id="play" class="play" title="Lecture / pause (Espace)" aria-label="Lecture">▶</button>
+</header>
+<div class="controls"><span>🔈</span><input id="volume" type="range" min="0" max="100" value="80" aria-label="Volume"><button id="fav-current" class="ghost" title="Ajouter aux favoris">☆</button></div>
+<nav class="filters">
+  <select id="country" aria-label="Pays"></select>
+  <select id="tag" aria-label="Genre"><option value="">Tous les genres</option></select>
+  <input id="search" type="search" placeholder="Rechercher une station…" aria-label="Rechercher une station">
+  <select id="sort" aria-label="Trier"><option value="clickcount">Les plus écoutées</option><option value="votes">Les mieux notées</option><option value="name">Nom (A→Z)</option><option value="bitrate">Meilleure qualité</option></select>
+</nav>
+<div class="tabs"><button data-view="all" class="active">Stations</button><button data-view="fav">★ Favoris</button><button data-view="recent">Récentes</button></div>
+<main id="list" class="list" aria-live="polite"><p class="empty">Chargement…</p></main>
+<footer><span id="status">Source : radio-browser.info (annuaire libre)</span></footer>
+</body>
+</html>

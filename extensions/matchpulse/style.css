@@ -43,3 +43,11 @@
 #mp-root .mp-checks label{display:flex!important;align-items:center!important;gap:6px!important;font-size:11px!important;color:#d8e5fa!important}
 #mp-root .mp-checks input{flex:none!important;width:auto!important;padding:0!important}
 #mp-root .mp-group h3{flex:1!important;margin:6px 0 0!important}
+#mp-root .mp-slip{position:fixed!important;left:16px!important;bottom:16px!important;width:340px!important;max-height:60vh!important;overflow:auto!important;background:#0b1233f2!important;border:1px solid #3d4c96!important;border-radius:14px!important;padding:12px!important;color:#eaf2ff!important;font:12px 'Segoe UI',Arial,sans-serif!important;box-shadow:0 10px 30px #000a!important;z-index:2147483646!important;display:flex!important;flex-direction:column!important;gap:7px!important}
+#mp-root .mp-slip.mp-hidden{display:none!important}
+#mp-root .mp-slip-head{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:8px!important}
+#mp-root .mp-slip-row{display:flex!important;gap:10px!important;align-items:flex-start!important;border-top:1px solid #222c66!important;padding-top:7px!important}
+#mp-root .mp-pct{flex:none!important;min-width:52px!important;text-align:center!important;font-weight:800!important;font-size:14px!important;border-radius:8px!important;padding:6px 4px!important}
+#mp-root .mp-good{background:#0d3b2c!important;color:#7ff5d0!important}#mp-root .mp-mid{background:#3a2e10!important;color:#ffd58f!important}#mp-root .mp-low{background:#3b1220!important;color:#ff9fb5!important}
+#mp-root .mp-slip-total{display:flex!important;justify-content:space-between!important;align-items:center!important;border-top:1px solid #3d4c96!important;padding-top:8px!important;font-size:13px!important}
+#mp-root .mp-slip-total b{font-size:18px!important;color:#9fe9ff!important}

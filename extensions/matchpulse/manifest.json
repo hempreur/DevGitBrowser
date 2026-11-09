@@ -2,8 +2,8 @@
   "manifest_version": 2,
   "name": "MatchPulse — DevGitBrowser",
   "short_name": "MatchPulse",
-  "version": "0.4.0",
-  "description": "Suivi sportif en lecture seule : Betclic, Winamax, Unibet France et Belgique. Détection des tickets, alertes gratuites SofaScore/ESPN (buts, pénaltys, cartons, VAR, fautes, corners) et notifications Windows.",
+  "version": "0.5.0",
+  "description": "Suivi sportif en lecture seule : Betclic, Winamax, Unibet. Probabilité estimée des tickets avant validation, détection des tickets, alertes gratuites SofaScore/ESPN et notifications Windows.",
   "author": "CodexHempreur INC",
   "permissions": [
     "https://api.sofascore.com/*",

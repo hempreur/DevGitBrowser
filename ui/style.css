@@ -213,3 +213,66 @@ html,body{height:100%;width:100%;overflow:hidden;}
 .signature-line{font-family:"Edwardian Script ITC","Kunstler Script","Monotype Corsiva","Segoe Script",cursive;font-style:italic;font-size:22px!important;color:#e6baf3!important;text-shadow:0 0 6px #b935fa66;margin-top:10px!important}
 @media(max-width:1100px){.brand-word{display:none}.tab{flex-basis:150px}}
 @media(max-width:760px){.nav-tools{gap:3px}.nav-tool.icon{width:32px}.bookmarks-bar{padding:0 6px 3px}.about-table{grid-template-columns:1fr}.about-hero{flex-direction:column}#pip-button{display:none}}
+
+/* 1.5 — barre d'état : messages visibles, signature professionnelle */
+.statusbar #status-message{display:block!important}
+.statusbar .signature{font-family:Inter,'Segoe UI',Arial,sans-serif!important;font-style:normal!important;font-weight:600!important;font-size:10px!important;
+  letter-spacing:.6px!important;text-transform:none;color:#d5edff!important;text-shadow:none!important;transform:none!important;opacity:.9!important;line-height:normal!important}
+.statusbar .signature b{font-weight:800;color:#d5edff}
+.signature-line{font-family:Inter,'Segoe UI',Arial,sans-serif!important;font-style:normal!important;font-weight:700;font-size:13px!important;letter-spacing:.6px;color:#d5edff!important;text-shadow:none!important}
+.vpn-pill,.gaming-pill,.radio-pill{display:none;align-items:center;gap:5px;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;border:1px solid}
+.vpn-pill.on{display:inline-flex;color:#7ff5d0;border-color:#1f8f6e;background:#0b2d27}
+.vpn-pill.connecting{display:inline-flex;color:#ffd58f;border-color:#8a6a2a;background:#2b2210}
+.gaming-pill.on{display:inline-flex;color:#ffb4f0;border-color:#8a2f7a;background:#2a0f2a}
+.radio-pill.on{display:inline-flex;color:#9fe9ff;border-color:#2f6a9a;background:#0c1f36;cursor:pointer}
+.status-right{display:flex;align-items:center;gap:8px;flex:none}
+
+/* Thèmes : un filtre sur l'élément racine teinte toute l'interface ; les images
+   (logo, icônes de sites) sont contre-filtrées pour garder leurs vraies couleurs. */
+:root[data-theme="ocean"]{filter:hue-rotate(-38deg)}
+:root[data-theme="ocean"] img{filter:hue-rotate(38deg)}
+:root[data-theme="emeraude"]{filter:hue-rotate(-125deg) saturate(.9)}
+:root[data-theme="emeraude"] img{filter:saturate(1.11) hue-rotate(125deg)}
+:root[data-theme="rubis"]{filter:hue-rotate(75deg) saturate(1.05)}
+:root[data-theme="rubis"] img{filter:saturate(.95) hue-rotate(-75deg)}
+:root[data-theme="solaire"]{filter:hue-rotate(150deg) saturate(.95)}
+:root[data-theme="solaire"] img{filter:saturate(1.05) hue-rotate(-150deg)}
+:root[data-theme="graphite"]{filter:saturate(.18) brightness(1.04)}
+:root[data-theme="graphite"] img{filter:saturate(5.5)}
+:root[data-theme="clair"]{filter:invert(.93) hue-rotate(180deg) brightness(1.02)}
+:root[data-theme="clair"] img,:root[data-theme="clair"] .letter-icon{filter:invert(1) hue-rotate(180deg)}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:10px}
+.theme-card{border:2px solid #2c3778;border-radius:12px;padding:10px;background:#0b1233;color:#e8f0ff;text-align:left;cursor:pointer}
+.theme-card.active{border-color:#50d9fa;box-shadow:0 0 12px #3fbff066}
+.theme-card i{display:block;height:34px;border-radius:8px;margin-bottom:8px}
+.theme-card b{font-size:12px}
+.key-btn{color:#8fa6d8}.key-btn.on{color:#7ff5d0}
+.vpn-button.active{color:#7ff5d0!important;border-color:#1f8f6e!important;box-shadow:0 0 10px #22c39a55}
+.vpn-button.active em{background:#0f9d71!important}
+.vpn-button.busy{color:#ffd58f!important}
+.vpn-button.busy em{background:#9a6b12!important}
+#radio-button.active{color:#9fe9ff!important;border-color:#2f6a9a!important}
+.pw-banner{display:flex;align-items:center;gap:10px;padding:7px 14px;background:linear-gradient(90deg,#14204f,#2a1450);border-top:1px solid #3d4c96;font-size:12px;color:#e8f0ff;flex:none}
+.pw-banner #pw-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pw-banner input{width:200px;padding:6px 9px;border-radius:8px;border:1px solid #50d9fa;background:#080d27;color:#fff;outline:0}
+.pw-ico{font-size:15px}
+.secret{font-family:Consolas,'Cascadia Mono',monospace;font-size:12px;color:#c8d8ff;background:#0a1030;border:1px solid #232c6a;border-radius:6px;padding:4px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.strength{height:6px;border-radius:4px;background:#1a2257;overflow:hidden;margin:10px 0 4px}
+.strength span{display:block;height:100%;width:0;transition:width .2s,background .2s;background:#ff6b81}
+.strength span[data-level="2"]{background:#ffb35c}.strength span[data-level="3"]{background:#7fdc6a}.strength span[data-level="4"]{background:#28e0c3}
+.toolbar.tight{margin:0;gap:6px}.toolbar.tight input{min-width:0}
+.stats-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.stats-row div{border:1px solid #2a3578;border-radius:10px;padding:10px 12px;background:#0a1030;display:flex;flex-direction:column;gap:4px}
+.stats-row small{color:#8b9cc9;font-size:11px}.stats-row b{font-size:17px;color:#9fe9ff;font-variant-numeric:tabular-nums}
+.item-row .small-btn{flex:none}
+.swatch{display:block;margin-bottom:8px;line-height:0}.swatch img{width:100%;height:34px;border-radius:8px;display:block}
+.welcome-panel .panel-wrap{max-width:760px}
+.welcome-wrap{display:flex;flex-direction:column;min-height:calc(100vh - var(--chrome-h) - 80px);justify-content:center}
+.welcome-step{text-align:left}.welcome-step h2{font-size:28px;margin:10px 0}
+.welcome-step p{color:#b7c6ea;line-height:1.7;font-size:14px}
+.welcome-logo{filter:drop-shadow(0 0 22px #18cbff88)}
+.welcome-features{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.welcome-features span{border:1px solid #33408a;border-radius:20px;padding:7px 13px;background:#0e1640;font-size:12.5px}
+.welcome-nav{display:flex;align-items:center;gap:10px;margin-top:30px}
+.welcome-dots{flex:1;display:flex;gap:6px}.welcome-dots i{width:9px;height:9px;border-radius:50%;background:#2a3578}.welcome-dots i.on{background:#50d9fa;box-shadow:0 0 8px #50d9fa}
+@media(max-width:760px){.stats-row{grid-template-columns:1fr 1fr}#radio-button{display:none}}

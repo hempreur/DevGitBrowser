@@ -1,4 +1,4 @@
-/* MatchPulse 0.4 — module de données en arrière-plan.
+/* MatchPulse 0.5 — module de données en arrière-plan.
  * Les données de pari, cookies et identifiants du bookmaker ne transitent jamais ici :
  * seuls des noms d'équipes et des identifiants de matchs publics sont utilisés.
  * Le suivi continue même si l'onglet du bookmaker change de page.
@@ -67,7 +67,8 @@
       sofa('/sport/football/scheduled-events/' + assertDate(date), 5 * 60_000),
       date === today() ? sofa('/sport/football/events/live', 25_000) : Promise.resolve({events: []})
     ]);
-    if (day.status !== 'fulfilled' && live.status !== 'fulfilled') throw day.reason || live.reason;
+    // Le programme du jour est indispensable ; le flux « en direct » le complète.
+    if (day.status !== 'fulfilled') throw day.reason;
     const map = new Map();
     for (const r of [day, live]) if (r.status === 'fulfilled') for (const ev of (r.value?.events || []).slice(0, 4000)) {
       const rec = Core.sofaRecord(ev); if (rec) map.set(rec.id, rec);
@@ -243,6 +244,30 @@
     return {matched, missing, snapshot: snapshot()};
   }
 
+  // Analyse d'un ticket AVANT validation : probabilité estimée par sélection.
+  async function analyzeSlip(items, date) {
+    const day = assertDate(date || today());
+    let records = [];
+    try { records = await sofaDay(day); } catch {}
+    const results = [];
+    for (const item of (Array.isArray(items) ? items : []).slice(0, 15)) {
+      const clean = {label: Core.niceLabel(item?.label, 80), market: Core.niceLabel(item?.market, 120), fixture: Core.niceLabel(item?.fixture, 140), odds: Number(item?.odds) > 1 && Number(item?.odds) < 1000 ? Number(item.odds) : null};
+      const teams = Core.parseFixtureTeams(clean.fixture);
+      const match = teams ? Core.bestFixtureMatch(records, teams) : null;
+      let markets = null, form = null;
+      if (match) {
+        const [odds, pregame] = await Promise.allSettled([sofa('/event/' + match.id + '/odds/1/all', 10 * 60_000), sofa('/event/' + match.id + '/pregame-form', 30 * 60_000)]);
+        if (odds.status === 'fulfilled') markets = Core.marketProbabilities(odds.value);
+        if (pregame.status === 'fulfilled' && pregame.value?.homeTeam) form = {home: pregame.value.homeTeam.form || [], away: pregame.value.awayTeam?.form || []};
+      }
+      const estimate = Core.estimateSelection(clean, {teams: match ? {home: match.home, away: match.away} : teams, markets, form});
+      results.push({...clean, match: match ? `${match.home} – ${match.away}` : '', state: match?.state || '', ...estimate,
+        form: form ? {home: form.home.slice(-5).join(''), away: form.away.slice(-5).join('')} : null});
+    }
+    const combined = Core.combineProbabilities(results);
+    const totalOdds = results.every(r => r.odds) ? results.reduce((a, r) => a * r.odds, 1) : null;
+    return {results, combined, totalOdds, sameMatch: new Set(results.map(r => r.match).filter(Boolean)).size < results.filter(r => r.match).length};
+  }
   async function handle(message) {
     if (!message || typeof message !== 'object') throw new Error('Requête non reconnue.');
     switch (message.action) {
@@ -257,6 +282,7 @@
       case 'track': track(message.match); return snapshot();
       case 'untrack': { const i = tracked.findIndex(t => t.id === String(message.id)); if (i >= 0) tracked.splice(i, 1); if (!tracked.length) stop(); return snapshot(); }
       case 'track-ticket': return trackTicket(message.items, message.date);
+      case 'analyze-slip': return analyzeSlip(message.items, message.date);
       case 'start': await start(); return snapshot();
       case 'stop': stop(); return snapshot();
       case 'clear-alerts': alerts.length = 0; return snapshot();

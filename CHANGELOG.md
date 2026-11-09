@@ -1,3 +1,26 @@
+## 1.5.0 — VPN gratuit, coffre à mots de passe, radio, mode gaming, thèmes
+
+### Nouveautés
+- **VPN DevGit gratuit** (bouton 🌐) : le trafic du navigateur passe par le réseau chiffré Tor (adresse IP masquée, sans compte ni limite). Choix du pays de sortie (France, Pays-Bas, Suisse, États-Unis, Japon…) pour accéder aux contenus bloqués, « Nouvelle adresse IP », vérification en un clic. Fuites WebRTC bloquées pendant la connexion. Le composant Tor officiel est téléchargé par la CI et vérifié (signature GPG de Tor Browser + SHA-256).
+- **Coffre à mots de passe** local : AES-256-GCM, clé dérivée du mot de passe maître (scrypt), fichier lié en plus au compte Windows (DPAPI). Proposition d'enregistrement à la connexion, remplissage sur demande (clé 🔑 dans la barre d'adresse), générateur, audit des mots de passe faibles ou réutilisés, copie effacée du presse-papiers après 30 s, verrouillage automatique (15 min, veille, verrouillage de Windows), protection contre les essais répétés.
+- **Lecteur radio** (bouton 📻) : mini fenêtre avec des dizaines de milliers de stations (annuaire libre radio-browser.info), tri par pays, genre, popularité, recherche, favoris et stations récentes. La musique continue quand la fenêtre est fermée (indicateur ♪ dans la barre d'état).
+- **Mode gaming** et **gestionnaire de tâches** (Maj+Échap) : mémoire et processeur par onglet, mise en veille des onglets inactifs (processus libéré), priorité du navigateur abaissée pendant les parties. Mode Éco : onglets inactifs en veille après 10 min. Les onglets restaurés au démarrage sont chargés à la demande.
+- **7 thèmes de couleurs** (Néon, Océan, Émeraude, Rubis, Solaire, Graphite, Clair), modifiables à tout moment (menu ☰ → Thème ou Paramètres).
+- **Message de bienvenue** au premier lancement : thème, mot de passe maître, moteur de recherche.
+- Signature « By CodexHempreur » dans la même police que la marque en bas à gauche.
+
+### MatchPulse 0.5.0
+- **Ticket en préparation** : les sélections du panier sont lues avant la validation et une **probabilité de réussite estimée** s'affiche pour chaque sélection et pour le combiné (cotes du marché SofaScore sans marge, forme des 5 derniers matchs, repli sur la cote du ticket), avec la valeur par rapport à la cote proposée. Résultat 1N2, double chance, les deux équipes marquent, plus/moins de buts. Estimation statistique, jamais une garantie.
+
+### Sécurité (audit 1.5)
+- Protection **anti-hameçonnage / anti-malware** avant l'ouverture des pages (listes publiques mises à jour chaque jour, vérification locale).
+- **DNS sécurisé (DNS over HTTPS)** : Cloudflare, Quad9, AdGuard, Google ou Mullvad.
+- Page dédiée en cas de plantage d'un onglet, dialogue « page qui ne répond pas », alerte en cas de redémarrage du processus graphique, journal local des erreurs (jetons masqués), outils de réparation (cache, filtres, réglages).
+
+### Corrections
+- Les messages de la barre d'état étaient masqués par une ancienne règle CSS.
+- Vérification des mises à jour 5 secondes après le lancement.
+
 ## 1.4.0 — Historique, favoris, onglets détachables, PiP, mises à jour automatiques
 
 ### Nouveautés

@@ -49,6 +49,19 @@ jobs:
         run: node tests/windows-ie-smoke.js DevGitLegacyHost.exe
       - name: Vérifier MSHTML IE11 et fenêtres de salon en 32 bits
         run: node tests/windows-ie-smoke.js DevGitLegacyHost32.exe
+      # VPN DevGit : Tor Expert Bundle officiel, signature GPG de Tor Browser vérifiée.
+      - name: Télécharger et vérifier Tor (VPN DevGit)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/fetch-tor.js download
+          FPR=EF6E286DDA85EA2A4BA7DE684E2C6E8793298290
+          gpg --batch --auto-key-locate nodefault,wkd --locate-keys torbrowser@torproject.org \
+            || gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$FPR"
+          gpg --batch --status-fd 1 --verify vendor/tmp/sums.txt.asc vendor/tmp/sums.txt > gpg-status.txt 2>/dev/null || true
+          if ! grep -E "^\[GNUPG:\] VALIDSIG .*$FPR" gpg-status.txt; then echo "Signature GPG des sommes Tor invalide"; cat gpg-status.txt; exit 1; fi
+          node scripts/fetch-tor.js extract
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
       - name: Contrôler MatchPulse et la mise à jour dans le paquet Windows
