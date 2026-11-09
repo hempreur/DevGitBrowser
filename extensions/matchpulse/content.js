@@ -32,10 +32,11 @@
       </section>
       <section class="mp-section">
         <h3>🔴 Matchs et alertes en direct</h3>
-        <p>Source gratuite <b>SofaScore</b> (sans clé, toutes compétitions, mise à jour ~30 s : buts, pénaltys, cartons, VAR, fautes, corners), avec bascule automatique sur <b>ESPN</b>. Le suivi continue même si tu changes de page ; une notification Windows est affichée à chaque alerte.</p>
+        <p>Source gratuite <b>ESPN</b> (sans clé ni compte, toutes compétitions, mise à jour ~30 s : buts, pénaltys, cartons, fautes, corners). Le suivi continue même si tu changes de page ; une notification Windows est affichée à chaque alerte.</p>
         <div class="mp-group"><button type="button" class="mp-btn mp-primary" id="mp-follow-ticket">Suivre les matchs de mon ticket</button></div>
         <label class="mp-label">Source des résultats</label>
-        <select id="mp-source"><option value="auto">Automatique · SofaScore puis ESPN (gratuit)</option><option value="sofascore">SofaScore uniquement</option><option value="public">ESPN uniquement</option><option value="api-football">API-Football · clé personnelle</option></select>
+        <select id="mp-source"><option value="espn">ESPN · gratuit, sans clé (toutes compétitions)</option><option value="api-football">API-Football · clé personnelle</option></select>
+        <div class="mp-group"><button type="button" class="mp-btn" id="mp-diagnose">Tester la source</button></div>
         <div id="mp-api-key-group" class="mp-hidden"><label class="mp-label">Clé personnelle API-Football (non enregistrée)</label>
         <div class="mp-group"><input type="password" id="mp-api-key" spellcheck="false" autocomplete="off" placeholder="Clé API-Football"><button class="mp-btn mp-primary" type="button" id="mp-key-connect">Connecter</button><button type="button" class="mp-btn" id="mp-key-clear">Retirer</button></div>
         <div id="mp-api-status" class="mp-note"></div></div>
@@ -56,7 +57,7 @@
         </details>
         <div id="mp-alerts"></div>
       </section>
-      <div class="mp-foot">By CodexHempreur · Extension incluse 0.5 · Jeu responsable : 09 74 75 13 13</div>
+      <div class="mp-foot">By CodexHempreur · Extension incluse 0.6 · Jeu responsable : 09 74 75 13 13</div>
     </div>
   </div>
   <div id="mp-slip" class="mp-slip mp-hidden" role="status" aria-live="polite"></div>
@@ -297,7 +298,7 @@
     for(const t of state.tracked){
       const row=el('div','mp-item mp-match');
       const info=el('div','mp-selection-info');
-      info.append(el('b','',`${t.label}`),el('small','',`${t.score} · ${t.status||'—'} · ${t.source==='sofascore'?'SofaScore':t.source==='public'?'ESPN':'API-Football'}`));
+      info.append(el('b','',`${t.label}`),el('small','',`${t.score} · ${t.status||'—'}${t.league?' · '+t.league:''} · ${t.source==='espn'?'ESPN':'API-Football'}`));
       if(t.stats){const parts=[];for(const [k,v] of Object.entries(t.stats))if(core.STAT_LABELS[k]&&['fouls','corners','yellow'].includes(k))parts.push(`${core.STAT_LABELS[k]} ${v.home}–${v.away}`);if(parts.length)info.append(el('small','mp-muted',parts.join(' · ')));}
       for(const e of t.events.slice(-2))info.append(el('small','mp-muted',e));
       row.append(info,button('✕',async()=>{try{render(await msg('untrack',{id:t.id}));}catch(e){note(e.message,true);}}));
@@ -332,15 +333,23 @@
       if(!result.items.length)area.append(el('p','mp-muted','Aucun match correspondant sur cette date.'));
       for(const f of result.items){
         const row=el('div','mp-item');
-        row.append(el('span','',`${f.home} – ${f.away} · ${f.score||''} ${f.status?'('+f.status+')':''}`),button('Suivre',async()=>{
+        row.append(el('span','',`${f.home} – ${f.away} · ${f.score||''} ${f.status?'('+f.status+')':''}${f.leagueName?' · '+f.leagueName:''}`),button('Suivre',async()=>{
           try{render(await msg('track',{match:{...f,date:$('mp-date').value}}));row.remove();}catch(e){note(e.message,true);}
         }));
         area.append(row);
       }
-      note(`${result.items.length} match(s) · source ${result.source==='sofascore'?'SofaScore':result.source==='public'?'ESPN (secours)':'API-Football'}${result.fallback?' · SofaScore indisponible : '+result.fallback:''}`);
+      note(`${result.items.length} match(s) trouvé(s) · source ${result.source==='espn'?`ESPN (${result.total||0} matchs ce jour)`:'API-Football'}`);
     }catch(e){note(e.message,true);}
   }
   $('mp-find-fixtures').addEventListener('click',findFixtures);
+  $('mp-diagnose').addEventListener('click',async()=>{
+    note('Test de la source…');
+    try{
+      const d=await msg('diagnose',{date:$('mp-date').value});
+      if(d.espn.ok)note(`✓ ESPN répond (${d.espn.ms} ms) : ${d.espn.matches} matchs le ${d.date}, dont ${d.espn.live} en direct · ${d.espn.leagues.slice(0,6).join(', ')}${d.espn.leagues.length>6?'…':''} · API-Football : ${d.apiFootball}`);
+      else note(`✕ ESPN injoignable : ${d.espn.error}. Vérifie ta connexion, le VPN ou un pare-feu.`,true);
+    }catch(e){note(e.message,true);}
+  });
   $('mp-team').addEventListener('keydown',e=>{if(e.key==='Enter')findFixtures();});
   async function followTicket(items){
     const list=(items||selections).filter(s=>s.fixture||/\s(?:-|–|vs)\s/i.test(s.label||''));
@@ -349,7 +358,7 @@
     try{
       const result=await msg('track-ticket',{items:list.map(s=>({label:s.label,fixture:s.fixture,market:s.market})),date:localDate()});
       render(result.snapshot);
-      toast(`MatchPulse : ${result.matched.length} match(s) suivi(s)${result.missing.length?` · introuvable(s) : ${result.missing.slice(0,3).join(', ')}`:''}`);
+      toast(`MatchPulse : ${result.matched.length} match(s) suivi(s)${result.missing.length?` · introuvable(s) : ${result.missing.slice(0,3).join(', ')}`:''} (${result.total} matchs au programme ESPN)`);
     }catch(e){note(e.message,true);}
   }
   $('mp-follow-ticket').addEventListener('click',()=>{if(!selections.length)extractVisibleSlip(false);followTicket();});
@@ -419,7 +428,7 @@
     box.append(total);
     if(data.totalOdds)box.append(el('small','mp-muted',`Cote totale ${data.totalOdds.toFixed(2)} · probabilité implicite du bookmaker ${core.percent(1/data.totalOdds)}`));
     if(data.sameMatch)box.append(el('small','mp-muted','⚠ Plusieurs sélections sur le même match : elles ne sont pas indépendantes, l’estimation combinée est approximative.'));
-    box.append(el('small','mp-muted','Estimation statistique (cotes du marché SofaScore, forme récente), jamais une garantie. Joue avec modération.'));
+    box.append(el('small','mp-muted','Estimation statistique (cotes moyennes du marché publiées par ESPN, forme des 5 derniers matchs), jamais une garantie. Joue avec modération.'));
     box.classList.remove('mp-hidden');
   }
   async function checkBetslip(){

@@ -1,23 +1,23 @@
-/* MatchPulse 0.5 — module de données en arrière-plan.
+/* MatchPulse 0.6 — module de données en arrière-plan.
+ * Source principale : flux public ESPN (gratuit, sans clé, toutes compétitions).
+ * Option : API-Football avec une clé personnelle gardée en mémoire.
  * Les données de pari, cookies et identifiants du bookmaker ne transitent jamais ici :
  * seuls des noms d'équipes et des identifiants de matchs publics sont utilisés.
- * Le suivi continue même si l'onglet du bookmaker change de page.
  */
 (function () {
   'use strict';
   const Core = globalThis.MatchPulseCore;
   const BASE = 'https://v3.football.api-sports.io';
-  const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/';
-  const SOFA_HOSTS = ['https://api.sofascore.com/api/v1', 'https://www.sofascore.com/api/v1'];
+  const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/';
   const MAX_TRACKED = 12;
-  const INTERVALS = {sofascore: 30_000, public: 60_000, 'api-football': 120_000};
+  const INTERVALS = {espn: 30_000, 'api-football': 120_000};
   const cache = new Map();
   const pending = new Map();
   let sessionKey = null; // Clé API gardée en mémoire ; jamais écrite sur disque.
   let keyGeneration = 0;
-  const tracked = []; // {id, source, league, date, home, away, label, score, status, seen:Set|null, stats, events}
-  const alerts = []; // {id, at, text, match}
-  let running = false, timer = null, busy = false, lastPoll = null, lastError = '', alertSeq = 0;
+  const tracked = [];
+  const alerts = [];
+  let running = false, timer = null, busy = null, lastPoll = null, lastError = '', alertSeq = 0;
   const prefs = {notifications: true, kinds: {goals: true, cards: true, penalties: true, var: true, fouls: true, corners: true}};
 
   function authorizedSender(sender) {
@@ -29,8 +29,10 @@
     if (new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) !== date) throw new Error('Date invalide.');
     return date;
   }
-  function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-  async function fetchJSON(url, {headers = {}, timeout = 12000} = {}) {
+  function localDay(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+  function today() { return localDay(); }
+  function shiftDay(date, days) { const d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
+  async function fetchJSON(url, {headers = {}, timeout = 15000} = {}) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeout);
     try {
@@ -40,6 +42,7 @@
       return await res.json();
     } catch (e) {
       if (e?.name === 'AbortError') throw new Error('La source ne répond pas (délai dépassé).');
+      if (e?.name === 'TypeError') throw new Error('Connexion impossible à la source (réseau ou pare-feu).');
       throw e;
     } finally { clearTimeout(t); }
   }
@@ -47,50 +50,40 @@
     const entry = cache.get(key);
     if (entry && Date.now() - entry.at < ttl) return entry.value;
     if (pending.has(key)) return pending.get(key);
-    const task = loader().then(value => { cache.set(key, {at: Date.now(), value}); if (cache.size > 120) cache.delete(cache.keys().next().value); return value; });
+    const task = loader().then(value => { cache.set(key, {at: Date.now(), value}); if (cache.size > 150) cache.delete(cache.keys().next().value); return value; });
     pending.set(key, task);
     try { return await task; } finally { pending.delete(key); }
   }
-  // ------------------------------------------------------------ SofaScore
-  async function sofa(path, ttl) {
-    return cached('sofa:' + path, ttl, async () => {
-      let last;
-      for (const host of SOFA_HOSTS) {
-        try { return await fetchJSON(host + path, {headers: {Accept: 'application/json'}}); }
-        catch (e) { last = e; }
-      }
-      throw new Error('SofaScore indisponible : ' + (last?.message || 'erreur'));
+  // ------------------------------------------------------------ ESPN
+  async function espnBoard(date, ttl) {
+    const day = assertDate(date).replace(/-/g, '');
+    return cached('espn-all:' + day, ttl, async () => {
+      const body = await fetchJSON(ESPN + 'all/scoreboard?dates=' + day + '&limit=1000');
+      if (!Array.isArray(body?.events)) throw new Error('Format ESPN non reconnu.');
+      return body.events.slice(0, 1500).map(Core.espnAllRecord).filter(Boolean);
     });
   }
-  async function sofaDay(date) {
-    const [day, live] = await Promise.allSettled([
-      sofa('/sport/football/scheduled-events/' + assertDate(date), 5 * 60_000),
-      date === today() ? sofa('/sport/football/events/live', 25_000) : Promise.resolve({events: []})
-    ]);
-    // Le programme du jour est indispensable ; le flux « en direct » le complète.
-    if (day.status !== 'fulfilled') throw day.reason;
+  // Un match du soir en Europe peut être daté du lendemain côté ESPN (et inversement) :
+  // on fusionne la date demandée et ses voisines.
+  async function espnDay(date, {live = false} = {}) {
+    const ttl = live || date === today() ? 30_000 : 10 * 60_000;
+    const days = [date, shiftDay(date, -1), shiftDay(date, 1)];
+    const results = await Promise.allSettled(days.map((d, i) => espnBoard(d, i === 0 ? ttl : 10 * 60_000)));
+    if (results[0].status !== 'fulfilled' && results.every(r => r.status !== 'fulfilled')) throw results[0].reason;
     const map = new Map();
-    for (const r of [day, live]) if (r.status === 'fulfilled') for (const ev of (r.value?.events || []).slice(0, 4000)) {
-      const rec = Core.sofaRecord(ev); if (rec) map.set(rec.id, rec);
-    }
+    results.forEach((r, i) => {
+      if (r.status !== 'fulfilled') return;
+      for (const rec of r.value) {
+        // Les jours voisins ne servent qu'aux matchs dont l'heure locale tombe le jour demandé.
+        if (i > 0 && rec.date && localDay(new Date(rec.date)) !== date) continue;
+        map.set(rec.id, rec);
+      }
+    });
     return [...map.values()];
   }
-  // ------------------------------------------------------------ ESPN
-  async function espnBoard(league, date, ttl = 120000) {
-    if (!Core.allowedEspnLeague(league)) throw new Error('Championnat non autorisé.');
-    const day = assertDate(date).replace(/-/g, '');
-    return cached('espn:' + league + day, ttl, async () => {
-      const body = await fetchJSON(ESPN_BASE + league + '/scoreboard?dates=' + day);
-      if (!Array.isArray(body?.events)) throw new Error('Format ESPN non reconnu.');
-      return body.events.slice(0, 350).map(e => Core.espnRecord(e, league)).filter(Boolean).map(r => ({...r, source: 'public'}));
-    });
-  }
-  async function espnDay(date) {
-    const results = await Promise.allSettled(Core.ESPN_LEAGUES.map(l => espnBoard(l.id, date, 180000)));
-    const all = []; let ok = 0;
-    for (const r of results) if (r.status === 'fulfilled') { ok++; all.push(...r.value); }
-    if (!ok) throw new Error('ESPN inaccessible.');
-    return all;
+  function espnSummary(id, ttl = 25_000) {
+    if (!/^\d{1,12}$/.test(String(id))) return Promise.reject(new Error('Identifiant ESPN invalide.'));
+    return cached('espn-sum:' + id, ttl, () => fetchJSON(ESPN + 'all/summary?event=' + id).then(Core.espnSummaryData));
   }
   // ------------------------------------------------------------ API-Football
   async function apiFootball(path, ttl) {
@@ -105,24 +98,30 @@
   // ------------------------------------------------------------ Recherche
   async function search(date, query, source) {
     if (String(query || '').trim().length < 2) throw new Error('Nom d’équipe trop court.');
-    const errors = [];
     if (source === 'api-football') {
       const items = Core.matchingFixtures(await apiFootball('/fixtures?date=' + assertDate(date), 10 * 60_000), query).map(f => ({...f, source: 'api-football'}));
       return {items, source};
     }
-    if (source === 'auto' || source === 'sofascore') {
-      try {
-        const q = Core.normalizeTeam(query);
-        const items = (await sofaDay(date)).filter(r => Core.normalizeTeam(r.home).includes(q) || Core.normalizeTeam(r.away).includes(q) || Core.teamSimilarity(r.home, query) >= 0.85 || Core.teamSimilarity(r.away, query) >= 0.85);
-        items.sort((a, b) => (b.state === 'live') - (a.state === 'live'));
-        if (items.length || source === 'sofascore') return {items: items.slice(0, 30), source: 'sofascore'};
-      } catch (e) { errors.push(e.message); if (source === 'sofascore') throw e; }
-    }
-    const records = await espnDay(date);
-    return {items: Core.searchPublicMatches(records, query).map(x => ({...x, source: 'public'})), source: 'public', fallback: errors[0] || ''};
+    const records = await espnDay(assertDate(date));
+    return {items: Core.searchRecords(records, query), source: 'espn', total: records.length};
+  }
+  async function diagnose(date) {
+    const day = assertDate(date || today());
+    const out = {date: day, espn: null, apiFootball: sessionKey ? 'clé configurée' : 'non configurée'};
+    const started = Date.now();
+    try {
+      const records = await espnDay(day);
+      out.espn = {ok: true, matches: records.length, live: records.filter(r => r.state === 'in').length, ms: Date.now() - started,
+        leagues: [...new Set(records.map(r => r.leagueName).filter(Boolean))].slice(0, 12)};
+    } catch (e) { out.espn = {ok: false, error: e.message}; }
+    return out;
   }
   // ------------------------------------------------------------ Suivi et alertes
-  function publicMatch(t) { return {id: t.id, source: t.source, label: t.label, home: t.home, away: t.away, score: t.score, status: t.status, state: t.state, stats: t.stats || null, events: (t.events || []).slice(-4).map(e => Core.liveEventText(e, t.home, t.away) || Core.publicEventText(e) || Core.eventText(e)).filter(Boolean)}; }
+  function eventLine(t, e) { return Core.liveEventText(e, t.home, t.away) || Core.eventText?.(e) || ''; }
+  function publicMatch(t) {
+    return {id: t.id, source: t.source, label: t.label, home: t.home, away: t.away, score: t.score, status: t.status, state: t.state, league: t.leagueName || '',
+      stats: t.stats || null, events: (t.events || []).slice(-4).map(e => t.source === 'espn' ? eventLine(t, e) : Core.eventText(e)).filter(Boolean)};
+  }
   function snapshot() {
     return {running, tracked: tracked.map(publicMatch), alerts: alerts.slice(0, 30), lastPoll, lastError, prefs, configured: Boolean(sessionKey), max: MAX_TRACKED};
   }
@@ -142,47 +141,36 @@
   }
   function track(match) {
     const id = String(match?.id || '');
-    const source = ['sofascore', 'public', 'api-football'].includes(match?.source) ? match.source : 'sofascore';
-    if (source === 'sofascore' ? !Core.validSofaId(id) : source === 'public' ? !/^\d{1,12}$/.test(id) : !Core.validFixtureId(id)) throw new Error('Identifiant de match invalide.');
-    if (source === 'public' && !Core.allowedEspnLeague(match.league)) throw new Error('Championnat ESPN non autorisé.');
+    const source = match?.source === 'api-football' ? 'api-football' : 'espn';
+    if (source === 'espn' ? !/^\d{1,12}$/.test(id) : !Core.validFixtureId(id)) throw new Error('Identifiant de match invalide.');
     if (tracked.some(t => t.id === id && t.source === source)) return false;
     if (tracked.length >= MAX_TRACKED) throw new Error(`${MAX_TRACKED} matchs maximum suivis en même temps.`);
     const home = Core.niceLabel(match.home, 70), away = Core.niceLabel(match.away, 70);
-    tracked.push({id, source, league: match.league || null, date: /^\d{4}-\d{2}-\d{2}$/.test(match.date || '') ? match.date : today(),
+    tracked.push({id, source, date: /^\d{4}-\d{2}-\d{2}$/.test(match.date || '') ? match.date : today(), leagueName: Core.niceLabel(match.leagueName || '', 60),
       home, away, label: `${home} – ${away}`, score: Core.niceLabel(match.score || '- : -', 20), status: Core.niceLabel(match.status || '', 40), state: match.state || '', seen: null, stats: null, events: []});
     if (!running && !(source === 'api-football' && !sessionKey)) start().catch(() => {});
     return true;
   }
+  async function pollEspn(t) {
+    const records = await espnDay(t.date, {live: true});
+    const rec = records.find(r => r.id === t.id);
+    if (rec) { t.score = rec.score; t.status = rec.status; t.state = rec.state; }
+    let incidents = rec?.events || [];
+    let stats = null;
+    if (!rec || rec.state !== 'pre') {
+      try { const sum = await espnSummary(t.id, rec?.state === 'in' ? 25_000 : 5 * 60_000); if (sum.incidents.length) incidents = sum.incidents; stats = sum.stats; }
+      catch (e) { if (!rec) throw e; }
+    }
+    if (t.seen) for (const e of incidents) if (!t.seen.has(e.id) && kindAllowed(e.kind)) { const text = eventLine(t, e); if (text) pushAlert(t, text); }
+    t.seen = new Set(incidents.map(e => e.id)); t.events = incidents;
+    if (stats && Object.keys(stats).length) {
+      const enabled = [prefs.kinds.fouls && 'fouls', prefs.kinds.corners && 'corners'].filter(Boolean);
+      for (const change of Core.statChanges(t.stats, stats, enabled)) pushAlert(t, change.text);
+      t.stats = stats;
+    }
+  }
   async function pollOne(t) {
-    if (t.source === 'sofascore') {
-      const [incidents, event] = await Promise.all([
-        sofa('/event/' + t.id + '/incidents', 20_000),
-        sofa('/event/' + t.id, 20_000).catch(() => null)
-      ]);
-      const rec = event?.event ? Core.sofaRecord(event.event) : null;
-      if (rec) { t.score = rec.score; t.status = rec.status; t.state = rec.state; }
-      const items = Core.sofaIncidents(incidents);
-      if (t.seen) for (const e of items) if (!t.seen.has(e.id) && kindAllowed(e.kind)) { const text = Core.liveEventText(e, t.home, t.away); if (text) pushAlert(t, text); }
-      t.seen = new Set(items.map(e => e.id)); t.events = items;
-      if (t.state !== 'pre' && (prefs.kinds.fouls || prefs.kinds.corners)) {
-        try {
-          const stats = Core.sofaStatistics(await sofa('/event/' + t.id + '/statistics', 25_000));
-          const enabled = [prefs.kinds.fouls && 'fouls', prefs.kinds.corners && 'corners'].filter(Boolean);
-          for (const change of Core.statChanges(t.stats, stats, enabled)) pushAlert(t, change.text);
-          if (Object.keys(stats).length) t.stats = stats;
-        } catch {}
-      }
-      return;
-    }
-    if (t.source === 'public') {
-      const board = await espnBoard(t.league, t.date, 50_000);
-      const match = board.find(x => x.id === t.id);
-      if (!match) throw new Error('Match absent du flux ESPN.');
-      if (t.seen) for (const e of match.events) if (!t.seen.has(e.id) && kindAllowed(e.kind)) { const text = Core.publicEventText(e); if (text) pushAlert(t, text); }
-      if (t.seen && match.score !== t.score && !match.events.some(e => !t.seen.has(e.id))) pushAlert(t, `score mis à jour ${match.score}`);
-      t.seen = new Set(match.events.map(e => e.id)); t.events = match.events; t.score = match.score; t.status = match.status; t.state = match.state;
-      return;
-    }
+    if (t.source === 'espn') return pollEspn(t);
     const events = (await apiFootball('/fixtures/events?fixture=' + Number(t.id), 90_000)).filter(x => Core.eventKind(x));
     if (t.seen) for (const e of events) if (!t.seen.has(Core.eventId(e)) && kindAllowed(Core.eventKind(e))) { const text = Core.eventText(e); if (text) pushAlert(t, text); }
     t.seen = new Set(events.map(Core.eventId)); t.events = events;
@@ -198,76 +186,61 @@
     busy = (async () => {
       for (const t of [...tracked]) {
         try { await pollOne(t); }
-        catch (e) {
-          // SofaScore indisponible : basculer automatiquement vers ESPN si le match y est trouvé.
-          if (t.source === 'sofascore' && !t.fallbackTried) {
-            t.fallbackTried = true;
-            try {
-              const match = Core.bestFixtureMatch(await espnDay(t.date), {home: t.home, away: t.away});
-              if (match) { Object.assign(t, {id: match.id, source: 'public', league: match.league, seen: null}); errors.push(`${t.label} : bascule vers ESPN`); continue; }
-            } catch {}
-          }
-          errors.push(`${t.label} : ${e.message}`);
-        }
+        catch (e) { errors.push(`${t.label} : ${e.message}`); }
       }
       lastPoll = Date.now(); lastError = errors.join(' · ').slice(0, 300);
     })();
-    try { await busy; } finally { busy = false; }
+    try { await busy; } finally { busy = null; }
   }
   function interval() { return Math.min(...tracked.map(t => INTERVALS[t.source] || 60_000), 120_000); }
   function schedule() { if (timer) clearTimeout(timer); timer = running ? setTimeout(async () => { await poll(); schedule(); }, tracked.length ? interval() : 60_000) : null; }
   function start() {
-    if (tracked.some(t => t.source === 'api-football') && !sessionKey) throw new Error('Ajoute une clé API-Football pour les matchs suivis avec cette source.');
-    // Les matchs nouvellement suivis ont seen=null : le premier passage sert de
-    // référence. Un redémarrage conserve la référence pour ne rien manquer.
+    if (tracked.some(t => t.source === 'api-football') && !sessionKey) return Promise.reject(new Error('Ajoute une clé API-Football pour les matchs suivis avec cette source.'));
+    // Les matchs nouvellement suivis ont seen=null : le premier passage sert de référence.
     running = true;
     return poll().finally(schedule);
   }
   function stop() { running = false; if (timer) clearTimeout(timer); timer = null; }
+  function teamsOf(item) { return Core.parseFixtureTeams(item?.fixture || '') || Core.parseFixtureTeams(item?.label || ''); }
   async function trackTicket(items, date) {
     const day = assertDate(date || today());
-    let sofaRecords = [], espnRecords = null;
-    try { sofaRecords = await sofaDay(day); } catch {}
+    const records = await espnDay(day);
     const matched = [], missing = [];
-    const seenFixtures = new Set();
+    const seen = new Set();
     for (const item of (Array.isArray(items) ? items : []).slice(0, 20)) {
-      const teams = Core.parseFixtureTeams(item?.fixture || '') || Core.parseFixtureTeams(item?.label || '');
+      const teams = teamsOf(item);
       if (!teams) { missing.push(Core.niceLabel(item?.label || item?.fixture || '?', 80)); continue; }
       const key = Core.normalizeTeam(teams.home) + '|' + Core.normalizeTeam(teams.away);
-      if (seenFixtures.has(key)) continue; seenFixtures.add(key);
-      let match = Core.bestFixtureMatch(sofaRecords, teams);
-      if (!match) { if (!espnRecords) { try { espnRecords = await espnDay(day); } catch { espnRecords = []; } } match = Core.bestFixtureMatch(espnRecords, teams); }
+      if (seen.has(key)) continue; seen.add(key);
+      const match = Core.bestFixtureMatch(records, teams);
       if (!match) { missing.push(`${teams.home} – ${teams.away}`); continue; }
       try { track({...match, date: day}); matched.push(`${match.home} – ${match.away}`); }
       catch (e) { missing.push(`${teams.home} – ${teams.away} (${e.message})`); }
     }
-    return {matched, missing, snapshot: snapshot()};
+    return {matched, missing, total: records.length, snapshot: snapshot()};
   }
-
   // Analyse d'un ticket AVANT validation : probabilité estimée par sélection.
   async function analyzeSlip(items, date) {
     const day = assertDate(date || today());
     let records = [];
-    try { records = await sofaDay(day); } catch {}
+    try { records = await espnDay(day); } catch {}
     const results = [];
     for (const item of (Array.isArray(items) ? items : []).slice(0, 15)) {
       const clean = {label: Core.niceLabel(item?.label, 80), market: Core.niceLabel(item?.market, 120), fixture: Core.niceLabel(item?.fixture, 140), odds: Number(item?.odds) > 1 && Number(item?.odds) < 1000 ? Number(item.odds) : null};
-      const teams = Core.parseFixtureTeams(clean.fixture);
+      const teams = teamsOf(clean);
       const match = teams ? Core.bestFixtureMatch(records, teams) : null;
-      let markets = null, form = null;
-      if (match) {
-        const [odds, pregame] = await Promise.allSettled([sofa('/event/' + match.id + '/odds/1/all', 10 * 60_000), sofa('/event/' + match.id + '/pregame-form', 30 * 60_000)]);
-        if (odds.status === 'fulfilled') markets = Core.marketProbabilities(odds.value);
-        if (pregame.status === 'fulfilled' && pregame.value?.homeTeam) form = {home: pregame.value.homeTeam.form || [], away: pregame.value.awayTeam?.form || []};
-      }
+      const markets = match?.markets || null;
+      const form = match && (match.form.home.length || match.form.away.length) ? match.form : null;
       const estimate = Core.estimateSelection(clean, {teams: match ? {home: match.home, away: match.away} : teams, markets, form});
+      if (estimate.source === 'cotes du marché' || estimate.source === 'cotes du marché + forme') estimate.source += markets?.provider ? ` (${markets.provider})` : '';
       results.push({...clean, match: match ? `${match.home} – ${match.away}` : '', state: match?.state || '', ...estimate,
-        form: form ? {home: form.home.slice(-5).join(''), away: form.away.slice(-5).join('')} : null});
+        form: form ? {home: form.home.join(''), away: form.away.join('')} : null});
     }
     const combined = Core.combineProbabilities(results);
-    const totalOdds = results.every(r => r.odds) ? results.reduce((a, r) => a * r.odds, 1) : null;
+    const totalOdds = results.length && results.every(r => r.odds) ? results.reduce((a, r) => a * r.odds, 1) : null;
     return {results, combined, totalOdds, sameMatch: new Set(results.map(r => r.match).filter(Boolean)).size < results.filter(r => r.match).length};
   }
+
   async function handle(message) {
     if (!message || typeof message !== 'object') throw new Error('Requête non reconnue.');
     switch (message.action) {
@@ -278,7 +251,8 @@
       }
       case 'clear-key': sessionKey = null; keyGeneration++; for (let i = tracked.length - 1; i >= 0; i--) if (tracked[i].source === 'api-football') tracked.splice(i, 1); return {configured: false};
       case 'status': case 'state': return snapshot();
-      case 'search': return search(assertDate(message.date), message.search, ['auto', 'sofascore', 'public', 'api-football'].includes(message.source) ? message.source : 'auto');
+      case 'search': return search(assertDate(message.date), message.search, message.source === 'api-football' ? 'api-football' : 'espn');
+      case 'diagnose': return diagnose(message.date);
       case 'track': track(message.match); return snapshot();
       case 'untrack': { const i = tracked.findIndex(t => t.id === String(message.id)); if (i >= 0) tracked.splice(i, 1); if (!tracked.length) stop(); return snapshot(); }
       case 'track-ticket': return trackTicket(message.items, message.date);

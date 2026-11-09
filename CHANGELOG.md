@@ -1,3 +1,14 @@
+## 1.5.1 — MatchPulse : nouvelle source fiable pour le direct
+
+### MatchPulse 0.6.0
+- **Cause du problème** : SofaScore refuse les requêtes qui ne proviennent pas de son propre site ; aucun match n'était trouvé, et l'ancien secours ESPN ne couvrait qu'une vingtaine de championnats.
+- **Nouvelle source principale : ESPN « toutes compétitions »** (gratuit, sans clé, sans compte) : le programme complet du jour en une seule requête (plus de 200 matchs un samedi), avec les dates voisines fusionnées pour les matchs du soir.
+- Direct toutes les 30 s : buts, pénaltys marqués ou manqués, cartons, **fautes, corners, tirs cadrés**, via le détail officiel de chaque match.
+- Probabilité avant validation calculée avec les cotes moyennes publiées par ESPN (DraftKings) et la forme des 5 derniers matchs.
+- Rapprochement ticket → match amélioré (noms courts comme « PSG », abréviations).
+- Bouton **« Tester la source »** : indique si ESPN répond, le nombre de matchs du jour et les compétitions disponibles.
+- API-Football reste disponible avec une clé personnelle.
+
 ## 1.5.0 — VPN gratuit, coffre à mots de passe, radio, mode gaming, thèmes
 
 ### Nouveautés
