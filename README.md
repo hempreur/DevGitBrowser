@@ -1,4 +1,4 @@
-# DevGitBrowser 1.5.0 — CodexHempreur INC
+# DevGitBrowser 1.5.1 — CodexHempreur INC
 
 Navigateur Chromium pour **Windows 10/11 64 bits**, en français, avec bloqueur de publicités intégré, VPN gratuit (Tor), coffre à mots de passe chiffré, lecteur radio, mode gaming, thèmes, historique et favoris locaux, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, mode IE11 et analyse réseau. Détails des versions : [CHANGELOG.md](CHANGELOG.md).
 
@@ -43,16 +43,16 @@ Moteur [`@ghostery/adblocker`](https://github.com/ghostery/adblocker) (MPL-2.0),
 
 HTTPS prioritaire, User-Agent Chrome standard (sans « Electron »), Global Privacy Control / DNT, protection WebRTC de l'IP locale, permissions caméra/micro/notifications/position par site, avertissement avant les fichiers exécutables, confirmation des applications externes, fusibles Electron (pas de `RunAsNode`, `NODE_OPTIONS` ni `--inspect`, cookies chiffrés), pages web isolées (`sandbox`, `contextIsolation`, sans Node.js). L'historique, les favoris et les préférences restent dans le profil Windows de l'utilisateur.
 
-## MatchPulse 0.4.0
+## MatchPulse 0.6.0
 
 Extension incluse pour Betclic, Winamax et Unibet (France/Belgique), en lecture seule : aucun pari automatique, aucun cookie ni identifiant collecté.
 
 - Lecture des tickets dans la page et **détection automatique** d'un ticket validé.
 - **Suivre les matchs de mon ticket** : chaque rencontre est retrouvée automatiquement (noms et abréviations courantes).
-- Alertes **gratuites** via SofaScore (sans clé, ~30 s : buts, pénaltys, cartons, VAR, fautes, corners), secours ESPN, option API-Football (clé personnelle gardée en mémoire).
+- Alertes **gratuites** via ESPN, toutes compétitions (sans clé, ~30 s : buts, pénaltys, cartons, fautes, corners), option API-Football (clé personnelle gardée en mémoire).
 - Le suivi continue en arrière-plan, avec notifications Windows.
 
-SofaScore et ESPN sont des flux publics **non officiels** : formats et disponibilité peuvent changer ; MatchPulse bascule alors sur la source suivante.
+Le flux ESPN est public mais **non officiel** : son format peut changer. Le bouton « Tester la source » du panneau MatchPulse indique immédiatement s'il répond.
 
 ---
 

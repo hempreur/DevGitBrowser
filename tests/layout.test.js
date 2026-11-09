@@ -19,5 +19,5 @@ test('One scroll container, no left navigation rail', () => {
 test('Footer signature uses the same professional font as the status bar brand', () => {
   assert.match(read('ui/index.html'),/class="signature">By <b>CodexHempreur<\/b><\/span>/);
   assert.match(read('ui/style.css'),/\.statusbar \.signature\{font-family:Inter,'Segoe UI',Arial,sans-serif!important;font-style:normal!important/);
-  assert.equal(require('../package.json').version,'1.5.0');
+  assert.equal(require('../package.json').version,'1.5.1');
 });

@@ -1,4 +1,4 @@
-/* MatchPulse 0.5 — fonctions déterministes partagées, sans dépendance externe. */
+/* MatchPulse 0.6 — fonctions déterministes partagées, sans dépendance externe. */
 (function (root, build) {
   const api = build();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -303,9 +303,10 @@
     if(!teams||!Array.isArray(records))return null;
     let best=null;
     for(const r of records){
-      const direct=(teamSimilarity(r.home,teams.home)+teamSimilarity(r.away,teams.away))/2;
-      const swapped=(teamSimilarity(r.home,teams.away)+teamSimilarity(r.away,teams.home))/2*0.9;
-      const score=Math.max(direct,swapped)+(r.state==='live'?0.05:0);
+      const sim=(rec,which,name)=>Math.max(teamSimilarity(rec[which],name),rec[which+'Short']?teamSimilarity(rec[which+'Short'],name):0);
+      const direct=(sim(r,'home',teams.home)+sim(r,'away',teams.away))/2;
+      const swapped=(sim(r,'home',teams.away)+sim(r,'away',teams.home))/2*0.9;
+      const score=Math.max(direct,swapped)+(r.state==='live'||r.state==='in'?0.05:0);
       if(score>=0.6&&(!best||score>best.score))best={record:r,score};
     }
     return best?.record||null;
@@ -426,7 +427,100 @@
   }
   function percent(p){return p===null||p===undefined?'—':(p*100>=10?Math.round(p*100):Math.round(p*1000)/10)+' %';}
 
-  return { parseBetslipText, fractionalToDecimal, marketProbabilities, formPoints, classifySelection, estimateSelection, combineProbabilities, percent, validSofaId, sofaRecord, sofaIncidents, sofaStatistics, statChanges, liveEventText, STAT_LABELS, parseFixtureTeams, teamSimilarity, bestFixtureMatch, isBetConfirmation, parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
+  // ------------------------------------------------------------ ESPN « all »
+  // Source principale : flux public ESPN, toutes compétitions en une requête
+  // (soccer/all/scoreboard), détail des matchs via soccer/all/summary. Sans clé.
+  function americanToDecimal(value){
+    const n=Number(String(value??'').replace(/[^\d.+-]/g,''));
+    if(!Number.isFinite(n)||n===0)return null;
+    return n>0?1+n/100:1+100/Math.abs(n);
+  }
+  function leagueLabel(slug){
+    const text=String(slug||'').replace(/^\d{4}(?:-\d{2})?-/,'').replace(/-/g,' ').trim();
+    return niceLabel(text.replace(/\b\w/g,c=>c.toUpperCase()),60);
+  }
+  function espnOddsMarkets(oddsList){
+    const o=Array.isArray(oddsList)?oddsList.find(x=>x&&(x.homeTeamOdds||x.moneyline||x.drawOdds))||oddsList[0]:null;
+    if(!o)return null;
+    const ml=(side)=>americanToDecimal(o.moneyline?.[side]?.close?.odds??o.moneyline?.[side]?.open?.odds??(side==='draw'?o.drawOdds?.moneyLine:o[side+'TeamOdds']?.moneyLine));
+    const out={};
+    const h=ml('home'),d=ml('draw'),a=ml('away');
+    if(h&&d&&a){const t=1/h+1/d+1/a;out['1x2']={home:(1/h)/t,draw:(1/d)/t,away:(1/a)/t};}
+    const line=Number(o.overUnder??String(o.total?.over?.close?.line||'').replace(/[^\d.]/g,''));
+    const ov=americanToDecimal(o.total?.over?.close?.odds??o.overOdds), un=americanToDecimal(o.total?.under?.close?.odds??o.underOdds);
+    if(Number.isFinite(line)&&ov&&un){const t=1/ov+1/un;out.goals={[line]:{over:(1/ov)/t,under:(1/un)/t}};}
+    if(out['1x2']){const m=out['1x2'];out.dc={'1x':m.home+m.draw,'x2':m.draw+m.away,'12':m.home+m.away};}
+    return Object.keys(out).length?{...out,provider:niceLabel(o.provider?.displayName||o.provider?.name||'',30)}:null;
+  }
+  function espnDetailKind(d){
+    if(d?.shootout)return null;
+    if(d?.scoringPlay)return d.ownGoal?'own-goal':d.penaltyKick?'penalty':'goal';
+    if(d?.redCard)return 'red-card';
+    if(d?.yellowCard)return 'yellow-card';
+    if(d?.penaltyKick)return 'penalty-missed';
+    return null;
+  }
+  function espnAllRecord(ev){
+    if(!ev||!/^\d{1,12}$/.test(String(ev.id)))return null;
+    const comp=ev.competitions?.[0], members=comp?.competitors||[];
+    const home=members.find(c=>c.homeAway==='home')||members[0]||{}, away=members.find(c=>c.homeAway==='away')||members[1]||{};
+    const name=c=>niceLabel(c?.team?.displayName||c?.team?.name,70);
+    if(!name(home)||!name(away))return null;
+    const homeId=String(home.team?.id||''), awayId=String(away.team?.id||'');
+    const events=(comp?.details||[]).map(d=>{
+      const kind=espnDetailKind(d);if(!kind)return null;
+      const clock=String(d.clock?.displayValue||'');const m=clock.match(/(\d+)'(?:\+(\d+))?/);
+      const player=niceLabel(d.athletesInvolved?.[0]?.displayName,60);
+      const team=String(d.team?.id||'');
+      return {id:[kind,clock,team,player].join('|'),kind,minute:m?Number(m[1]):null,extra:m&&m[2]?Number(m[2]):0,player,side:team===homeId?'home':team===awayId?'away':''};
+    }).filter(Boolean);
+    const form=s=>String(s||'').toUpperCase().replace(/[^WDL]/g,'').slice(-5).split('').filter(Boolean);
+    return {id:String(ev.id),source:'espn',league:'all',leagueName:leagueLabel(ev.season?.slug),home:name(home),away:name(away),
+      homeShort:niceLabel(home.team?.shortDisplayName||home.team?.abbreviation||'',40),awayShort:niceLabel(away.team?.shortDisplayName||away.team?.abbreviation||'',40),
+      score:`${home.score??'-'} : ${away.score??'-'}`,status:niceLabel(ev.status?.type?.shortDetail||ev.status?.type?.detail||'',40),
+      state:String(ev.status?.type?.state||''),date:ev.date||'',form:{home:form(home.form),away:form(away.form)},
+      markets:espnOddsMarkets(comp?.odds),events};
+  }
+  function espnSummaryData(body){
+    const header=body?.header?.competitions?.[0]?.competitors||[];
+    const sideOf=id=>{const c=header.find(x=>String(x.team?.id||x.id)===String(id));return c?.homeAway||'';};
+    const incidents=[];
+    for(const k of Array.isArray(body?.keyEvents)?body.keyEvents.slice(0,300):[]){
+      const t=String(k?.type?.text||k?.type?.type||'');
+      let kind=null;
+      if(/own goal/i.test(t))kind='own-goal';
+      else if(/penalty - scored/i.test(t))kind='penalty';
+      else if(/penalty - (?:missed|saved)/i.test(t))kind='penalty-missed';
+      else if(/^goal/i.test(t))kind='goal';
+      else if(/red card/i.test(t))kind=/second|yellow/i.test(t)?'second-yellow':'red-card';
+      else if(/yellow card/i.test(t))kind='yellow-card';
+      else if(/\bvar\b/i.test(t))kind='var';
+      if(!kind)continue;
+      const clock=String(k.clock?.displayValue||'');const m=clock.match(/(\d+)'(?:\+(\d+))?/);
+      const player=niceLabel(k.participants?.[0]?.athlete?.displayName||'',60);
+      incidents.push({id:String(k.id||[kind,clock,player].join('|')),kind,minute:m?Number(m[1]):null,extra:m&&m[2]?Number(m[2]):0,player,side:sideOf(k.team?.id),detail:kind==='var'?niceLabel(k.text||'',60):''});
+    }
+    const stats={};
+    const map={foulsCommitted:'fouls',wonCorners:'corners',yellowCards:'yellow',redCards:'red',shotsOnTarget:'shotsOnTarget',offsides:'offsides'};
+    for(const team of body?.boxscore?.teams||[]){
+      const side=team.homeAway||sideOf(team.team?.id);if(side!=='home'&&side!=='away')continue;
+      for(const st of team.statistics||[]){
+        const key=map[st.name];if(!key)continue;
+        const v=Number(st.displayValue);if(!Number.isFinite(v))continue;
+        stats[key]=stats[key]||{home:0,away:0,total:0};stats[key][side]=v;
+      }
+    }
+    for(const v of Object.values(stats))v.total=v.home+v.away;
+    return {incidents,stats};
+  }
+  function searchRecords(records,query){
+    const q=normalizeTeam(query);
+    if(q.length<2)return [];
+    return records.filter(r=>[r.home,r.away,r.homeShort,r.awayShort].some(n=>n&&(normalizeTeam(n).includes(q)||teamSimilarity(n,query)>=0.85)))
+      .sort((a,b)=>(b.state==='in')-(a.state==='in')).slice(0,30);
+  }
+
+  return { americanToDecimal, leagueLabel, espnOddsMarkets, espnAllRecord, espnSummaryData, searchRecords, parseBetslipText, fractionalToDecimal, marketProbabilities, formPoints, classifySelection, estimateSelection, combineProbabilities, percent, validSofaId, sofaRecord, sofaIncidents, sofaStatistics, statChanges, liveEventText, STAT_LABELS, parseFixtureTeams, teamSimilarity, bestFixtureMatch, isBetConfirmation, parsePlacedTicketText, scoreFromFixture, scoreChange, ESPN_LEAGUES, allowedEspnLeague, normalizeTeam, espnRecord, publicEventText, searchPublicMatches, detectBookmaker, parseOdds, impliedProbability, combinedImplied,
     niceLabel, extractOddsAndLabel, eventKind, eventText, eventId, foulCount,
     validFixtureId, matchingFixtures };
 });
