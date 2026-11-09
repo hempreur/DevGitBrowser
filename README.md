@@ -1,4 +1,64 @@
-# DevGitShield — bloqueur de publicités intégré (1.3.9)
+# DevGitBrowser 1.5.0 — CodexHempreur INC
+
+Navigateur Chromium pour **Windows 10/11 64 bits**, en français, avec bloqueur de publicités intégré, VPN gratuit (Tor), coffre à mots de passe chiffré, lecteur radio, mode gaming, thèmes, historique et favoris locaux, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, mode IE11 et analyse réseau. Détails des versions : [CHANGELOG.md](CHANGELOG.md).
+
+## Installation et mises à jour
+
+Télécharge `DevGitBrowser-Setup-x.y.z.exe` depuis les [releases GitHub](https://github.com/hempreur/DevGitBrowser/releases). Ensuite, le navigateur vérifie les nouvelles versions au démarrage puis toutes les 4 heures, les télécharge en arrière-plan et propose **Redémarrer et mettre à jour** (bandeau, menu ☰ et **À propos**). Les onglets ouverts sont restaurés après l'installation.
+
+Pour publier une version : augmenter `version` dans `package.json`, ajouter la section correspondante en tête du `CHANGELOG.md`, puis pousser sur `main`. Le workflow GitHub Actions compile, teste et crée la release `vX.Y.Z` avec l'installateur, le `.blockmap` et `latest.yml`.
+
+## Utilisation rapide
+
+| Action | Raccourci / emplacement |
+| --- | --- |
+| Nouvel onglet / fenêtre | Ctrl+T / Ctrl+N |
+| Rouvrir l'onglet fermé | Ctrl+Maj+T |
+| Ajouter aux favoris | ☆ dans la barre d'adresse, Ctrl+D |
+| Barre de favoris | Ctrl+Maj+B |
+| Historique, favoris, téléchargements | Ctrl+H, menu ☰ |
+| Détacher un onglet | Glisser l'onglet hors de la fenêtre (ou clic droit → Déplacer dans une nouvelle fenêtre) |
+| Rattacher un onglet | Glisser l'onglet sur la barre d'onglets d'une autre fenêtre |
+| Picture-in-Picture | Bouton ▭ de la barre d'outils ou clic droit sur une vidéo |
+| DevGitShield | Bouton bouclier : compteur, pause sur le site, mise à jour des filtres |
+| Rechercher dans la page | Ctrl+F (Entrée / Maj+Entrée) |
+| Outils de développement / réseau | F12, menu ☰ → Outils de développement |
+| VPN (pays de sortie, nouvelle IP) | Bouton 🌐 |
+| Mots de passe | Clé 🔑 dans la barre d'adresse, menu ☰ → Mots de passe |
+| Radio | Bouton 📻 |
+| Gestionnaire de tâches / mode gaming | Maj+Échap, menu ☰ |
+| Thème | Menu ☰ → Thème |
+
+## DevGitShield — bloqueur intégré
+
+Moteur [`@ghostery/adblocker`](https://github.com/ghostery/adblocker) (MPL-2.0), syntaxe uBlock Origin / EasyList, listes officielles téléchargées chaque jour (EasyList, EasyPrivacy, uBlock Origin : filtres, années 2020–2026, quick-fixes, unbreak, privacy, badware, resource-abuse, nuisances, cookies ; Peter Lowe ; EasyList France) avec miroirs de secours et cache hors ligne.
+
+- **YouTube** : les scriptlets uBlock et une protection dédiée s'exécutent avant les scripts de YouTube (suppression des emplacements publicitaires de la réponse du lecteur, saut automatique d'une publicité résiduelle, masquage des encarts et du message anti-bloqueur).
+- **Twitch** : les publicités sont insérées dans le flux vidéo ; DevGitShield intercepte les playlists du lecteur, demande une variante sans publicité, et à défaut retire les segments publicitaires (une courte image figée peut apparaître).
+- Pause possible site par site (connexion, paiement ou vidéo défaillants).
+
+**Limites** : aucun bloqueur ne garantit 100 % ; YouTube et Twitch modifient régulièrement leurs systèmes et les listes se mettent à jour automatiquement. Le mode IE (MSHTML) n'est pas filtré.
+
+## Sécurité et confidentialité
+
+HTTPS prioritaire, User-Agent Chrome standard (sans « Electron »), Global Privacy Control / DNT, protection WebRTC de l'IP locale, permissions caméra/micro/notifications/position par site, avertissement avant les fichiers exécutables, confirmation des applications externes, fusibles Electron (pas de `RunAsNode`, `NODE_OPTIONS` ni `--inspect`, cookies chiffrés), pages web isolées (`sandbox`, `contextIsolation`, sans Node.js). L'historique, les favoris et les préférences restent dans le profil Windows de l'utilisateur.
+
+## MatchPulse 0.4.0
+
+Extension incluse pour Betclic, Winamax et Unibet (France/Belgique), en lecture seule : aucun pari automatique, aucun cookie ni identifiant collecté.
+
+- Lecture des tickets dans la page et **détection automatique** d'un ticket validé.
+- **Suivre les matchs de mon ticket** : chaque rencontre est retrouvée automatiquement (noms et abréviations courantes).
+- Alertes **gratuites** via SofaScore (sans clé, ~30 s : buts, pénaltys, cartons, VAR, fautes, corners), secours ESPN, option API-Football (clé personnelle gardée en mémoire).
+- Le suivi continue en arrière-plan, avec notifications Windows.
+
+SofaScore et ESPN sont des flux publics **non officiels** : formats et disponibilité peuvent changer ; MatchPulse bascule alors sur la source suivante.
+
+---
+
+## Historique des versions précédentes
+
+### DevGitShield — 1.3.9
 
 Sur les pages Chromium, DevGitBrowser charge automatiquement un moteur de filtres compatible EasyList et uBlock Origin : https://github.com/ghostery/adblocker (`@ghostery/adblocker-electron`, MPL-2.0). Il ne redistribue **pas** l'extension uBlock Origin. Par défaut, le blocage réseau et cosmétique est actif, avec un cache local des filtres mis à jour sur le réseau et un petit ensemble de règles de secours hors ligne.
 

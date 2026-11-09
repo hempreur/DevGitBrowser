@@ -3,3 +3,5 @@ dist/
 *.log
 .env
 secrets.json
+vendor/
+legacy/*.exe

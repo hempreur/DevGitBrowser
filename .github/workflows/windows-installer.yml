@@ -49,29 +49,54 @@ jobs:
         run: node tests/windows-ie-smoke.js DevGitLegacyHost.exe
       - name: Vérifier MSHTML IE11 et fenêtres de salon en 32 bits
         run: node tests/windows-ie-smoke.js DevGitLegacyHost32.exe
+      # VPN DevGit : Tor Expert Bundle officiel, signature GPG de Tor Browser vérifiée.
+      - name: Télécharger et vérifier Tor (VPN DevGit)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/fetch-tor.js download
+          FPR=EF6E286DDA85EA2A4BA7DE684E2C6E8793298290
+          gpg --batch --auto-key-locate nodefault,wkd --locate-keys torbrowser@torproject.org \
+            || gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$FPR"
+          gpg --batch --status-fd 1 --verify vendor/tmp/sums.txt.asc vendor/tmp/sums.txt > gpg-status.txt 2>/dev/null || true
+          if ! grep -E "^\[GNUPG:\] VALIDSIG .*$FPR" gpg-status.txt; then echo "Signature GPG des sommes Tor invalide"; cat gpg-status.txt; exit 1; fi
+          node scripts/fetch-tor.js extract
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
-      - name: Contrôler MatchPulse dans le paquet Windows
+      - name: Contrôler MatchPulse et la mise à jour dans le paquet Windows
         run: node tests/check-windows-bundle.js
+      - name: Vérifier les listes DevGitShield en ligne (YouTube / Twitch)
+        run: node tests/adblocker-lists-smoke.js
+        continue-on-error: true
       - name: Conserver l'installateur comme artefact
         uses: actions/upload-artifact@v4
         with:
           name: DevGitBrowser-Installateur-Windows
-          path: dist/DevGitBrowser-Setup-*.exe
+          path: |
+            dist/DevGitBrowser-Setup-*.exe
+            dist/DevGitBrowser-Setup-*.exe.blockmap
+            dist/latest.yml
           if-no-files-found: error
           retention-days: 30
-      - name: Publier un EXE direct dans GitHub Releases
+      # Chaque nouvelle version poussée sur main devient une release GitHub :
+      # les navigateurs installés la détectent et se mettent à jour seuls.
+      - name: Publier la release pour la mise à jour automatique
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
-          TAG="v$(node -p "require('./package.json').version")"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/DevGitBrowser-Setup-*.exe --clobber
-          else
-            gh release create "$TAG" dist/DevGitBrowser-Setup-*.exe \
-              --title "DevGitBrowser $(node -p "require('./package.json').version") — Windows" \
-              --notes "Installateur Windows x64 NSIS. Compilé automatiquement par GitHub Actions. Ce fichier n'est pas signé avec un certificat Authenticode." \
-              --target "$GITHUB_SHA"
-          fi
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          if (!(Test-Path dist/latest.yml)) { throw 'dist/latest.yml absent : mise à jour automatique impossible.' }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { Write-Host "La release $tag existe déjà : aucune publication."; exit 0 }
+          $notes = "Voir CHANGELOG.md"
+          $changelog = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+          $m = [regex]::Match($changelog, "(?ms)^##\s+$([regex]::Escape($version)).*?(?=\r?\n## |\z)")
+          if ($m.Success) { $notes = $m.Value }
+          Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --title "DevGitBrowser $version" --notes-file release-notes.md --target $env:GITHUB_SHA `
+            "dist/DevGitBrowser-Setup-$version.exe" "dist/DevGitBrowser-Setup-$version.exe.blockmap" dist/latest.yml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

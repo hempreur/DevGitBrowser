@@ -3,34 +3,47 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose only narrowly scoped operations to the local trusted interface.
 // No Node.js, filesystem, token, or shell APIs are exposed to websites.
 const invoke = (channel,...args) => ipcRenderer.invoke(`dgb:${channel}`,...args);
+const listen = channel => cb => { const fn=(_event,value)=>cb(value); ipcRenderer.on(channel,fn); return()=>ipcRenderer.off(channel,fn); };
 contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   initial:()=>invoke('initial'),
-  newTab:url=>invoke('tab:new',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),detachTab:()=>invoke('tab:detach'),
+  newTab:url=>invoke('tab:new',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),
+  tabContext:id=>invoke('tab:context',id),muteTab:id=>invoke('tab:mute',id),detachTab:id=>invoke('tab:detach',id),
+  moveTab:(id,index)=>invoke('tab:move',id,index),attachTab:(id,index)=>invoke('tab:attach',id,index),
+  dragStart:id=>invoke('tab:drag-start',id),dragEnd:id=>invoke('tab:drag-end',id),
   go:url=>invoke('nav:go',url),back:()=>invoke('nav:back'),forward:()=>invoke('nav:forward'),
   reload:()=>invoke('nav:reload'),home:()=>invoke('nav:home'),inspect:()=>invoke('nav:inspect'),
-  network:()=>invoke('nav:network'),legacy:()=>invoke('nav:legacy'),topmost:mode=>invoke('site:popup-topmost',mode),
-  find:(query,forward)=>invoke('nav:find',query,forward),stopFind:()=>invoke('nav:stop-find'),print:()=>invoke('nav:print'),
-  panel:value=>invoke('ui:panel',value),
+  network:()=>invoke('nav:network'),legacy:()=>invoke('nav:legacy'),pip:()=>invoke('nav:pip'),topmost:mode=>invoke('site:popup-topmost',mode),
+  find:(query,forward,newSearch)=>invoke('nav:find',query,forward,newSearch),stopFind:()=>invoke('nav:stop-find'),print:()=>invoke('nav:print'),
+  panel:value=>invoke('ui:panel',value),chromeHeight:px=>invoke('ui:chrome-height',px),menu:()=>invoke('ui:menu'),shieldMenu:()=>invoke('ui:shield-menu'),
   allowPopups:value=>invoke('site:popups',value),sitePrivacy:(key,value)=>invoke('site:privacy',key,value),siteReset:()=>invoke('site:reset'),revokeMedia:()=>invoke('site:revoke-media'),
   proxy:value=>invoke('proxy:set',value),
   performance:(mode,gpu)=>invoke('performance:save',mode,gpu),
+  preference:(key,value)=>invoke('prefs:set',key,value),
   zoom:value=>invoke('nav:zoom',value),
-  downloadFolder:()=>invoke('downloads:folder'),
+  downloadFolder:()=>invoke('downloads:folder'),downloadAsk:value=>invoke('downloads:ask',value),openDownloads:()=>invoke('downloads:open-folder'),
   clearCache:()=>invoke('privacy:clear-cache'),clearSiteData:()=>invoke('privacy:clear-site-data'),
   adblockToggle:enabled=>invoke('privacy:adblock-toggle',enabled),adblockRefresh:()=>invoke('privacy:adblock-refresh'),
+  adblockSite:allowed=>invoke('privacy:adblock-site',allowed),adblockRemove:host=>invoke('privacy:adblock-remove',host),
+  historyList:(query,offset)=>invoke('history:list',query,offset),historyRemove:url=>invoke('history:remove',url),
+  historyClear:range=>invoke('history:clear',range),suggest:query=>invoke('history:suggest',query),
+  toggleBookmark:()=>invoke('bookmarks:toggle'),addBookmark:(url,title)=>invoke('bookmarks:add',url,title),
+  removeBookmark:id=>invoke('bookmarks:remove',id),renameBookmark:(id,title)=>invoke('bookmarks:rename',id,title),
+  moveBookmark:(id,index)=>invoke('bookmarks:move',id,index),bookmarkContext:id=>invoke('bookmarks:context',id),
+  openLink:(url,mode)=>invoke('link:open',url,mode),
+  about:()=>invoke('app:about'),copyDiagnostics:()=>invoke('app:copy-diagnostics'),openRepository:page=>invoke('app:open-repository',page),
+  welcomed:()=>invoke('app:welcomed'),openLog:()=>invoke('app:open-log'),repair:what=>invoke('app:repair',what),
+  pwCreate:m=>invoke('pw:create',m),pwUnlock:m=>invoke('pw:unlock',m),pwLock:()=>invoke('pw:lock'),pwList:q=>invoke('pw:list',q),
+  pwReveal:id=>invoke('pw:reveal',id),pwCopy:(id,field)=>invoke('pw:copy',id,field),pwSave:data=>invoke('pw:save',data),
+  pwUpdate:(id,data)=>invoke('pw:update',id,data),pwDelete:id=>invoke('pw:delete',id),pwGenerate:len=>invoke('pw:generate',len),
+  pwChangeMaster:(a,b)=>invoke('pw:change-master',a,b),pwMenu:()=>invoke('pw:menu'),pwFill:id=>invoke('pw:fill',id),pwOffer:(action,master)=>invoke('pw:offer',action,master),
+  pwFillFirst:m=>invoke('pw:fill-first',m),
+  radio:()=>invoke('radio:open'),vpnMenu:()=>invoke('vpn:menu'),vpnConnect:c=>invoke('vpn:connect',c),vpnDisconnect:()=>invoke('vpn:disconnect'),
+  perfMetrics:()=>invoke('perf:metrics'),gaming:v=>invoke('perf:gaming',v),sleepTab:id=>invoke('perf:sleep-tab',id),sleepAll:()=>invoke('perf:sleep-all'),
+  checkUpdate:()=>invoke('update:check'),installUpdate:()=>invoke('update:install'),
   githubConnect:token=>invoke('github:connect',token),
   githubRepo:(repo,branch)=>invoke('github:choose-repo',repo,branch),
   githubSync:()=>invoke('github:sync'),githubDisconnect:()=>invoke('github:disconnect'),
-  onLegacyReady:cb=>{const fn=(_event,value)=>cb(String(value));ipcRenderer.on('dgb:legacy-ready',fn);
-    return()=>ipcRenderer.off('dgb:legacy-ready',fn);},
-  onLegacyError:cb=>{const fn=(_event,value)=>cb(String(value));ipcRenderer.on('dgb:legacy-error',fn);
-    return()=>ipcRenderer.off('dgb:legacy-error',fn);},
-  onState:cb=>{
-    const fn=(_event,value)=>cb(value);
-    ipcRenderer.on('dgb:state',fn);return()=>ipcRenderer.off('dgb:state',fn);
-  },
-  onFocusFind:cb=>{const fn=()=>cb();ipcRenderer.on('dgb:focus-find',fn);return()=>ipcRenderer.off('dgb:focus-find',fn);},
-  onFocusAddress:cb=>{
-    const fn=()=>cb();ipcRenderer.on('dgb:focus-address',fn);return()=>ipcRenderer.off('dgb:focus-address',fn);
-  }
+  onLegacyReady:listen('dgb:legacy-ready'),onLegacyError:listen('dgb:legacy-error'),
+  onState:listen('dgb:state'),onNotice:listen('dgb:notice'),onCommand:listen('dgb:command'),onFindResult:listen('dgb:find-result'),
+  onHoverUrl:listen('dgb:hover-url'),onFocusFind:listen('dgb:focus-find'),onFocusAddress:listen('dgb:focus-address')
 }));

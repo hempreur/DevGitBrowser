@@ -1,3 +1,70 @@
+## 1.5.0 — VPN gratuit, coffre à mots de passe, radio, mode gaming, thèmes
+
+### Nouveautés
+- **VPN DevGit gratuit** (bouton 🌐) : le trafic du navigateur passe par le réseau chiffré Tor (adresse IP masquée, sans compte ni limite). Choix du pays de sortie (France, Pays-Bas, Suisse, États-Unis, Japon…) pour accéder aux contenus bloqués, « Nouvelle adresse IP », vérification en un clic. Fuites WebRTC bloquées pendant la connexion. Le composant Tor officiel est téléchargé par la CI et vérifié (signature GPG de Tor Browser + SHA-256).
+- **Coffre à mots de passe** local : AES-256-GCM, clé dérivée du mot de passe maître (scrypt), fichier lié en plus au compte Windows (DPAPI). Proposition d'enregistrement à la connexion, remplissage sur demande (clé 🔑 dans la barre d'adresse), générateur, audit des mots de passe faibles ou réutilisés, copie effacée du presse-papiers après 30 s, verrouillage automatique (15 min, veille, verrouillage de Windows), protection contre les essais répétés.
+- **Lecteur radio** (bouton 📻) : mini fenêtre avec des dizaines de milliers de stations (annuaire libre radio-browser.info), tri par pays, genre, popularité, recherche, favoris et stations récentes. La musique continue quand la fenêtre est fermée (indicateur ♪ dans la barre d'état).
+- **Mode gaming** et **gestionnaire de tâches** (Maj+Échap) : mémoire et processeur par onglet, mise en veille des onglets inactifs (processus libéré), priorité du navigateur abaissée pendant les parties. Mode Éco : onglets inactifs en veille après 10 min. Les onglets restaurés au démarrage sont chargés à la demande.
+- **7 thèmes de couleurs** (Néon, Océan, Émeraude, Rubis, Solaire, Graphite, Clair), modifiables à tout moment (menu ☰ → Thème ou Paramètres).
+- **Message de bienvenue** au premier lancement : thème, mot de passe maître, moteur de recherche.
+- Signature « By CodexHempreur » dans la même police que la marque en bas à gauche.
+
+### MatchPulse 0.5.0
+- **Ticket en préparation** : les sélections du panier sont lues avant la validation et une **probabilité de réussite estimée** s'affiche pour chaque sélection et pour le combiné (cotes du marché SofaScore sans marge, forme des 5 derniers matchs, repli sur la cote du ticket), avec la valeur par rapport à la cote proposée. Résultat 1N2, double chance, les deux équipes marquent, plus/moins de buts. Estimation statistique, jamais une garantie.
+
+### Sécurité (audit 1.5)
+- Protection **anti-hameçonnage / anti-malware** avant l'ouverture des pages (listes publiques mises à jour chaque jour, vérification locale).
+- **DNS sécurisé (DNS over HTTPS)** : Cloudflare, Quad9, AdGuard, Google ou Mullvad.
+- Page dédiée en cas de plantage d'un onglet, dialogue « page qui ne répond pas », alerte en cas de redémarrage du processus graphique, journal local des erreurs (jetons masqués), outils de réparation (cache, filtres, réglages).
+
+### Corrections
+- Les messages de la barre d'état étaient masqués par une ancienne règle CSS.
+- Vérification des mises à jour 5 secondes après le lancement.
+
+## 1.4.0 — Historique, favoris, onglets détachables, PiP, mises à jour automatiques
+
+### Nouveautés
+- **Historique de navigation** local (5 000 pages, recherche, suppression par page ou par période, Ctrl+H) et **suggestions** dans la barre d'adresse (favoris puis pages les plus visitées).
+- **Favoris** : bouton ☆ dans la barre d'adresse (Ctrl+D), barre de favoris (Ctrl+Maj+B), gestion complète (renommer, réordonner, supprimer, ouvrir en onglet/fenêtre), accès rapide sur la page d'accueil.
+- **Onglets détachables** : glisser un onglet hors de la fenêtre crée une nouvelle fenêtre ; le glisser sur une autre fenêtre le rattache ; réordonnancement par glisser-déposer. Menu clic droit des onglets (dupliquer, couper le son, déplacer vers une fenêtre, fermer les autres, rouvrir l'onglet fermé Ctrl+Maj+T).
+- **Picture-in-Picture** : bouton dédié et clic droit sur une vidéo ; la vidéo reste au-dessus des autres fenêtres (y compris dans les iframes).
+- **Mises à jour automatiques** : chaque version poussée sur `main` est publiée en release GitHub ; le navigateur la télécharge en arrière-plan et propose de redémarrer pour l'installer. Les onglets sont restaurés après la mise à jour.
+- **À propos** : version, Chromium, Electron, système, extensions, état de DevGitShield, vérification manuelle des mises à jour, copie des informations de diagnostic.
+- Restauration de la session (fenêtres et onglets), menu ☰ natif, menu contextuel des pages (ouvrir un lien dans un nouvel onglet, copier, enregistrer l'image, rechercher la sélection, inspecter…), téléchargements suivis avec progression, choix du moteur de recherche, indicateur et coupure du son par onglet, aperçu du lien survolé dans la barre d'état.
+
+### DevGitShield (YouTube / Twitch)
+- Les scriptlets uBlock Origin (`##+js`) sont désormais injectés **avant** les scripts de la page via un preload de session : auparavant ils arrivaient trop tard, d'où les publicités YouTube.
+- Protection dédiée YouTube : suppression de `adPlacements` / `playerAds` / `adSlots` des réponses du lecteur, filet de sécurité qui coupe et saute une publicité qui démarrerait malgré tout, masquage des encarts et de la fenêtre anti-bloqueur.
+- Protection dédiée Twitch : interception des playlists HLS du lecteur (Worker), demande d'un flux sans publicité intégrée, sinon retrait des segments publicitaires.
+- Chargement tolérant des listes : une liste indisponible ne fait plus retomber le bloqueur sur les 32 règles de secours. Miroirs Ghostery, listes uBlock annuelles 2020–2026, Peter Lowe, cookies/nuisances. Les pages HTML (portails captifs) ne sont plus acceptées comme listes.
+- Pause de la protection site par site, compteur de requêtes bloquées par onglet sur le bouton bouclier.
+
+### Sécurité
+- Mode **HTTPS prioritaire** (page d'avertissement avec repli HTTP explicite), page d'erreur claire pour les certificats invalides.
+- User-Agent sans « Electron » (connexion Google, YouTube, Twitch), signal **Global Privacy Control / DNT**, protection de l'adresse IP locale (WebRTC).
+- Avertissement avant le téléchargement de fichiers exécutables (.exe, .msi, .ps1, .js, .lnk…), confirmation avant l'ouverture d'une application externe (mailto:, etc.).
+- Fusibles Electron de l'exécutable Windows : `RunAsNode`, `NODE_OPTIONS` et `--inspect` désactivés, cookies chiffrés sur disque, chargement de l'application uniquement depuis `app.asar`.
+- Anti « popunder » : les liens vers un nouvel onglet sont limités en rafale et filtrés par DevGitShield.
+
+### MatchPulse 0.4.0
+- Nouvelle source **gratuite et sans clé SofaScore** (toutes compétitions, ~30 s) : buts, pénaltys (marqués/manqués), cartons (dont second jaune), VAR, **fautes et corners**. Bascule automatique sur ESPN si SofaScore ne répond pas ; API-Football reste disponible.
+- **Détection automatique des tickets validés** sur Betclic, Winamax et Unibet (« pari enregistré / validé / placé… ») et bouton « Suivre les matchs de mon ticket » qui retrouve automatiquement chaque rencontre (alias PSG, OM, OL…).
+- Le suivi tourne dans le module d'arrière-plan : il continue quand tu changes de page, jusqu'à 12 matchs, avec **notifications Windows** et choix des types d'alertes.
+
+### Corrections
+- Les liens `target="_blank"` étaient bloqués comme des pop-ups : ils s'ouvrent maintenant dans un nouvel onglet.
+- Les notifications de l'application étaient cachées derrière la page web : elles s'affichent dans la barre d'état.
+- « Occurrence suivante » de la recherche dans la page restait bloquée sur le premier résultat ; compteur 2/3 ajouté.
+- Le plein écran vidéo (YouTube…) occupe désormais toute la fenêtre.
+- Raccourcis clavier actifs aussi quand le focus est dans l'interface (Ctrl+T/W/L/Tab/1-9, F5, F11, F12, Alt+←/→).
+- Un événement du moteur IE pouvait faire naviguer un autre onglet que le sien.
+- Fermer le dernier onglet d'une fenêtre secondaire ferme la fenêtre.
+
+### Interface
+- En-tête compact et redessiné (icônes vectorielles), boutons redondants retirés (Détacher, Réseau, GitHub, recherche, DevTools : accessibles depuis le menu ☰ ou au clavier). Le bouton IE n'apparaît que sur les pages anciennes.
+- Paramètres réorganisés (Général, Confidentialité et sécurité, Performances, Téléchargements, Réseau, Outils avancés).
+- Signature « By CodexHempreur ».
+
 ## 1.3.9 — DevGitShield : protection publicitaire native
 
 - Intégration du moteur de filtres Ghostery pour Electron (compatible syntaxes uBlock Origin et EasyList) à la session Chromium persistante ; aucune extension à ajouter manuellement.

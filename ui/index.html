@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <title>DevGitBrowser • CodexHempreur INC</title>
 <link rel="icon" type="image/png" href="../assets/icon.png">
 <link rel="stylesheet" href="style.css"><script defer src="renderer.js"></script>
@@ -10,51 +10,51 @@
 <body>
 <header id="chrome">
   <div class="tab-row">
-    <div class="brand" aria-label="DevGitBrowser"><img class="brand-image" src="../assets/logo-mark.png" alt="Logo DevGitBrowser"><span class="brand-word">DEV<span>GIT</span>BROWSER</span><span class="beta">DEV EDITION</span></div>
+    <div class="brand" aria-label="DevGitBrowser"><img class="brand-image" src="../assets/logo-mark.png" alt="Logo DevGitBrowser"><span class="brand-word">DEV<span>GIT</span></span></div>
     <div id="tabs" class="tabs" role="tablist" aria-label="Onglets"></div>
-    <button class="tab-add" id="add-tab" title="Nouvel onglet">＋</button>
-    <div class="chrome-spacer"></div>
-    <button id="detach" class="detach" title="Détacher l'onglet dans une autre fenêtre">▣ <span>Détacher</span></button>
+    <button class="tab-add" id="add-tab" title="Nouvel onglet (Ctrl+T)" aria-label="Nouvel onglet"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div class="tab-drop-space" id="tab-drop-space"></div>
   </div>
   <div class="nav-row">
     <div class="nav-cluster">
-      <button class="nav-icon" id="back" title="Précédent">←</button>
-      <button class="nav-icon" id="forward" title="Suivant">→</button>
-      <button class="nav-icon" id="reload" title="Actualiser">↻</button>
-      <button class="nav-icon" id="home" title="Accueil">⌂</button>
+      <button class="nav-icon" id="back" title="Précédent (Alt+←)" aria-label="Précédent"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="nav-icon" id="forward" title="Suivant (Alt+→)" aria-label="Suivant"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button class="nav-icon" id="reload" title="Actualiser (F5)" aria-label="Actualiser"><svg class="ico reload-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.8h-4.8"/></svg><svg class="ico stop-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+      <button class="nav-icon" id="home" title="Accueil (Alt+Origine)" aria-label="Accueil"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4.5l8 7"/><path d="M6.5 10v9.5h11V10"/></svg></button>
     </div>
-    <form id="address-form" class="address-bar">
-      <span class="ssl-symbol" id="ssl-symbol">◇</span>
-      <input id="address" type="text" autocomplete="off" spellcheck="false" aria-label="Adresse web ou recherche" placeholder="Rechercher sur le web ou saisir une adresse HTTPS">
-      <button title="Aller" type="submit">↵</button>
+    <form id="address-form" class="address-bar" autocomplete="off">
+      <button type="button" class="site-info" id="site-info" title="Sécurité et autorisations du site" aria-label="Informations sur le site"><svg class="ico lock-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><svg class="ico warn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17.2h.01"/></svg><svg class="ico search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M20 20l-4.6-4.6"/></svg></button>
+      <input id="address" type="text" list="address-suggestions" autocomplete="off" spellcheck="false" aria-label="Adresse web ou recherche" placeholder="Rechercher ou saisir une adresse">
+      <datalist id="address-suggestions"></datalist>
+      <span id="engine-badge" class="engine-badge hidden">IE</span>
+      <button type="button" id="pw-key" class="star-btn key-btn hidden" title="Mots de passe enregistrés pour ce site" aria-label="Mots de passe"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12.2 19.5 3.7M16.5 6.7l2.5 2.5M14.5 8.7l2 2"/></svg></button>
+      <button type="button" id="bookmark-star" class="star-btn" title="Ajouter aux favoris (Ctrl+D)" aria-label="Favori"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z"/></svg></button>
     </form>
-    <button id="find-button" class="nav-tool small" title="Rechercher dans la page (Ctrl+F)">⌕</button>
-    <button id="security-button" class="nav-tool" title="Sécurité et permissions du site">◈ <span>Sécurité</span></button>
-    <button id="github-button" class="nav-tool github-button" title="Connexion et synchronisation GitHub">⌘ <span>GitHub</span><i id="git-indicator"></i></button>
-    <button id="extensions-button" class="nav-tool" title="Extensions installées">▦ <span id="extension-counter">0</span></button>
-    <button id="proxy-button" class="nav-tool" title="Paramètres du navigateur">⚙</button>
-    <button id="network-button" class="nav-tool network-button" title="Analyse réseau en fenêtre indépendante">◉ <span>Réseau</span></button>
-    <button id="legacy-button" class="nav-tool small" title="Basculer ce site dans le moteur IE intégré à cet onglet (sites anciens uniquement)">IE</button>
-    <button id="devtools" class="nav-tool small" title="Outils de développement">&lt;/&gt;</button>
+    <div class="nav-tools">
+      <button id="radio-button" class="nav-tool icon" title="Radio : stations françaises et du monde" aria-label="Radio"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8 16 3.5"/><circle cx="15.5" cy="14" r="3"/><path d="M6.5 12.5h3M6.5 15.5h3"/></svg></button>
+      <button id="vpn-button" class="nav-tool icon vpn-button" title="VPN DevGit (gratuit)" aria-label="VPN"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/></svg><em id="vpn-badge" class="hidden">ON</em></button>
+      <button id="pip-button" class="nav-tool icon" title="Picture-in-Picture : vidéo flottante au-dessus des fenêtres" aria-label="Picture-in-Picture"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11.5" width="6.5" height="5" rx="1" class="fill"/></svg></button>
+      <button id="shield-button" class="nav-tool icon shield-button" title="DevGitShield — bloqueur de publicités" aria-label="DevGitShield"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l7.5 2.8v5.6c0 4.4-3.1 7.9-7.5 9.2-4.4-1.3-7.5-4.8-7.5-9.2V6z"/></svg><em id="shield-count">0</em></button>
+      <button id="extensions-button" class="nav-tool icon" title="Extensions (MatchPulse…)" aria-label="Extensions"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><em id="extension-counter">0</em></button>
+      <button id="legacy-button" class="nav-tool small hidden" title="Moteur IE intégré (sites anciens)">IE</button>
+      <button id="menu-button" class="nav-tool icon menu-button" title="Menu DevGitBrowser" aria-label="Menu"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg><i id="menu-dot" class="menu-dot hidden"></i></button>
+    </div>
   </div>
-  <div id="find-bar" class="find-bar hidden" role="search"><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><button id="find-prev" title="Occurrence précédente">↑</button><button id="find-next" title="Occurrence suivante">↓</button><button id="find-close" title="Fermer la recherche">✕</button></div>
+  <nav id="bookmarks-bar" class="bookmarks-bar" aria-label="Barre de favoris"></nav>
+  <div id="pw-banner" class="pw-banner hidden" role="dialog" aria-label="Enregistrer le mot de passe"><span class="pw-ico">🔑</span><span id="pw-text">Enregistrer le mot de passe ?</span><input id="pw-master" type="password" class="hidden" placeholder="Mot de passe maître" aria-label="Mot de passe maître" autocomplete="off"><button id="pw-save" class="primary small-btn" type="button">Enregistrer</button><button id="pw-never" class="outline small-btn" type="button">Jamais pour ce site</button><button id="pw-dismiss" class="outline small-btn" type="button" aria-label="Fermer">✕</button></div>
+  <div id="update-banner" class="update-banner hidden" role="status"><span id="update-text">Mise à jour prête.</span><button id="update-restart" class="primary small-btn" type="button">Redémarrer et mettre à jour</button><button id="update-later" class="outline small-btn" type="button">Plus tard</button></div>
+  <div id="find-bar" class="find-bar hidden" role="search"><span class="find-ico"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M20 20l-4.6-4.6"/></svg></span><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><span id="find-count" class="find-count"></span><button id="find-prev" title="Précédent (Maj+Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button id="find-next" title="Suivant (Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button id="find-close" title="Fermer (Échap)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </header>
 
-
-
 <main id="welcome" class="welcome">
-  <div class="light-spot"></div>
-  <div class="home-banner"><span>✦ DEV / NETWORK / LIVE</span><span class="home-banner-right">DEVGITBROWSER • NEON EDITION</span></div>
   <div class="welcome-layout">
     <section class="intro-panel">
       <div class="intro-identity"><img src="../assets/logo-mark.png" alt="DevGitBrowser" width="76" height="76"><div><strong>DevGitBrowser</strong><small>Le navigateur de développement par CodexHempreur</small></div></div>
-      <div class="supra">L’UNIVERS DEV <span>✦</span> UN NAVIGATEUR QUI VOUS RESSEMBLE</div>
-      <div class="overline"><span class="line"></span> VOTRE ESPACE DE CRÉATION</div>
       <div class="hero-hologram" aria-hidden="true"><img src="../assets/logo-mark.png" alt="" width="172" height="172"></div>
       <h1>Le web, en mode<br><em>nouvelle génération.</em></h1>
-      <p>Développe tes extensions GitHub privées, analyse le trafic en direct et garde tes fenêtres vidéo sous les yeux, dans un navigateur pensé pour créer.</p>
-      <form id="start-search" class="hero-search"><span>⌕</span><input id="start-address" type="text" placeholder="Explorer une adresse ou rechercher..."><button type="submit">Explorer <span>↗</span></button></form>
-      <div class="feature-chips"><span><b>✓</b> MatchPulse inclus</span><span><b>✓</b> GitHub privé</span><span><b>✓</b> Outils réseau</span><span><b>✓</b> Multi-fenêtres</span><span><b>✓</b> Mode legacy</span></div>
+      <p>Navigation protégée par DevGitShield, historique et favoris locaux, onglets détachables, vidéos flottantes et outils réseau pour développer.</p>
+      <form id="start-search" class="hero-search"><span>⌕</span><input id="start-address" type="text" list="address-suggestions" placeholder="Rechercher ou saisir une adresse…"><button type="submit">Explorer <span>↗</span></button></form>
+      <div class="feature-chips"><span><b>✓</b> DevGitShield</span><span><b>✓</b> HTTPS prioritaire</span><span><b>✓</b> MatchPulse</span><span><b>✓</b> Picture-in-Picture</span><span><b>✓</b> Mises à jour auto</span></div>
     </section>
     <aside class="promo promo-babel" aria-label="Découvrir la communauté BabelVisio">
       <div class="promo-top"><span class="spotlight">✦ SITE À LA UNE</span><span class="star">EN LIGNE</span></div>
@@ -67,17 +67,37 @@
       <div class="promo-address">Visiter le site officiel · www.BabelVisio.com</div>
     </aside>
   </div>
+  <section class="home-sites" id="home-sites-section"><h3>Accès rapide</h3><div id="home-sites" class="home-sites-grid"></div></section>
   <div class="quick-grid">
-    <button id="card-github" class="quick-item"><span class="quick-icon git">⌘</span><strong>GitHub privé</strong><small>Associer un dépôt et synchroniser</small><span class="mini-arrow">↗</span></button>
-    <button id="card-extensions" class="quick-item"><span class="quick-icon ext">▦</span><strong>Mes extensions</strong><small>Tester les extensions du dépôt</small><span class="mini-arrow">↗</span></button>
-    <button id="card-security" class="quick-item"><span class="quick-icon shield">◈</span><strong>Contrôle des sites</strong><small>Pop-ups, webcam et microphone</small><span class="mini-arrow">↗</span></button>
+    <button id="card-history" class="quick-item"><span class="quick-icon git">⟲</span><strong>Historique</strong><small>Retrouver une page visitée</small><span class="mini-arrow">↗</span></button>
+    <button id="card-bookmarks" class="quick-item"><span class="quick-icon ext">★</span><strong>Favoris</strong><small>Gérer tes pages enregistrées</small><span class="mini-arrow">↗</span></button>
+    <button id="card-security" class="quick-item"><span class="quick-icon shield">◈</span><strong>Sécurité</strong><small>DevGitShield, pop-ups, webcam</small><span class="mini-arrow">↗</span></button>
     <button id="card-network" class="quick-item"><span class="quick-icon net">◉</span><strong>Analyse réseau LIVE</strong><small>Requêtes et réponses en direct</small><span class="mini-arrow">↗</span></button>
   </div>
 </main>
 
+<section id="panel-library" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">NAVIGATION • LOCAL</span><h2>Historique, favoris et téléchargements</h2><p>Tout reste sur ton ordinateur, dans ton profil Windows. Aucune synchronisation externe.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="segmented" role="tablist"><button type="button" data-library="history" class="active">Historique</button><button type="button" data-library="bookmarks">Favoris</button><button type="button" data-library="downloads">Téléchargements</button></div>
+    <div id="library-history" class="library-view">
+      <div class="toolbar"><input id="history-search" type="search" placeholder="Rechercher dans l’historique" aria-label="Rechercher dans l’historique"><select id="history-range" class="compact-select" aria-label="Période à effacer"><option value="hour">Dernière heure</option><option value="day">Dernières 24 h</option><option value="week">7 derniers jours</option><option value="all">Tout l’historique</option></select><button id="history-clear" type="button" class="outline danger">Effacer</button></div>
+      <div id="history-list" class="item-list"></div>
+      <div class="form-buttons"><button id="history-more" type="button" class="outline hidden">Afficher plus</button></div>
+    </div>
+    <div id="library-bookmarks" class="library-view hidden">
+      <div class="toolbar"><input id="bookmark-search" type="search" placeholder="Rechercher dans les favoris" aria-label="Rechercher dans les favoris"><button id="bookmark-current" type="button" class="primary">★ Ajouter la page actuelle</button></div>
+      <div id="bookmark-list" class="item-list"></div>
+    </div>
+    <div id="library-downloads" class="library-view hidden">
+      <div class="toolbar"><span id="downloads-summary" class="muted">Aucun téléchargement pendant cette session.</span><button id="downloads-open" type="button" class="outline">Ouvrir le dossier</button></div>
+      <div id="download-list" class="item-list"></div>
+    </div>
+  </div>
+</section>
 <section id="panel-github" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">DÉVELOPPEMENT • INTÉGRATION</span><h2>GitHub privé</h2><p>MatchPulse est fournie avec DevGitBrowser. Tes extensions personnelles restent réservées au dépôt privé lié à <em>ton compte</em>.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">DÉVELOPPEMENT • INTÉGRATION</span><h2>GitHub privé</h2><p>MatchPulse est fournie avec DevGitBrowser. Tes extensions personnelles restent réservées au dépôt privé lié à <em>ton compte</em>.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
     <div id="git-connected" class="notice">Non connecté à GitHub</div>
     <form id="github-connect-form" class="section-card">
       <h3>1. Connecter ton compte</h3><p>Crée un <strong>fine-grained personal access token</strong> sur GitHub, avec la permission <strong>Contents: Read</strong> uniquement pour ton dépôt privé. Le jeton est chiffré localement avec les services Windows, jamais intégré à l’installeur.</p>
@@ -95,7 +115,7 @@
 
 <section id="panel-extensions" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Mes extensions</h2><p>Extensions officielles préinstallées et extensions personnelles provenant de ton dépôt GitHub privé.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Mes extensions</h2><p>Extensions officielles préinstallées et extensions personnelles provenant de ton dépôt GitHub privé.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
     <div class="notice"><strong>Aucun import manuel</strong><span>MatchPulse est installée avec le navigateur et ne requiert pas GitHub. Les extensions personnelles téléchargées sont vérifiées grâce aux empreintes des objets Git. Electron ne prend pas en charge toutes les API de Chrome.</span></div>
     <div class="section-card"><h3>Extensions installées <span id="extension-total" class="count">0</span></h3><div id="extension-list" class="extension-list"></div><div class="form-buttons"><button id="extension-sync" type="button" class="primary">↻ Rechercher les nouvelles extensions</button><button id="goto-git" class="outline" type="button">Configurer GitHub</button></div></div>
     <div class="tip"><strong>Exemple de structure GitHub :</strong><pre>mon-depot-prive/
@@ -108,13 +128,15 @@
 
 <section id="panel-security" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut.</p></div><button class="x" data-close="1">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut. Clique sur le cadenas de la barre d’adresse pour revenir ici.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
     <div class="section-card">
       <h3>🛡 DevGitShield — anti-publicités intégré</h3>
-      <p>Mode strict activé par défaut sur toutes les pages Chromium et leurs pop-ups : publicités, traceurs, éléments promotionnels et nuisances. Moteur compatible avec les filtres uBlock Origin et EasyList, mis à jour automatiquement. Un filtre n’élimine pas toutes les annonces et peut perturber certains sites.</p>
-      <div class="setting-line"><div><strong>Protection maximale sur Chromium</strong><p>La désactivation est globale, avec effet immédiat. Actualise le site si certaines zones restent cachées.</p></div><label class="switch"><input id="adblock-enabled" type="checkbox" checked><span></span></label></div>
+      <p>Bloque publicités, traceurs, mineurs de cryptomonnaie, sites malveillants connus et nuisances sur toutes les pages Chromium et leurs pop-ups. Moteur compatible uBlock Origin / EasyList, listes mises à jour chaque jour, protections dédiées YouTube et Twitch exécutées avant les scripts du site.</p>
+      <div class="setting-line"><div><strong>Protection sur tous les sites</strong><p>Effet immédiat. Actualise la page si certaines zones restent cachées.</p></div><label class="switch"><input id="adblock-enabled" type="checkbox" checked><span></span></label></div>
+      <div class="setting-line"><div><strong>Protection sur le site actif</strong><p id="adblock-site-label">Désactive DevGitShield uniquement sur un site qui ne fonctionne pas correctement (connexion, paiement, vidéo).</p></div><label class="switch"><input id="adblock-site" type="checkbox" checked><span></span></label></div>
       <div class="setting-line"><div><strong>État des filtres</strong><p id="adblock-status" aria-live="polite">Initialisation du moteur anti-publicités…</p></div><button type="button" id="adblock-refresh" class="outline">Actualiser les filtres</button></div>
-      <div class="notice warning"><strong>Mode IE historique</strong><span>Le rendu MSHTML utilise un processus Windows indépendant : le filtre réseau Chromium ne peut pas intercepter ses annonces. DevGitShield n'affaiblit pas les contrôles ActiveX et ne modifie pas les paramètres de sécurité IE.</span></div>
+      <div class="setting-line column"><div><strong>Sites en pause</strong><p>DevGitShield ne filtre pas ces sites.</p></div><div id="adblock-allowlist" class="chip-list"></div></div>
+      <div class="notice warning"><strong>Limites</strong><span>Aucun bloqueur ne garantit 100 % : YouTube et Twitch modifient régulièrement leurs systèmes publicitaires ; les filtres se mettent à jour automatiquement. Le mode IE (MSHTML) utilise la pile réseau Windows et n’est pas filtré.</span></div>
     </div>
     <div class="section-card"><div class="site-head"><span class="site-icon">◈</span><div><small>SITE ACTIF</small><h3 id="origin-label">Ouvrir un site HTTPS</h3></div></div>
       <div class="setting-line"><div><strong>Fenêtres pop-up et webcam détachée</strong>
@@ -135,49 +157,143 @@
   </div>
 </section>
 
-<section id="panel-settings" class="panel hidden">
+
+<section id="panel-passwords" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">RÉSEAU • CONFIGURATION</span><h2>Paramètres du navigateur</h2><p>Performances, confort, téléchargements, confidentialité et réseau. Pas de VPN intégré.</p></div><button class="x" data-close="1">✕</button></div>
-    <form id="performance-form" class="section-card">
-      <h3>Performances et rendu</h3><p>Le mode équilibré conserve une visioconférence fluide. Le mode éco réduit la fréquence des contrôles GitHub en arrière-plan et conserve le ralentissement natif des onglets inactifs. Le matériel vidéo utilise les ressources nécessaires au direct.</p>
-      <label for="performance-mode">Mode</label><select id="performance-mode"><option value="balanced">Équilibré — visioconférence recommandée</option><option value="eco">Économie — activité en arrière-plan réduite</option></select>
-      <div class="setting-line"><div><strong>Accélération graphique</strong><p>Conseillée pour les appels vidéo. Désactiver uniquement en cas de problème de pilote graphique. Nécessite un redémarrage, peut augmenter la charge CPU.</p></div><label class="switch"><input type="checkbox" id="hardware-acceleration"><span></span></label></div>
-      <div class="form-buttons"><button class="primary" type="submit">Appliquer les performances</button></div>
-    </form>
-    <div class="section-card">
-      <h3>Outils de page</h3><p>Rechercher dans le texte de la page, imprimer ou enregistrer en PDF avec la boîte de dialogue Windows.</p><div class="form-buttons"><button id="page-find" type="button" class="outline">Rechercher dans la page</button><button id="page-print" type="button" class="outline">Imprimer / PDF</button></div>
+    <div class="panel-header"><div><span class="kicker">COFFRE CHIFFRÉ • LOCAL</span><h2>Mots de passe</h2><p>Chiffrés en AES-256 avec une clé dérivée de ton mot de passe maître (scrypt) et liés à ton compte Windows. Rien ne quitte ton ordinateur.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div id="vault-setup" class="section-card hidden">
+      <h3>Crée ton mot de passe maître</h3>
+      <p>Il protège tous tes identifiants. Il n’est jamais enregistré : s’il est perdu, le coffre ne peut pas être ouvert. Choisis au moins 12 caractères variés.</p>
+      <div class="two-fields"><div><label for="vault-new">Mot de passe maître</label><input id="vault-new" type="password" autocomplete="new-password"></div><div><label for="vault-new2">Confirmation</label><input id="vault-new2" type="password" autocomplete="new-password"></div></div>
+      <div class="strength"><span id="vault-strength-bar"></span></div><small id="vault-strength-label" class="muted">Force : —</small>
+      <div class="form-buttons"><button id="vault-create" class="primary" type="button">Créer le coffre</button></div>
     </div>
-    <div class="section-card">
-      <h3>Analyse réseau & compatibilité ancienne</h3>
-      <p>Ouvre une fenêtre réseau Windows indépendante qui lit en direct les requêtes HTTP, les réponses, les statuts et les en-têtes de l’onglet actif. L’analyse s’arrête à la fermeture de la fenêtre.</p>
-      <div class="form-buttons"><button id="settings-network" class="primary" type="button">◉ Ouvrir l’analyse réseau</button></div>
-      <div class="legacy-status" id="legacy-status">Détection des pages anciennes disponible pour le site actif.</div>
-      <p>Le moteur IE/MSHTML peut s’afficher dans le même onglet grâce à un composant Windows séparé du moteur Chromium. Active-le une première fois pour un site ancien connu : ce site sera ensuite automatiquement ouvert en mode historique. Les nouveaux sites restent en Chromium par sécurité ; webcams et services modernes restent dans Chromium. Le mode IE ne partage pas les cookies ou les outils réseau Chromium.</p>
-      <div class="form-buttons"><button id="settings-legacy" class="outline" type="button">IE • Activer / désactiver dans cet onglet</button></div>
+    <div id="vault-locked" class="section-card hidden">
+      <h3>🔒 Coffre verrouillé</h3><p>Saisis ton mot de passe maître. Le coffre se verrouille seul après 15 minutes d’inactivité, à la mise en veille et au verrouillage de Windows.</p>
+      <form id="vault-unlock-form" class="toolbar"><input id="vault-master" type="password" placeholder="Mot de passe maître" autocomplete="current-password" aria-label="Mot de passe maître"><button class="primary" type="submit">Déverrouiller</button></form>
     </div>
-    <div class="section-card">
-      <h3>Zoom des pages</h3><p>Agrandir ou réduire le site actuellement ouvert, sans changer la taille des menus.</p>
-      <div class="form-buttons"><button id="zoom-minus" type="button" class="outline">−</button><span id="zoom-value" class="zoom-value">100 %</span><button id="zoom-plus" type="button" class="outline">＋</button><button id="zoom-reset" type="button" class="outline">100 %</button></div>
+    <div id="vault-open" class="hidden">
+      <div class="toolbar"><input id="vault-search" type="search" placeholder="Rechercher un site ou un identifiant" aria-label="Rechercher"><button id="vault-add" class="primary" type="button">＋ Ajouter</button><button id="vault-lock" class="outline" type="button">🔒 Verrouiller</button></div>
+      <form id="vault-form" class="section-card hidden">
+        <h3 id="vault-form-title">Nouvel identifiant</h3>
+        <div class="two-fields"><div><label for="vf-origin">Site (https://…)</label><input id="vf-origin" placeholder="https://www.exemple.fr"></div><div><label for="vf-user">Identifiant / e-mail</label><input id="vf-user" autocomplete="off"></div>
+        <div><label for="vf-pass">Mot de passe</label><div class="toolbar tight"><input id="vf-pass" type="text" autocomplete="off" spellcheck="false"><button id="vf-gen" type="button" class="outline">Générer</button></div></div><div><label for="vf-note">Note</label><input id="vf-note" maxlength="300"></div></div>
+        <div class="form-buttons"><button class="primary" type="submit">Enregistrer</button><button id="vf-cancel" class="outline" type="button">Annuler</button></div>
+      </form>
+      <div id="vault-list" class="item-list"></div>
+      <details class="section-card"><summary>Changer le mot de passe maître</summary>
+        <div class="two-fields"><div><label for="vault-old">Actuel</label><input id="vault-old" type="password"></div><div><label for="vault-next">Nouveau</label><input id="vault-next" type="password"></div></div>
+        <div class="form-buttons"><button id="vault-change" class="outline" type="button">Changer</button></div></details>
     </div>
-    <div class="section-card">
-      <h3>Téléchargements</h3><p>Une fenêtre « Enregistrer sous » est présentée pour chaque téléchargement. Aucun fichier ne s’exécute automatiquement.</p>
-      <div class="path-row"><span id="downloads-folder">Dossier Téléchargements de Windows</span><button id="downloads-choose" type="button" class="outline">Changer le dossier</button></div>
-    </div>
-    <div class="section-card">
-      <h3>Données de navigation</h3><p>Effacer le cache sans déconnexion, ou vider les cookies et les données de sites. Cette seconde action déconnectera des sites et peut supprimer leur stockage local, y compris celui d’extensions.</p>
-      <div class="form-buttons"><button id="clear-cache" type="button" class="outline">Vider le cache</button><button id="clear-sites" type="button" class="outline danger">Effacer les données des sites</button></div>
-    </div>
-    <h3 class="section-heading">Réseau / proxy</h3>
-    <form id="proxy-form" class="section-card">
-      <label for="proxy-mode">Mode de connexion</label><select id="proxy-mode"><option value="system">Système (VPN Windows déjà actif inclus)</option><option value="direct">Direct</option><option value="proxy">Serveur proxy</option></select>
-      <div id="proxy-extra" class="two-fields hidden"><div><label for="proxy-type">Type</label><select id="proxy-type"><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></div><div><label for="proxy-host">Hôte</label><input id="proxy-host" placeholder="127.0.0.1"></div><div><label for="proxy-port">Port</label><input id="proxy-port" placeholder="1080" type="number" min="1" max="65535"></div></div>
-      <div class="form-buttons"><button class="primary" type="submit">Enregistrer</button></div>
-    </form>
-    <div class="notice warning">Un proxy n’est pas un VPN. DevGitBrowser ne promet pas l’anonymat ou la protection contre toutes les fuites réseau.</div>
   </div>
 </section>
 
-<footer class="statusbar"><span class="footer-brand"><img src="../assets/logo-mark.png" alt="" width="20" height="20"><strong>DEVGITBROWSER</strong> · CodexHempreur INC</span><span id="status-message">Navigateur indépendant · Profil local isolé</span><span class="signature">By Hempreur</span></footer>
+<section id="panel-tasks" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">PERFORMANCES • TEMPS RÉEL</span><h2>Gestionnaire de tâches</h2><p>Mémoire et processeur utilisés par chaque onglet. Les onglets en veille ne consomment presque plus rien et se rechargent quand tu les ouvres.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="section-card gaming-card">
+      <div class="setting-line"><div><strong>🎮 Mode gaming</strong><p>Pendant tes parties : onglets inactifs mis en veille après 1 minute, priorité du navigateur abaissée pour laisser le processeur au jeu, et rafraîchissements en arrière-plan ralentis. La lecture audio (radio, musique) continue.</p></div><label class="switch"><input id="gaming-toggle" type="checkbox"><span></span></label></div>
+      <div class="stats-row"><div><small>Mémoire du navigateur</small><b id="perf-mem">—</b></div><div><small>Processeur</small><b id="perf-cpu">—</b></div><div><small>Mémoire libre du PC</small><b id="perf-free">—</b></div><div><small>Onglets en veille</small><b id="perf-sleeping">—</b></div></div>
+      <div class="form-buttons"><button id="perf-sleep-all" class="outline" type="button">Mettre en veille les onglets inactifs</button></div>
+    </div>
+    <div class="section-card"><h3>Onglets</h3><div id="perf-tabs" class="item-list"></div></div>
+    <div class="section-card"><h3>Processus</h3><div id="perf-groups" class="item-list"></div></div>
+  </div>
+</section>
+
+<section id="panel-welcome" class="panel welcome-panel hidden">
+  <div class="panel-wrap welcome-wrap">
+    <div class="welcome-step" data-step="0">
+      <img src="../assets/logo-mark.png" alt="" width="110" height="110" class="welcome-logo">
+      <h2>Bienvenue dans DevGitBrowser</h2>
+      <p>Merci d’avoir installé le navigateur de CodexHempreur. En quelques secondes, personnalise-le : couleurs, coffre à mots de passe et moteur de recherche.</p>
+      <div class="welcome-features"><span>🛡 Anti-pub YouTube &amp; Twitch</span><span>🌍 VPN gratuit</span><span>🔑 Coffre à mots de passe</span><span>📻 Radios du monde</span><span>🎮 Mode gaming</span><span>⚽ MatchPulse</span></div>
+    </div>
+    <div class="welcome-step hidden" data-step="1"><h2>Choisis ton thème</h2><p>Tu pourras le changer à tout moment dans le menu ☰ → Thème ou dans les Paramètres.</p><div id="welcome-themes" class="theme-grid"></div></div>
+    <div class="welcome-step hidden" data-step="2"><h2>Ton coffre à mots de passe</h2><p>Définis un mot de passe maître : il chiffrera tous les mots de passe que tu enregistres. Il n’est stocké nulle part — retiens-le bien.</p>
+      <div class="two-fields"><div><label for="welcome-master">Mot de passe maître</label><input id="welcome-master" type="password" autocomplete="new-password"></div><div><label for="welcome-master2">Confirmation</label><input id="welcome-master2" type="password" autocomplete="new-password"></div></div>
+      <div class="strength"><span id="welcome-strength-bar"></span></div><small id="welcome-strength" class="muted">Au moins 8 caractères (12 conseillés).</small></div>
+    <div class="welcome-step hidden" data-step="3"><h2>Dernière étape</h2><p>Moteur de recherche utilisé quand tu tapes autre chose qu’une adresse :</p><select id="welcome-engine" class="compact-select"></select>
+      <p class="muted">DevGitBrowser se met à jour tout seul : tu seras prévenu quand une nouvelle version est prête.</p></div>
+    <div class="welcome-nav"><span id="welcome-dots" class="welcome-dots"></span><button id="welcome-skip" class="outline" type="button">Passer</button><button id="welcome-next" class="primary" type="button">Commencer</button></div>
+  </div>
+</section>
+
+<section id="panel-settings" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">CONFIGURATION</span><h2>Paramètres</h2><p>Démarrage, confidentialité, performances, téléchargements et réseau.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="section-card">
+      <h3>Général</h3>
+      <div class="setting-line"><div><strong>Moteur de recherche</strong><p>Utilisé quand le texte saisi n’est pas une adresse.</p></div><select id="search-engine" class="compact-select" aria-label="Moteur de recherche"></select></div>
+      <div class="setting-line"><div><strong>Rouvrir les onglets au démarrage</strong><p>Restaure les fenêtres et onglets de la dernière session, y compris après une mise à jour.</p></div><label class="switch"><input type="checkbox" data-pref="restoreSession"><span></span></label></div>
+      <div class="setting-line"><div><strong>Barre de favoris</strong><p>Afficher les favoris sous la barre d’adresse (Ctrl+Maj+B).</p></div><label class="switch"><input type="checkbox" data-pref="showBookmarksBar"><span></span></label></div>
+      <div class="setting-line"><div><strong>Mises à jour automatiques</strong><p>Téléchargées en arrière-plan depuis les versions publiées sur GitHub, installées au prochain redémarrage.</p></div><label class="switch"><input type="checkbox" data-pref="autoUpdate"><span></span></label></div>
+    </div>
+    <div class="section-card">
+      <h3>Apparence</h3><p class="muted">Choisis les couleurs de l’interface (également dans le menu ☰ → Thème).</p>
+      <div id="settings-themes" class="theme-grid"></div>
+    </div>
+    <div class="section-card" id="vpn-section">
+      <h3>🌍 VPN DevGit (gratuit)</h3>
+      <p>Le trafic du navigateur passe par le réseau chiffré <b>Tor</b> : ton adresse IP est masquée et tu peux choisir le pays de sortie pour accéder à des contenus bloqués dans ton pays. Gratuit, sans compte, sans limite de données. Plus lent qu’une connexion directe ; certains sites (streaming, banques) peuvent refuser les connexions via Tor. Ne protège que DevGitBrowser, pas les autres logiciels.</p>
+      <div class="setting-line"><div><strong>État</strong><p id="vpn-status">Déconnecté</p></div><div class="inline-buttons"><select id="vpn-country" class="compact-select" aria-label="Pays de sortie"></select><button id="vpn-toggle" class="primary" type="button">Connecter</button></div></div>
+      <div class="progress hidden" id="vpn-progress"><span></span></div>
+    </div>
+    <div class="section-card">
+      <h3>Confidentialité et sécurité</h3>
+      <div class="setting-line"><div><strong>Protection anti-hameçonnage et anti-malware</strong><p id="phishing-status">Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus (listes publiques mises à jour chaque jour, vérification locale).</p></div><label class="switch"><input type="checkbox" data-pref="phishingProtection"><span></span></label></div>
+      <div class="setting-line"><div><strong>DNS sécurisé (DNS over HTTPS)</strong><p>Tes requêtes DNS sont chiffrées : ton fournisseur d’accès ne voit plus les sites consultés et ne peut pas les bloquer par DNS.</p></div><div class="inline-buttons"><select id="dns-mode" class="compact-select" aria-label="Mode DNS"><option value="automatic">Automatique</option><option value="secure">Toujours (strict)</option><option value="off">Désactivé</option></select><select id="dns-provider" class="compact-select" aria-label="Fournisseur DNS"></select></div></div>
+      <div class="setting-line"><div><strong>Proposer d’enregistrer les mots de passe</strong><p>Dans le coffre chiffré local (menu ☰ → Mots de passe).</p></div><label class="switch"><input type="checkbox" data-pref="savePasswords"><span></span></label></div>
+      <div class="setting-line"><div><strong>Mode HTTPS prioritaire</strong><p>Les adresses http:// sont d’abord ouvertes en connexion chiffrée. Si le site ne le prend pas en charge, une page te propose de continuer en HTTP.</p></div><label class="switch"><input type="checkbox" data-pref="httpsOnly"><span></span></label></div>
+      <div class="setting-line"><div><strong>Signal « Ne pas vendre / partager » (GPC)</strong><p>Envoie Global Privacy Control et Do Not Track à tous les sites.</p></div><label class="switch"><input type="checkbox" data-pref="gpc"><span></span></label></div>
+      <div class="setting-line"><div><strong>Protection de l’adresse IP locale (WebRTC)</strong><p>Les sites de visioconférence fonctionnent, sans pouvoir lire l’adresse IP de ton réseau local.</p></div><label class="switch"><input type="checkbox" data-pref="webrtcProtection"><span></span></label></div>
+      <div class="setting-line"><div><strong>Enregistrer l’historique</strong><p>Les pages visitées sont conservées localement pour l’historique et les suggestions.</p></div><label class="switch"><input type="checkbox" data-pref="recordHistory"><span></span></label></div>
+      <div class="setting-line"><div><strong>Effacer l’historique à la fermeture</strong><p>Les favoris et les cookies sont conservés.</p></div><label class="switch"><input type="checkbox" data-pref="clearHistoryOnExit"><span></span></label></div>
+      <div class="setting-line"><div><strong>Données de navigation</strong><p>Vider le cache sans déconnexion, ou effacer cookies et données de sites (déconnecte des services).</p></div><div class="inline-buttons"><button id="clear-cache" type="button" class="outline">Vider le cache</button><button id="clear-sites" type="button" class="outline danger">Effacer les cookies</button></div></div>
+    </div>
+    <form id="performance-form" class="section-card">
+      <h3>Performances</h3>
+      <div class="setting-line"><div><strong>Mode</strong><p>Équilibré conserve une visioconférence fluide ; Éco réduit l’activité en arrière-plan.</p></div><select id="performance-mode" class="compact-select"><option value="balanced">Équilibré</option><option value="eco">Économie</option></select></div>
+      <div class="setting-line"><div><strong>Accélération graphique</strong><p>Conseillée pour la vidéo. À désactiver uniquement en cas de problème de pilote (redémarrage requis).</p></div><label class="switch"><input type="checkbox" id="hardware-acceleration"><span></span></label></div>
+      <div class="form-buttons"><button class="primary" type="submit">Appliquer</button></div>
+    </form>
+    <div class="section-card">
+      <h3>Téléchargements</h3>
+      <div class="path-row"><span id="downloads-folder">Dossier Téléchargements de Windows</span><button id="downloads-choose" type="button" class="outline">Changer le dossier</button></div>
+      <div class="setting-line"><div><strong>Demander où enregistrer chaque fichier</strong><p>Sinon, les fichiers vont directement dans le dossier choisi. Les fichiers exécutables demandent toujours une confirmation et ne s’ouvrent jamais automatiquement.</p></div><label class="switch"><input type="checkbox" id="downloads-ask"><span></span></label></div>
+    </div>
+    <form id="proxy-form" class="section-card">
+      <h3>Réseau / proxy</h3>
+      <label for="proxy-mode">Mode de connexion</label><select id="proxy-mode"><option value="system">Système (VPN Windows déjà actif inclus)</option><option value="direct">Direct</option><option value="proxy">Serveur proxy</option></select>
+      <div id="proxy-extra" class="two-fields hidden"><div><label for="proxy-type">Type</label><select id="proxy-type"><option value="socks5">SOCKS5</option><option value="http">HTTP</option></select></div><div><label for="proxy-host">Hôte</label><input id="proxy-host" placeholder="127.0.0.1"></div><div><label for="proxy-port">Port</label><input id="proxy-port" placeholder="1080" type="number" min="1" max="65535"></div></div>
+      <div class="form-buttons"><button class="primary" type="submit">Enregistrer</button></div>
+      <p class="muted small">Un proxy n’est pas un VPN : DevGitBrowser ne promet pas l’anonymat.</p>
+    </form>
+    <div class="section-card">
+      <h3>Outils avancés</h3>
+      <div class="setting-line"><div><strong>Analyse réseau en direct</strong><p>Fenêtre indépendante : requêtes, statuts et en-têtes de l’onglet actif (données sensibles masquées).</p></div><button id="settings-network" class="outline" type="button">Ouvrir</button></div>
+      <div class="setting-line"><div><strong>Réparer DevGitBrowser</strong><p>En cas d’affichage anormal, de page qui ne charge plus ou de réglage cassé. Tes favoris, historique, mots de passe et extensions sont conservés.</p></div><div class="inline-buttons"><button class="outline" type="button" data-repair="cache">Vider le cache</button><button class="outline" type="button" data-repair="filters">Mettre à jour les filtres</button><button class="outline danger" type="button" data-repair="settings">Réinitialiser les réglages</button><button id="open-log" class="outline" type="button">Journal</button></div></div>
+      <div class="setting-line" id="legacy-line"><div><strong>Mode IE (MSHTML) — Windows</strong><p id="legacy-status">Pour les anciens sites ActiveX/VBScript, affichés dans le même onglet.</p></div><button id="settings-legacy" class="outline" type="button">Activer pour ce site</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="panel-about" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">À PROPOS</span><h2>DevGitBrowser</h2><p>Navigateur Chromium pour Windows, conçu par CodexHempreur INC.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="section-card about-hero">
+      <img src="../assets/logo-mark.png" alt="" width="84" height="84">
+      <div><h3>DevGitBrowser <span id="about-version" class="version-tag">—</span></h3><p id="about-update" class="muted">Vérification des mises à jour…</p>
+        <div class="progress hidden" id="about-progress"><span></span></div>
+        <div class="form-buttons"><button id="about-check" type="button" class="primary">Rechercher des mises à jour</button><button id="about-install" type="button" class="primary hidden">Redémarrer et installer</button><button id="about-releases" type="button" class="outline">Notes de version</button></div></div>
+    </div>
+    <div class="section-card"><h3>Informations techniques</h3><dl id="about-table" class="about-table"></dl>
+      <div class="form-buttons"><button id="about-copy" type="button" class="outline">Copier les informations de diagnostic</button><button id="about-repo" type="button" class="outline">Dépôt GitHub</button></div></div>
+    <div class="section-card"><h3>Crédits et licences</h3><p>Conçu et développé par <strong>CodexHempreur INC</strong>. Basé sur Electron et Chromium. DevGitShield utilise le moteur <em>@ghostery/adblocker</em> (MPL-2.0) et les listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles. MatchPulse utilise des flux sportifs publics non officiels (SofaScore, ESPN) et, en option, API-Football. Le VPN DevGit utilise le logiciel libre Tor (The Tor Project, licence BSD) ; la radio, l’annuaire libre radio-browser.info ; la protection anti-hameçonnage, les listes malware-filter (URLhaus / PhishTank / OpenPhish).</p><p class="signature-line">By CodexHempreur</p></div>
+  </div>
+</section>
+
+<footer class="statusbar"><span class="footer-brand"><img src="../assets/logo-mark.png" alt="" width="20" height="20"><strong>DEVGITBROWSER</strong> · CodexHempreur INC</span><span id="status-message" class="status-message">Navigateur indépendant · Profil local isolé</span><span class="status-right"><span id="radio-pill" class="radio-pill" title="Ouvrir le lecteur radio">♪ <span id="radio-now">Radio</span></span><span id="gaming-pill" class="gaming-pill" title="Mode gaming actif">🎮 GAMING</span><span id="vpn-pill" class="vpn-pill" title="VPN DevGit">🛡 VPN</span><span class="signature">By <b>CodexHempreur</b></span></span></footer>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>

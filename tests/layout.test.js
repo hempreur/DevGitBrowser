@@ -16,8 +16,8 @@ test('One scroll container, no left navigation rail', () => {
   assert.match(css,/\.welcome,\.panel\{left:0!important;right:0!important;overflow-x:hidden;overflow-y:auto;/);
   assert.match(read('main.js'),/const RAIL_WIDTH = 0;/);
 });
-test('Footer uses compact handwritten signature', () => {
-  assert.match(read('ui/index.html'),/class="signature">By Hempreur<\/span>/);
-  assert.match(read('ui/style.css'),/\.signature\{font-family:"Edwardian Script ITC"/);
-  assert.equal(require('../package.json').version,'1.3.9');
+test('Footer signature uses the same professional font as the status bar brand', () => {
+  assert.match(read('ui/index.html'),/class="signature">By <b>CodexHempreur<\/b><\/span>/);
+  assert.match(read('ui/style.css'),/\.statusbar \.signature\{font-family:Inter,'Segoe UI',Arial,sans-serif!important;font-style:normal!important/);
+  assert.equal(require('../package.json').version,'1.5.0');
 });
