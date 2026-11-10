@@ -62,8 +62,18 @@ jobs:
           gpg --batch --status-fd 1 --verify vendor/tmp/sums.txt.asc vendor/tmp/sums.txt > gpg-status.txt 2>/dev/null || true
           if ! grep -E "^\[GNUPG:\] VALIDSIG .*$FPR" gpg-status.txt; then echo "Signature GPG des sommes Tor invalide"; cat gpg-status.txt; exit 1; fi
           node scripts/fetch-tor.js extract
+      # DevGit Video : yt-dlp et FFmpeg intégrés au PC de chaque utilisateur.
+      - name: Télécharger et vérifier les outils vidéo locaux
+        shell: pwsh
+        run: ./scripts/fetch-video-tools.ps1
       - name: Compiler DevGitBrowser pour Windows x64
         run: npm run build:win
+      - name: Vérifier les exécutables vidéo dans le paquet Windows
+        shell: pwsh
+        run: |
+          foreach ($name in @('yt-dlp.exe','ffmpeg.exe','ffprobe.exe')) {
+            if (!(Test-Path ("dist/win-unpacked/resources/video/" + $name))) { throw "Outil vidéo absent : $name" }
+          }
       - name: Contrôler MatchPulse et la mise à jour dans le paquet Windows
         run: node tests/check-windows-bundle.js
       - name: Vérifier les listes DevGitShield en ligne (YouTube / Twitch)
