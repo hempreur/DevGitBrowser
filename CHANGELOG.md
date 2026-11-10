@@ -1,3 +1,13 @@
+## 1.9.0 — DevGit Store : boutique d'extensions hébergée sur le serveur DevGit
+
+### Nouveautés
+- **Extensions disponibles** (onglet Extensions) : un catalogue d'extensions est hébergé sur le serveur DevGit (VPS), avec recherche, installation et désinstallation en un clic.
+  - Les autorisations demandées par l'extension sont affichées avant l'installation.
+  - Les mises à jour sont automatiques, au démarrage puis toutes les 6 h.
+- **Sécurité** : la connexion au serveur est épinglée (certificat vérifié par empreinte). Chaque paquet est contrôlé avant l'installation : empreinte SHA-256, chemins de fichiers sûrs (aucun fichier ne peut s'écrire hors du dossier de l'extension), manifest valide. Les extensions n'ont pas accès aux fichiers locaux.
+- **Panneau admin → Boutique d'extensions** : on publie une extension en choisissant son dossier. Pour une nouvelle version, il suffit de republier. Le panneau affiche le nombre d'installations par extension et permet de retirer une extension.
+- Serveur DevGit : nouvelles routes `/v1/store/*`. Pour les ajouter, relancer le script d'installation, qui conserve le jeton et le certificat.
+
 ## 1.8.0 — Statistiques mondiales, météo illustrée, horloge dans la barre d'onglets
 
 ### Nouveautés

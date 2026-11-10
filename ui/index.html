@@ -133,6 +133,9 @@
           <div class="admin-cols"><div><h4>Satisfaction</h4><div id="admin-rating" class="admin-rating"></div></div><div><h4>Versions utilisées</h4><div id="admin-uversions" class="admin-bars"></div></div></div>
           <button id="admin-token-change" class="link-btn" type="button">Changer le jeton du serveur</button></div>
       </div>
+      <div class="section-card admin-store"><div class="store-head"><h3>🧩 Boutique d’extensions</h3><div class="inline-buttons"><input id="admin-store-id" class="compact-input" type="text" maxlength="40" placeholder="Identifiant (facultatif)" aria-label="Identifiant de l’extension"><button id="admin-store-publish" class="primary" type="button">Publier une extension…</button></div></div>
+        <p class="muted">Choisis le dossier d’une extension (avec son manifest.json). Pour la mettre à jour, augmente la version dans manifest.json et publie à nouveau : les navigateurs se mettent à jour tout seuls.</p>
+        <div id="admin-store-list" class="extension-list"></div></div>
       <h3 class="admin-sub">Téléchargements (GitHub)</h3>
       <div id="admin-kpis" class="admin-kpis"></div>
       <div class="section-card"><h3>Adoption par version</h3><div id="admin-versions" class="admin-bars"></div></div>
@@ -180,8 +183,12 @@
 
 <section id="panel-extensions" class="panel hidden">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Mes extensions</h2><p>Extensions officielles préinstallées et extensions personnelles provenant de ton dépôt GitHub privé.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
-    <div class="notice"><strong>Aucun import manuel</strong><span>MatchPulse est installée avec le navigateur et ne requiert pas GitHub. Les extensions personnelles téléchargées sont vérifiées grâce aux empreintes des objets Git. Electron ne prend pas en charge toutes les API de Chrome.</span></div>
+    <div class="panel-header"><div><span class="kicker">ATELIER • EXTENSIONS</span><h2>Extensions</h2><p>Extensions officielles, extensions disponibles sur la boutique DevGit et extensions personnelles de ton dépôt GitHub privé.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="notice"><strong>Aucun import manuel</strong><span>MatchPulse est installée avec le navigateur. Les extensions de la boutique DevGit et celles de ton dépôt GitHub sont vérifiées par empreinte avant d’être chargées. Electron ne prend pas en charge toutes les API de Chrome.</span></div>
+    <div class="section-card store-card" id="store-card"><div class="store-head"><h3>🧩 Extensions disponibles <span class="count">DevGit Store</span></h3><button id="store-refresh" class="outline" type="button">↻ Actualiser</button></div>
+      <p class="muted">Installe en un clic les extensions publiées par CodexHempreur. Chaque paquet est vérifié (empreinte SHA-256) avant l’installation, et les mises à jour sont automatiques.</p>
+      <input id="store-search" class="compact-input store-search" type="search" placeholder="Rechercher une extension…" aria-label="Rechercher une extension">
+      <div id="store-list" class="store-grid"><div class="empty-list">Chargement du catalogue…</div></div></div>
     <div class="section-card"><h3>Extensions installées <span id="extension-total" class="count">0</span></h3><div id="extension-list" class="extension-list"></div><div class="form-buttons"><button id="extension-sync" type="button" class="primary">↻ Rechercher les nouvelles extensions</button><button id="goto-git" class="outline" type="button">Configurer GitHub</button></div></div>
     <div class="tip"><strong>Exemple de structure GitHub :</strong><pre>mon-depot-prive/
   extensions/

@@ -20,3 +20,9 @@ Le script installe Node.js 20 et un service systemd `devgit-stats`. Par défaut,
 Données reçues : identifiant aléatoire, version, pays de Windows, système, minutes d'utilisation et nombre de pages. L'identifiant est re-haché avec un secret du serveur. Aucune adresse IP ni adresse de site n'est enregistrée. Les données sont gardées 400 jours dans `/opt/devgit-stats/data/stats.json`.
 
 Commandes utiles : `systemctl status devgit-stats` · `journalctl -u devgit-stats -f` · jeton : `sudo grep ADMIN_TOKEN /etc/devgit-stats.env`
+
+## Boutique d'extensions (DevGit Store)
+Les extensions publiées depuis le panneau admin sont stockées dans `/opt/devgit-stats/data/store/`. Le catalogue public se trouve à `GET /v1/store/catalog`. La publication et le retrait demandent le jeton admin.
+
+## Mettre à jour le serveur
+Relancer la commande d'installation. Le jeton, le certificat (donc l'empreinte) et les données sont conservés.
