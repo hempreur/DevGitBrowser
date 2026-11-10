@@ -2,7 +2,6 @@
 // Site vitrine statique DevGitBrowser : aucun cookie, aucun traceur.
 (() => {
   const REPO = 'hempreur/DevGitBrowser';
-  const DISCORD_ID = '898797495142998077';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const year = $('#year'); if (year) year.textContent = String(new Date().getFullYear());
@@ -34,28 +33,6 @@
     })
     .catch(() => {});
 
-  // Discord : lien d'invitation automatique si le widget du serveur est activé.
-  fetch(`https://discord.com/api/guilds/${DISCORD_ID}/widget.json`)
-    .then(r => (r.ok ? r.json() : Promise.reject()))
-    .then(w => {
-      if (w.instant_invite && /^https:\/\/discord\.(com|gg)\//.test(w.instant_invite)) $('#discord-link').href = w.instant_invite;
-      if (Number.isFinite(w.presence_count)) $('#discord-sub').textContent = `${w.presence_count} membre${w.presence_count > 1 ? 's' : ''} en ligne · Rejoindre`;
-    })
-    .catch(() => {
-      // Widget désactivé sur le serveur : carte de présentation à la place du cadre vide.
-      const box = $('.discord-widget');
-      box.classList.add('fallback');
-      box.innerHTML = '<div class="dw-card"><img src="assets/logo-mark.png" alt="" width="72" height="72"><b>Serveur Discord DevGitBrowser</b>' +
-        '<p>Entraide, annonces des nouvelles versions, idées et signalements de bugs.</p>' +
-        `<a class="btn btn-primary" href="${$('#discord-link').href}" target="_blank" rel="noopener">Rejoindre le serveur</a></div>`;
-    });
-
-  // Zone 18+ : la commande n'est affichée qu'après confirmation de majorité.
-  $('#x-reveal').addEventListener('click', () => {
-    $('#x-cmd').classList.remove('hidden');
-    $('#x-reveal').classList.add('hidden');
-  });
-
   // Boîte 3D : légère rotation qui suit la souris (désactivée si l'utilisateur limite les animations).
   const box = $('#box'), stage = $('.box-stage');
   if (box && matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches) {
@@ -70,6 +47,6 @@
   // Apparition progressive des sections
   if ('IntersectionObserver' in window && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
     const io = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), {threshold: 0.12});
-    $$('.card,.layer,.step,.head,.reassure,.spec,.store-mock,.x-card,.faq-list,.comm-cards').forEach(n => { n.classList.add('rv'); io.observe(n); });
+    $$('.card,.layer,.step,.head,.reassure,.spec,.store-mock,.faq-list,.comm-cards').forEach(n => { n.classList.add('rv'); io.observe(n); });
   }
 })();

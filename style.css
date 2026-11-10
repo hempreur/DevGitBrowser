@@ -322,3 +322,8 @@ details p{margin:0 0 18px;color:var(--muted)}
 .discord-widget.fallback{display:grid;place-items:center;background:radial-gradient(400px 260px at 50% 30%,rgba(88,101,242,.3),transparent 70%),#0e1338;border-color:rgba(88,101,242,.5)}
 .dw-card{text-align:center;padding:34px;display:flex;flex-direction:column;align-items:center;gap:10px}
 .dw-card b{font-size:20px}.dw-card p{color:var(--muted);margin:0 0 10px;max-width:340px}
+.dw-link{color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:4px}
+.discord-widget.fallback{min-height:360px}
+.x-page{background:#07030a}
+.x-page .x-sec{min-height:calc(100vh - 70px - 140px);display:flex;align-items:center}
+.x-back{margin-left:auto}

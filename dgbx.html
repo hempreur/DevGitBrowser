@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DGBx — Mode réservé aux adultes · DevGitBrowser</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Informations sur le mode DGBx de DevGitBrowser, réservé aux personnes majeures.">
+  <meta name="theme-color" content="#060a1f">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="x-page">
+<header class="nav scrolled">
+  <div class="wrap nav-in">
+    <a class="brand" href="./" aria-label="DevGitBrowser, accueil"><img src="assets/logo-mark.png" alt="" width="40" height="40"><span><b>DevGit</b>Browser</span></a>
+    <a class="btn btn-ghost btn-sm x-back" href="./">← Retour au site</a>
+  </div>
+</header>
+<main>
+<section class="sec x-sec" id="zone18" aria-labelledby="x-title">
+  <div class="wrap x-in">
+    <div class="x-copy">
+      <p class="kicker x-kicker">Zone réservée aux adultes · 18+</p>
+      <h2 id="x-title">DGBx, <span class="x-grad">le mode caché.</span></h2>
+      <p>DevGitBrowser intègre un mode secret réservé aux <b>personnes majeures</b> : une interface dédiée, sombre et élégante, qui regroupe des plateformes adultes <b>légales et connues</b>, classées par catégorie, avec recherche et favoris.</p>
+      <ul class="ticks x-ticks">
+        <li><b>Invisible par défaut</b> : aucun bouton ni menu, il ne s'ouvre qu'avec une commande secrète</li>
+        <li><b>Confirmation de majorité</b> obligatoire à la première ouverture</li>
+        <li><b>Code d'accès</b> facultatif (4 à 8 chiffres), avec blocage après plusieurs erreurs</li>
+        <li><b>Navigation privée</b> : rien dans l'historique ni dans la session restaurée, et tout se ferme en un clic sur « Quitter DGBx »</li>
+        <li>Les plateformes sont seulement listées : DevGitBrowser n'héberge aucun contenu</li>
+      </ul>
+      <div class="x-gate" id="x-gate">
+        <p>La commande d'accès est réservée aux personnes majeures.</p>
+        <button class="btn x-btn" id="x-reveal" type="button">J'ai 18 ans ou plus, afficher la commande</button>
+        <div class="x-cmd hidden" id="x-cmd">Tape <code>%SxOnSite%</code> dans la barre d'adresse de DevGitBrowser, puis appuie sur Entrée.</div>
+      </div>
+      <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton ordinateur, active un <b>code d'accès</b> DGBx et le contrôle parental de Windows (Microsoft Family Safety).</p>
+    </div>
+    <div class="x-visual" aria-hidden="true">
+      <div class="x-card"><img src="assets/logo-dgbx.png" alt=""><span class="x-18">18+</span></div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="foot"><div class="wrap foot-in"><div class="foot-brand"><img src="assets/logo-mark.png" alt="" width="32" height="32"><div><b>DevGitBrowser</b><small>© 2026 CodexHempreur INC</small></div></div>
+<p class="foot-note">Page réservée aux personnes majeures. DevGitBrowser n'héberge aucun contenu adulte : le mode DGBx liste uniquement des plateformes tierces légales.</p></div></footer>
+<script>
+document.getElementById('x-reveal').addEventListener('click',()=>{document.getElementById('x-cmd').classList.remove('hidden');document.getElementById('x-reveal').classList.add('hidden');});
+</script>
+</body>
+</html>

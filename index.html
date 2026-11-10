@@ -28,7 +28,6 @@
       <a href="#securite">Sécurité</a>
       <a href="#boutique">Extensions</a>
       <a href="#installation">Installation</a>
-      <a href="#zone18" class="menu-18">Zone 18+</a>
       <a href="#communaute">Communauté</a>
     </nav>
     <a class="btn btn-primary btn-sm dl-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest">Télécharger</a>
@@ -279,35 +278,10 @@
   </div>
 </section>
 
-<section class="sec x-sec" id="zone18" aria-labelledby="x-title">
-  <div class="wrap x-in">
-    <div class="x-copy">
-      <p class="kicker x-kicker">06 — Zone réservée aux adultes · 18+</p>
-      <h2 id="x-title">DGBx, <span class="x-grad">le mode caché.</span></h2>
-      <p>DevGitBrowser intègre un mode secret réservé aux <b>personnes majeures</b> : une interface dédiée, sombre et élégante, qui regroupe des plateformes adultes <b>légales et connues</b>, classées par catégorie, avec recherche et favoris.</p>
-      <ul class="ticks x-ticks">
-        <li><b>Invisible par défaut</b> : aucun bouton ni menu, il ne s'ouvre qu'avec une commande secrète</li>
-        <li><b>Confirmation de majorité</b> obligatoire à la première ouverture</li>
-        <li><b>Code d'accès</b> facultatif (4 à 8 chiffres), avec blocage après plusieurs erreurs</li>
-        <li><b>Navigation privée</b> : rien dans l'historique ni dans la session restaurée, et tout se ferme en un clic sur « Quitter DGBx »</li>
-        <li>Les plateformes sont seulement listées : DevGitBrowser n'héberge aucun contenu</li>
-      </ul>
-      <div class="x-gate" id="x-gate">
-        <p>La commande d'accès est réservée aux personnes majeures.</p>
-        <button class="btn x-btn" id="x-reveal" type="button">J'ai 18 ans ou plus, afficher la commande</button>
-        <div class="x-cmd hidden" id="x-cmd">Tape <code>%SxOnSite%</code> dans la barre d'adresse de DevGitBrowser, puis appuie sur Entrée.</div>
-      </div>
-      <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton ordinateur, active un <b>code d'accès</b> DGBx et le contrôle parental de Windows (Microsoft Family Safety).</p>
-    </div>
-    <div class="x-visual" aria-hidden="true">
-      <div class="x-card"><img src="assets/logo-dgbx.png" alt=""><span class="x-18">18+</span></div>
-    </div>
-  </div>
-</section>
 
 <section class="sec" id="faq">
   <div class="wrap faq">
-    <div class="head"><p class="kicker">07 — Questions fréquentes</p><h2>Les bonnes questions.</h2></div>
+    <div class="head"><p class="kicker">06 — Questions fréquentes</p><h2>Les bonnes questions.</h2></div>
     <div class="faq-list">
       <details><summary>DevGitBrowser est-il vraiment gratuit ?</summary><p>Oui, entièrement. Pas d'abonnement, pas de version payante, pas de publicité. Le code source est public sur GitHub.</p></details>
       <details><summary>Est-ce que l'installateur contient un virus ?</summary><p>Non. L'avertissement de Windows vient uniquement de l'absence de signature numérique payante. L'installateur est compilé automatiquement par GitHub Actions à partir du code public, et tu peux le vérifier sur VirusTotal avant de l'ouvrir.</p></details>
@@ -324,11 +298,11 @@
 <section class="sec sec-alt" id="communaute">
   <div class="wrap community">
     <div class="comm-copy">
-      <p class="kicker">08 — Communauté &amp; support</p>
+      <p class="kicker">07 — Communauté &amp; support</p>
       <h2>Parlons-en<br><span class="grad">ensemble.</span></h2>
       <p>Une question, une idée, un bug ? Rejoins la communauté DevGitBrowser sur Discord ou écris directement sur GitHub.</p>
       <div class="comm-cards">
-        <a class="comm discord" id="discord-link" href="https://discord.com/channels/898797495142998077" target="_blank" rel="noopener">
+        <a class="comm discord" id="discord-link" href="https://discord.gg/hmQZuDXBvu" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.3 18.3 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.4C.6 9 0 13.6.3 18.1a19.9 19.9 0 0 0 6 3l1.3-2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.8-9.7-3.6-13.7ZM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg>
           <div><b>Discord</b><small id="discord-sub">Rejoindre le serveur de la communauté</small></div></a>
         <a class="comm github" href="https://github.com/hempreur/DevGitBrowser/issues" target="_blank" rel="noopener">
@@ -336,8 +310,11 @@
           <div><b>GitHub</b><small>Signaler un bug ou proposer une idée</small></div></a>
       </div>
     </div>
-    <div class="discord-widget">
-      <iframe src="https://discord.com/widget?id=898797495142998077&amp;theme=dark" width="100%" height="420" title="Serveur Discord DevGitBrowser" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" loading="lazy"></iframe>
+    <div class="discord-widget fallback">
+      <div class="dw-card"><img src="assets/logo-mark.png" alt="" width="72" height="72"><b>Serveur Discord DevGitBrowser</b>
+        <p>Entraide, annonces des nouvelles versions, idées et signalements de bugs.</p>
+        <a class="btn btn-primary" href="https://discord.gg/hmQZuDXBvu" target="_blank" rel="noopener">Rejoindre le serveur</a>
+        <small class="dw-link">discord.gg/hmQZuDXBvu</small></div>
     </div>
   </div>
 </section>
