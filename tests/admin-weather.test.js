@@ -31,6 +31,6 @@ test('statistiques résumées depuis les releases GitHub',()=>{
 test('météo : ville et température via Open-Meteo',async()=>{
   const fake=async url=>({ok:true,status:200,json:async()=>url.includes('geocoding')?{results:[{name:'Lisbonne',country_code:'PT',latitude:38.7,longitude:-9.1}]}:{current:{temperature_2m:17.6,weather_code:2,is_day:1}}});
   const city=await weather.findCity(fake,'lisbonne');assert.equal(city.name,'Lisbonne');assert.ok(weather.validCity(city));
-  const now=await weather.current(fake,city);assert.equal(now.temp,18);assert.equal(now.label,'Peu nuageux');
+  const now=await weather.current(fake,city);assert.equal(now.temp,18);assert.equal(now.label,'Éclaircies');assert.equal(now.icon,'partly');
   await assert.rejects(weather.findCity(async()=>({ok:true,json:async()=>({})}),'zzzz'),/introuvable/);
 });

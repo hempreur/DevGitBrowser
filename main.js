@@ -23,6 +23,8 @@ const { PhishingGuard } = require('./lib/phishing');
 const logger = require('./lib/logger');
 const admin = require('./lib/admin');
 const weather = require('./lib/weather');
+const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
+const STATS_URL = String(require('./package.json').devgitStats?.url || '');
 
 // Default chrome height; the interface reports its real height (favorites bar,
 // search bar, update banner) so web pages are never drawn over the controls.
@@ -64,7 +66,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', weatherCity:null, showClock:true };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', weatherCity:null, showClock:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -88,6 +90,10 @@ function loadSettings() {
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
     if (admin.isHash(raw.adminKey)) p.adminKey=raw.adminKey;
+    if (validTelemetryId(raw.telemetryId)) p.telemetryId=raw.telemetryId;
+    if (raw.telemetryAsked===true) p.telemetryAsked=true;
+    if (raw.telemetry===true && p.telemetryId) p.telemetry=true;
+    if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
     for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock']) {
@@ -210,6 +216,7 @@ function publicState(s) {
       secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock },
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
+    telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
     searchEngines: Object.entries(SEARCH_ENGINES).map(([id,e])=>({id,name:e.name})),
     themes: THEMES, theme: settings.theme, welcomed: settings.welcomed,
     vpn: tor ? {...tor.state, countries: VPN_COUNTRIES} : {status:'off', available:false, countries: VPN_COUNTRIES},
@@ -354,6 +361,7 @@ function attachPageHandlers(t) {
     if (isWebUrl(url)) { t.loadError=''; t.favicon=''; t.upgradeHits=null; if (/^https:/i.test(url)) t.httpsUpgradedFrom=''; }
     update(); applySiteZoom(t);
     if (isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
+    if (isWebUrl(url) && !t.owner.xmode && !t.xTab) telemetry?.countPage();
   });
   wc.on('did-finish-load',async()=>{
     if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
@@ -563,6 +571,24 @@ async function refreshWeather() {
   broadcast(); return weatherNow;
 }
 function startWeather() { clearInterval(weatherTimer); refreshWeather(); weatherTimer = setInterval(refreshWeather, 20 * 60_000); }
+// ---- Statistiques anonymes (avec accord) et jeton du serveur pour le panneau admin.
+let telemetry = null;
+function setTelemetry(on) {
+  settings.telemetry = Boolean(on); settings.telemetryAsked = true;
+  if (on && !validTelemetryId(settings.telemetryId)) settings.telemetryId = newTelemetryId();
+  if (!on) settings.telemetryId = ''; // refus : l'identifiant aléatoire est effacé
+  saveSettings(); broadcast();
+  if (on) telemetry?.ping().catch(() => {});
+}
+let statsTokenMemory = ''; // repli si le chiffrement du système est indisponible (jamais écrit en clair)
+function storeStatsToken(value) {
+  statsTokenMemory = value;
+  if (safeStorage.isEncryptionAvailable()) writeAtomic(userDataFile('stats-token.dat'), safeStorage.encryptString(value));
+}
+function readStatsToken() {
+  try { if (safeStorage.isEncryptionAvailable()) return safeStorage.decryptString(fs.readFileSync(userDataFile('stats-token.dat'))); } catch {}
+  return statsTokenMemory;
+}
 // ---- Panneau admin (%AdminDBG%) : clé obligatoire à chaque ouverture.
 const adminLimiter = admin.createLimiter();
 const adminKeyHash = () => settings.adminKey || admin.ORIGINAL_KEY_HASH;
@@ -744,7 +770,8 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
-  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed'].includes(key)) throw new Error('Réglage protégé.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating'].includes(key)) throw new Error('Réglage protégé.');
+  if (key==='telemetry') { setTelemetry(value); return; }
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
   if (key==='secureDns' && !['off','automatic','secure'].includes(value)) throw new Error('Mode DNS inconnu.');
@@ -1852,7 +1879,25 @@ function registerIpc(){
       logger.info('Admin : nouvelle clé générée'); return key;
     },
     'admin:close':s=>{s.adminOpen=false;broadcast();return true;},
-    'admin:stats':async s=>{ if(!s.adminOpen)throw new Error('Panneau admin verrouillé.'); return admin.fetchStats(webFetch); },
+    'admin:stats':async s=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      const token=readStatsToken();
+      const [github,server]=await Promise.allSettled([admin.fetchStats(webFetch), token&&telemetry?.available?telemetry.adminStats(token):Promise.reject(new Error(telemetry?.available?'NO_TOKEN':'NO_SERVER'))]);
+      if(github.status==='rejected'&&server.status==='rejected'&&!/^NO_/.test(server.reason?.message))throw github.reason;
+      return {github:github.status==='fulfilled'?github.value:null, githubError:github.status==='rejected'?github.reason.message:'',
+        server:server.status==='fulfilled'?server.value:null, serverError:server.status==='rejected'?server.reason.message:'', serverUrl:STATS_URL};
+    },
+    'admin:set-token':(s,value)=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      const v=String(value||'').trim(); if(v && !/^[A-Za-z0-9]{24,128}$/.test(v))throw new Error('Jeton invalide.');
+      if(!v){statsTokenMemory='';try{fs.rmSync(userDataFile('stats-token.dat'),{force:true});}catch{}return true;}
+      storeStatsToken(v); return true;
+    },
+    'telemetry:consent':(_s,yes)=>{setTelemetry(yes===true);return settings.telemetry;},
+    'telemetry:rate':async(_s,stars)=>{
+      const n=Number(stars); if(!telemetry)throw new Error('Notation indisponible.');
+      await telemetry.rate(n); settings.rating=n; saveSettings(); broadcast(); return n;
+    },
     'xmode:reset-code':(s,code,next)=>{
       if(!s.xmode)throw new Error('Ouvre d’abord le mode DGBx.');
       if(settings.xmodeCode && !checkCode(code))throw new Error('Code actuel incorrect.');
@@ -2030,6 +2075,10 @@ else {
       if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
     }});
     startWeather();
+    telemetry=new Telemetry({url:STATS_URL,fetcher:webFetch,getSettings:()=>settings,version:app.getVersion(),
+      country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},platform:process.platform,
+      isActive:()=>Boolean(BrowserWindow.getFocusedWindow())});
+    telemetry.start();
     token=restoreToken();
     // Built-in extensions work for every Windows profile, with or without GitHub.
     await loadBundledExtensions();
