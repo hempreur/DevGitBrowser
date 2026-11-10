@@ -24,6 +24,7 @@ const logger = require('./lib/logger');
 const admin = require('./lib/admin');
 const weather = require('./lib/weather');
 const store = require('./lib/store');
+const {VideoLocal, validateRequest: validateVideoRequest, isYoutubeWatchUrl} = require('./lib/video-local');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
 const STATS_PIN = String(require('./package.json').devgitStats?.pin || '');
@@ -44,6 +45,8 @@ const storeInstalled = new Map(); // DevGit Store (VPS) : id -> {chromeId, name,
 const bundledInstalled = new Map(); // official extensions shipped with DevGitBrowser; never removed by GitHub
 const popupOrigins = new WeakMap(); // popup webContents -> opener origin for about:blank windows
 const ephemeralMedia = new Map();
+const videoRequestTimes = new Map();
+const videoFormatCache = new Map();
 const closedTabs = []; // {url,title} reopened with Ctrl+Maj+T
 const downloads = []; // recent downloads, newest first
 const tabOpenEvents = new Map(); // origin -> timestamps of link-driven new tabs (anti popunder)
@@ -1640,6 +1643,44 @@ function passwordMenu(s) {
   popupMenu(s, items);
 }
 function registerPasswordCapture() {
+  // DevGit Video local. Le VPS reste réservé au catalogue et aux fichiers d'extension.
+  const toolsDir = app.isPackaged ? path.join(process.resourcesPath,'video') : path.join(__dirname,'vendor','video');
+  const localVideo = new VideoLocal({toolDir:toolsDir});
+  ipcMain.handle('dgb-video:local',async(event,request)=>{
+    const t=tabForWebContents(event.sender);
+    if(!t||event.sender.session!==browsingSession||event.senderFrame!==event.sender.mainFrame||t.engine!=='chromium')
+      throw new Error('Demande vidéo non autorisée.');
+    if(!storeInstalled.get('devgit-video')?.chromeId)throw new Error('Installe DevGit Video depuis la boutique.');
+    if(!request||!['formats','download'].includes(request.action)||!isYoutubeWatchUrl(event.sender.getURL(),request.videoId))
+      throw new Error('Seule la vidéo YouTube affichée est autorisée.');
+    const now=Date.now(),id=request.videoId;
+    if(request.action==='formats'){
+      const cached=videoFormatCache.get(id);
+      if(cached&&now-cached.at<30000)return cached.value;
+      const key='formats:'+event.sender.id;
+      if(now-(videoRequestTimes.get(key)||0)<5000)throw new Error('Recherche trop rapide. Réessaie dans quelques secondes.');
+      videoRequestTimes.set(key,now);
+      const value=await localVideo.formats(id);
+      if(videoFormatCache.size>30)videoFormatCache.clear();
+      videoFormatCache.set(id,{at:Date.now(),value});
+      return value;
+    }
+    const quality=validateVideoRequest(id,request.kind,request.quality);
+    const key='download:'+event.sender.id;
+    if(now-(videoRequestTimes.get(key)||0)<3000)throw new Error('Une demande de téléchargement est déjà en cours.');
+    videoRequestTimes.set(key,now);
+    if(localVideo.busy)throw new Error('Un téléchargement local est déjà en cours.');
+    const kind=request.kind;
+    const pick=await dialog.showSaveDialog(t.owner.win,{
+      title:'Enregistrer la vidéo — DevGit Video (local)',
+      defaultPath:path.join(settings.downloads.folder||app.getPath('downloads'),'YouTube-'+id+'.'+kind),
+      buttonLabel:'Enregistrer sur mon PC',
+      filters:[{name:kind==='mp4'?'Vidéo MP4':'Audio MP3',extensions:[kind]}]
+    });
+    if(pick.canceled||!pick.filePath)return {cancelled:true};
+    if(fs.existsSync(pick.filePath))throw new Error('Le fichier existe déjà : choisis un autre nom.');
+    return localVideo.download({videoId:id,kind,quality,savePath:pick.filePath});
+  });
   // Bouton « Télécharger » du survol vidéo : uniquement les fichiers vidéo directs (pas les flux protégés).
   ipcMain.on('dgb-video:download', (event, src) => {
     const t = tabForWebContents(event.sender);
@@ -2145,6 +2186,8 @@ else {
     // Early main-world scriptlets (YouTube/Twitch) run before any page script.
     try{browsingSession.registerPreloadScript({type:'frame',id:'devgitshield-early',filePath:path.join(__dirname,'lib','shield-preload.js')});}
     catch(err){console.error('DevGitShield preload:',err?.message||err);}
+    try{browsingSession.registerPreloadScript({type:'frame',id:'devgitvideo-local',filePath:path.join(__dirname,'lib','video-bridge-preload.js')});}
+    catch(err){console.error('DevGit Video preload:',err?.message||err);}
     applySecureDns();
     vault=new PasswordVault({read:()=>{try{return fs.readFileSync(userDataFile('passwords.vault'));}catch{return null;}},
       write:buf=>writeAtomic(userDataFile('passwords.vault'),buf),protect:vaultProtect,unprotect:vaultUnprotect,onLock:()=>broadcast()});
