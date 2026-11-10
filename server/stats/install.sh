@@ -3,7 +3,8 @@
 # Usage :  curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats/install.sh | sudo bash
 #          (ou avec ton domaine : ... | sudo bash -s -- stats.mondomaine.fr)
 set -euo pipefail
-REPO_RAW="https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats"
+BRANCH="${DEVGIT_BRANCH:-main}"
+REPO_RAW="https://raw.githubusercontent.com/hempreur/DevGitBrowser/${BRANCH}/server/stats"
 APP_DIR=/opt/devgit-stats
 ENV_FILE=/etc/devgit-stats.env
 PORT=8787
