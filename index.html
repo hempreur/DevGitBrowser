@@ -3,140 +3,368 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#06091c">
-  <meta name="description" content="DevGitBrowser : navigateur Windows Chromium nouvelle génération. DevGitShield, DevGit Store, VPN Tor, coffre chiffré, téléchargements locaux, outils de développement et bien plus.">
-  <meta name="robots" content="index,follow">
+  <title>DevGitBrowser — Le navigateur Windows sécurisé, gratuit et en français</title>
+  <meta name="description" content="DevGitBrowser : navigateur Chromium gratuit pour Windows 10/11. Bloqueur de pubs DevGitShield, VPN Tor gratuit, coffre à mots de passe chiffré AES-256, boutique d'extensions, thèmes, mode gaming et mises à jour automatiques.">
+  <meta name="theme-color" content="#060a1f">
+  <meta name="color-scheme" content="dark">
   <meta property="og:type" content="website">
   <meta property="og:title" content="DevGitBrowser — Le web, à ta façon.">
-  <meta property="og:description" content="Un navigateur Windows. Une expérience néon. Tes outils, tes règles. Télécharge DevGitBrowser gratuitement.">
-  <meta property="og:image" content="assets/brand-source.png">
-  <meta name="color-scheme" content="dark">
-  <title>DevGitBrowser — Le web, à ta façon.</title>
-  <link rel="icon" type="image/png" href="assets/icon.png">
+  <meta property="og:description" content="Navigateur Chromium gratuit pour Windows : bloqueur intégré, VPN Tor, coffre chiffré, boutique d'extensions.">
+  <meta property="og:image" content="https://hempreur.github.io/DevGitBrowser/assets/brand-source.png">
+  <link rel="icon" href="assets/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800;850;900&display=swap">
-  <link rel="stylesheet" href="./style.css">
-  <script src="./script.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip-link" href="#contenu">Passer au contenu</a>
-  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></symbol>
-    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
-    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 8 3v6c0 5-3.4 9-8 11-4.6-2-8-6-8-11V5z"/><path d="m9 12 2 2 4-4"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
-    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.3"/><rect x="14" y="3" width="7" height="7" rx="1.3"/><rect x="3" y="14" width="7" height="7" rx="1.3"/><rect x="14" y="14" width="7" height="7" rx="1.3"/></symbol>
-    <symbol id="i-zap" viewBox="0 0 24 24"><path d="m13 2-10 12h8l-1 8 11-12h-8z"/></symbol>
-    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9"/></symbol>
-    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-15-2 20"/></symbol>
-    <symbol id="i-video" viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3"/></symbol>
-    <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><rect x="2" y="13" width="5" height="8" rx="2"/><rect x="17" y="13" width="5" height="8" rx="2"/></symbol>
-    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/></symbol>
-    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.3-2"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
-    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
-    <symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
-    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
-    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 7 5 5-5 5m8 0h8"/></symbol>
-    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.5 5.8a5.5 5.5 0 0 0-7.7 0L12 6.6l-.8-.8a5.5 5.5 0 0 0-7.7 7.8L12 22l8.5-8.4a5.5 5.5 0 0 0 0-7.8z"/></symbol>
-    <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 2v19l5-6 4 7 3-2-4-7 8-2z"/></symbol>
-    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18c0 2-2 3-4 3s-3-1-3-3 2-3 4-3 3 1 3 3Zm12-2c0 2-2 3-4 3s-3-1-3-3 2-3 4-3 3 1 3 3Z"/></symbol>
-    <symbol id="i-windows" viewBox="0 0 24 24"><path d="m2 5 9-1v8H2zm11-1 9-2v10h-9zM2 14h9v8l-9-1zm11 0h9v10l-9-2z"/></symbol>
-    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M5 3h14v19l-7-5-7 5z"/></symbol>
-    <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
-    <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4.5 1.5-4.5-2-6-2.5M15 22v-4a3.2 3.2 0 0 0-1-2.5c3.5-.4 7-1.7 7-7.5a6 6 0 0 0-1.6-4.2 5.5 5.5 0 0 0-.1-4s-1.2-.4-4 1.6a14 14 0 0 0-7 0C5.5-.6 4.3-.2 4.3-.2a5.5 5.5 0 0 0-.1 4A6 6 0 0 0 2.6 8c0 5.8 3.5 7.1 7 7.5A3.2 3.2 0 0 0 8.5 18v4" transform="translate(1 1) scale(.9)"/></symbol>
-  </svg>
+<a class="skip" href="#contenu">Aller au contenu</a>
 
-  <div class="topline"><span class="topline-dot"></span> EXPÉRIENCE NAVIGATEUR NOUVELLE GÉNÉRATION <span class="topline-split">//</span> CONÇU POUR WINDOWS</div>
-  <header class="site-header" id="top">
-    <div class="nav-wrap container">
-      <a class="brand" href="#top" aria-label="DevGitBrowser - retour à l'accueil">
-        <img class="brand-logo" src="assets/logo-mark.png" width="46" height="46" alt="Logo DevGitBrowser">
-        <span class="brand-type">DEV<span>GIT</span><small>BROWSER</small></span>
-      </a>
-      <nav class="nav-main" id="primary-nav" aria-label="Navigation principale">
-        <a href="#fonctionnalites">Fonctionnalités</a>
-        <a href="#protection">DevGitShield</a>
-        <a href="#boutique">Extensions</a>
-        <a href="#questions">FAQ</a>
-        <a class="nav-mobile-download" href="https://github.com/hempreur/DevGitBrowser/releases/latest">Télécharger</a>
-      </nav>
-      <div class="nav-end">
-        <a class="nav-github" href="https://github.com/hempreur/DevGitBrowser" target="_blank" rel="noopener noreferrer" aria-label="Code source GitHub"><svg class="ico"><use href="#i-github"/></svg></a>
-        <a class="btn btn-small btn-primary" href="https://github.com/hempreur/DevGitBrowser/releases/download/v1.9.1/DevGitBrowser-Setup-1.9.1.exe" data-release-download>
-          <svg class="ico"><use href="#i-download"/></svg> Télécharger <span class="btn-arrow">↗</span>
-        </a>
-        <button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Ouvrir le menu"><svg class="ico"><use href="#i-menu"/></svg></button>
+<header class="nav" id="top">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top" aria-label="DevGitBrowser, accueil"><img src="assets/logo-mark.png" alt="" width="40" height="40"><span><b>DevGit</b>Browser</span></a>
+    <nav id="menu" class="menu" aria-label="Navigation principale">
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#securite">Sécurité</a>
+      <a href="#boutique">Extensions</a>
+      <a href="#installation">Installation</a>
+      <a href="#zone18" class="menu-18">Zone 18+</a>
+      <a href="#communaute">Communauté</a>
+    </nav>
+    <a class="btn btn-primary btn-sm dl-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest">Télécharger</a>
+    <button class="burger" id="burger" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main id="contenu">
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="dot"></span> Navigateur Windows · Gratuit · En français</p>
+      <h1>Le web, <span class="grad">à ta façon.</span></h1>
+      <p class="lead">DevGitBrowser est un navigateur basé sur <strong>Chromium</strong> qui réunit dans un seul logiciel un bloqueur de publicités, un <strong>VPN gratuit</strong>, un <strong>coffre à mots de passe chiffré</strong>, une boutique d'extensions et des outils de développement. Pas d'abonnement, pas de compte, pas de pistage.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg dl-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z" fill="currentColor"/></svg>
+          Télécharger pour Windows</a>
+        <a class="btn btn-ghost btn-lg" href="#installation">Guide d'installation</a>
+      </div>
+      <ul class="hero-meta">
+        <li>Version <b class="ver">1.9.1</b></li>
+        <li>Windows 10 / 11 · 64 bits</li>
+        <li class="size">Installateur ≈ 150 Mo</li>
+        <li>Mises à jour automatiques</li>
+      </ul>
+    </div>
+
+    <div class="box-stage" role="img" aria-label="Boîte du logiciel DevGitBrowser">
+      <div class="box" id="box">
+        <div class="face front">
+          <div class="front-top"><span class="chip">WINDOWS 10 · 11</span><span class="chip ghost">64 BITS</span></div>
+          <img class="front-logo" src="assets/brand-source.png" alt="">
+          <p class="front-tag">Le web, à ta façon.</p>
+          <ul class="front-list">
+            <li>DevGitShield · bloqueur intégré</li>
+            <li>VPN Tor gratuit</li>
+            <li>Coffre chiffré AES-256</li>
+            <li>DevGit Store</li>
+          </ul>
+          <div class="front-foot"><span>CodexHempreur INC</span><span class="ver-badge">v<b class="ver">1.9.1</b></span></div>
+        </div>
+        <div class="face side"><img src="assets/logo-mark.png" alt=""><span>DEVGITBROWSER</span><em>ÉDITION 2026</em></div>
+        <div class="face top"></div>
+      </div>
+      <div class="box-shadow" aria-hidden="true"></div>
+      <div class="box-badge b1"><img src="assets/logo-mark.png" alt=""> Moteur Chromium</div>
+      <div class="box-badge b2">🔒 Sans pistage</div>
+      <div class="box-badge b3">⚡ 100 % gratuit</div>
+    </div>
+  </div>
+</section>
+
+<section class="stats" aria-label="DevGitBrowser en chiffres">
+  <div class="wrap stats-in">
+    <div><b>15+</b><span>listes de filtres anti-pubs<br>mises à jour chaque jour</span></div>
+    <div><b>AES-256</b><span>chiffrement du coffre<br>à mots de passe</span></div>
+    <div><b>Tor</b><span>VPN gratuit intégré,<br>choix du pays de sortie</span></div>
+    <div><b>0</b><span>compte requis, publicité<br>ou donnée revendue</span></div>
+    <div><b>4 h</b><span>vérification automatique<br>des mises à jour</span></div>
+  </div>
+</section>
+
+<section class="sec" id="fonctionnalites">
+  <div class="wrap">
+    <div class="head"><p class="kicker">01 — Fonctionnalités</p><h2>Tout ce qu'il te faut,<br><span class="grad">déjà installé.</span></h2>
+      <p>Pas besoin d'empiler dix extensions : DevGitBrowser intègre les outils essentiels directement dans le navigateur, pensés pour fonctionner ensemble.</p></div>
+
+    <div class="feat-big">
+      <article class="card card-xl">
+        <span class="ico ico-cyan">🛡️</span>
+        <h3>DevGitShield — bloqueur de publicités natif</h3>
+        <p>Moteur compatible <b>uBlock Origin / EasyList</b> intégré au cœur du navigateur, sans extension. Il bloque les publicités, les traqueurs, les bannières de cookies, les mineurs de cryptomonnaie et les sites malveillants connus.</p>
+        <ul class="ticks">
+          <li>Listes officielles téléchargées chaque jour : EasyList, EasyPrivacy, uBlock (filtres, confidentialité, badware, nuisances, cookies), Peter Lowe, EasyList France</li>
+          <li>Protections dédiées <b>YouTube</b> et <b>Twitch</b>, actives avant le chargement de la page</li>
+          <li>Compteur par onglet, pause en un clic sur un site, cache hors ligne</li>
+        </ul>
+      </article>
+      <article class="card card-xl">
+        <span class="ico ico-violet">🌐</span>
+        <h3>VPN gratuit intégré (réseau Tor)</h3>
+        <p>Un clic sur 🌐 et ta navigation passe par le réseau <b>Tor</b> : ton adresse IP est masquée aux sites que tu visites. Gratuit, sans compte et sans limite de données.</p>
+        <ul class="ticks">
+          <li>Choix du pays de sortie et « nouvelle identité » à la demande</li>
+          <li>Tor officiel, dont la signature et l'empreinte sont vérifiées à chaque compilation</li>
+          <li>Plus lent qu'un VPN payant : idéal pour la confidentialité, moins pour le streaming</li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="feat-grid">
+      <article class="card"><span class="ico">🔑</span><h3>Coffre à mots de passe</h3><p>Enregistrement et remplissage automatique de tes identifiants, chiffrés en <b>AES-256-GCM</b> sur ton PC et déverrouillés par ton mot de passe maître. Rien n'est envoyé en ligne.</p></article>
+      <article class="card"><span class="ico">🧩</span><h3>DevGit Store</h3><p>Une boutique d'extensions intégrée : installation en un clic, autorisations affichées avant l'installation, mises à jour automatiques.</p></article>
+      <article class="card"><span class="ico">⚽</span><h3>MatchPulse</h3><p>Extension incluse pour Betclic, Winamax et Unibet : lecture de tes tickets, suivi des matchs en direct et alertes (buts, cartons, corners). En lecture seule, aucun pari automatique.</p></article>
+      <article class="card"><span class="ico">🎮</span><h3>Mode gaming</h3><p>Libère du processeur et de la mémoire pour tes jeux : mise en veille des onglets inactifs, priorité réduite, gestionnaire de tâches intégré (Maj+Échap).</p></article>
+      <article class="card"><span class="ico">📻</span><h3>Radio du monde entier</h3><p>Des milliers de radios classées par pays et par genre, dans une mini-fenêtre qui reste ouverte pendant que tu navigues.</p></article>
+      <article class="card"><span class="ico">🎨</span><h3>Thèmes</h3><p>Plusieurs ambiances de couleurs pour toute l'interface, à changer en un clic depuis le menu ☰.</p></article>
+      <article class="card"><span class="ico">🪟</span><h3>Onglets détachables</h3><p>Glisse un onglet hors de la fenêtre pour en créer une nouvelle, puis rattache-le à une autre fenêtre. Session restaurée au redémarrage.</p></article>
+      <article class="card"><span class="ico">▶️</span><h3>Picture-in-Picture</h3><p>Un bouton discret apparaît au survol de chaque vidéo pour la détacher en fenêtre flottante au-dessus de tes autres programmes.</p></article>
+      <article class="card"><span class="ico">🕒</span><h3>Horloge &amp; météo</h3><p>Heure locale et température de ta ville, avec une petite icône animée du temps qu'il fait, en haut à droite.</p></article>
+      <article class="card"><span class="ico">⭐</span><h3>Historique &amp; favoris</h3><p>Historique, favoris, barre de favoris et téléchargements, conservés uniquement dans ton profil Windows.</p></article>
+      <article class="card"><span class="ico">🛠️</span><h3>Outils de développement</h3><p>DevTools Chromium (F12), analyse réseau, connexion GitHub et mode IE11 pour les anciens sites qui l'exigent encore.</p></article>
+      <article class="card"><span class="ico">🔄</span><h3>Mises à jour automatiques</h3><p>Les nouvelles versions se téléchargent en arrière-plan. Un clic sur « Redémarrer et mettre à jour » et tes onglets reviennent.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="securite">
+  <div class="wrap">
+    <div class="head"><p class="kicker">02 — Sécurité &amp; confidentialité</p><h2>Protégé par conception,<br><span class="grad">pas en option.</span></h2>
+      <p>La sécurité de DevGitBrowser repose sur plusieurs couches indépendantes. Si l'une est contournée, les autres continuent de te protéger.</p></div>
+
+    <div class="sec-grid">
+      <div class="layer"><h3><span>01</span> Isolation des pages</h3><p>Chaque site tourne dans un processus <b>sandboxé</b> Chromium, isolé du reste (<code>contextIsolation</code>, sans accès à Node.js). Une page piégée ne peut pas atteindre ton PC.</p></div>
+      <div class="layer"><h3><span>02</span> Verrous du moteur</h3><p>Les « fusibles » Electron sont verrouillés : impossible de détourner le navigateur en ligne de commande (<code>RunAsNode</code>, <code>--inspect</code> et <code>NODE_OPTIONS</code> désactivés). Les cookies sont chiffrés.</p></div>
+      <div class="layer"><h3><span>03</span> Anti-hameçonnage</h3><p>Les domaines de phishing et de malwares connus sont bloqués avec un avertissement clair avant même le chargement de la page.</p></div>
+      <div class="layer"><h3><span>04</span> HTTPS prioritaire &amp; DNS chiffré</h3><p>Passage automatique en HTTPS et résolution DNS chiffrée (DNS-over-HTTPS) pour que ton fournisseur d'accès ne voie pas les sites demandés.</p></div>
+      <div class="layer"><h3><span>05</span> Anti-pistage</h3><p>Signal <b>Global Privacy Control</b> et « Do Not Track », protection WebRTC de ton IP locale, User-Agent Chrome standard et blocage des traqueurs par DevGitShield.</p></div>
+      <div class="layer"><h3><span>06</span> Permissions sous contrôle</h3><p>Caméra, micro, position et notifications : chaque site doit te demander. Avertissement avant d'ouvrir un fichier exécutable ou une application externe.</p></div>
+      <div class="layer"><h3><span>07</span> Coffre chiffré local</h3><p>Mots de passe chiffrés en AES-256-GCM, clé dérivée avec <b>scrypt</b> à partir de ton mot de passe maître, avec en plus la protection Windows (DPAPI).</p></div>
+      <div class="layer"><h3><span>08</span> Extensions vérifiées</h3><p>Chaque extension de la boutique est contrôlée par empreinte <b>SHA-256</b>. La connexion au serveur est épinglée et aucun fichier ne peut s'écrire hors de son dossier.</p></div>
+      <div class="layer"><h3><span>09</span> Statistiques facultatives</h3><p>Les statistiques anonymes ne sont envoyées qu'avec ton accord : jamais les sites visités, jamais ton adresse IP. Tu peux tout désactiver dans les paramètres.</p></div>
+    </div>
+
+    <div class="privacy-strip">
+      <div><b>Tes données restent chez toi.</b> Historique, favoris, mots de passe et paramètres sont stockés uniquement dans ton profil Windows. Pas de compte, pas de cloud, pas de revente.</div>
+      <a class="btn btn-ghost" href="https://github.com/hempreur/DevGitBrowser" target="_blank" rel="noopener">Voir le code source</a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="boutique">
+  <div class="wrap store">
+    <div class="store-copy">
+      <p class="kicker">03 — DevGit Store</p>
+      <h2>Ajoute des fonctions<br><span class="grad">en un clic.</span></h2>
+      <p>La boutique d'extensions est intégrée au navigateur : ouvre le panneau Extensions, choisis, installe. Les mises à jour se font ensuite toutes seules.</p>
+      <ol class="steps-inline">
+        <li><b>Parcours</b> le catalogue et recherche une extension</li>
+        <li><b>Vérifie</b> les autorisations demandées avant l'installation</li>
+        <li><b>Profite</b> des mises à jour automatiques toutes les 6 heures</li>
+      </ol>
+    </div>
+    <div class="store-mock" aria-hidden="true">
+      <div class="sm-head"><b>🧩 Extensions disponibles</b><span>DevGit Store</span></div>
+      <div class="sm-search">Rechercher une extension…</div>
+      <div class="sm-item"><i style="--h:30">MP</i><div><b>MatchPulse</b><small>Suivi de matchs et alertes</small></div><em class="ok">INCLUSE</em></div>
+      <div class="sm-item"><i style="--h:200">EX</i><div><b>Tes extensions</b><small>Publiées par CodexHempreur</small></div><em>Installer</em></div>
+      <div class="sm-foot">🔒 Paquets vérifiés par empreinte SHA-256</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="fiche">
+  <div class="wrap">
+    <div class="head"><p class="kicker">04 — Fiche technique</p><h2>Le dos de la boîte.</h2></div>
+    <div class="spec">
+      <dl>
+        <div><dt>Système</dt><dd>Windows 10 ou Windows 11, 64 bits</dd></div>
+        <div><dt>Moteur</dt><dd>Chromium (via Electron), plus le mode IE11 (MSHTML) pour les anciens sites</dd></div>
+        <div><dt>Langue</dt><dd>Français</dd></div>
+        <div><dt>Prix</dt><dd>Gratuit, sans abonnement ni publicité</dd></div>
+        <div><dt>Espace disque</dt><dd>Environ 500 Mo après installation</dd></div>
+        <div><dt>Mémoire conseillée</dt><dd>4 Go de RAM minimum, 8 Go recommandés</dd></div>
+        <div><dt>Mises à jour</dt><dd>Automatiques, via GitHub Releases</dd></div>
+        <div><dt>Code source</dt><dd><a href="https://github.com/hempreur/DevGitBrowser" target="_blank" rel="noopener">github.com/hempreur/DevGitBrowser</a></dd></div>
+        <div><dt>Éditeur</dt><dd>CodexHempreur INC</dd></div>
+        <div><dt>Version actuelle</dt><dd>v<b class="ver">1.9.1</b> · <span class="rel-date">novembre 2026</span></dd></div>
+      </dl>
+      <div class="spec-side">
+        <img src="assets/icon.png" alt="Icône DevGitBrowser" width="140" height="140">
+        <a class="btn btn-primary dl-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest">Télécharger v<b class="ver">1.9.1</b></a>
+        <a class="link" href="https://github.com/hempreur/DevGitBrowser/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Notes de version →</a>
       </div>
     </div>
-  </header>
+  </div>
+</section>
 
-  <main id="contenu">
-    <section class="hero section-hero" aria-labelledby="hero-title">
-      <div class="hero-glow hero-glow-left" aria-hidden="true"></div><div class="hero-glow hero-glow-right" aria-hidden="true"></div>
-      <div class="hero-grid container">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="line-pulse"></span> LE NAVIGATEUR QUI VOIT PLUS LOIN <span class="eyebrow-end">/ 01</span></div>
-          <h1 id="hero-title">Le web,<br><span class="gradient-type">à ta façon.</span></h1>
-          <p class="hero-lead">Plus qu'un navigateur. Une expérience conçue pour aller plus loin : protection avancée, extensions, outils puissants et liberté de personnaliser ton web.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary btn-large" href="https://github.com/hempreur/DevGitBrowser/releases/download/v1.9.1/DevGitBrowser-Setup-1.9.1.exe" data-release-download><svg class="ico"><use href="#i-download"/></svg> Télécharger pour Windows <svg class="ico arrow"><use href="#i-arrow"/></svg></a>
-            <a class="btn btn-outline btn-large" href="#fonctionnalites">Découvrir <svg class="ico arrow"><use href="#i-arrow"/></svg></a>
-          </div>
-          <div class="hero-meta"><span><svg class="ico"><use href="#i-windows"/></svg> Windows 10/11 · 64 bits</span><span class="meta-divider"></span><span class="status-green"><span class="status-dot"></span><span data-version-label>Version 1.9.1</span> disponible</span></div>
-          <p class="hero-footnote">Téléchargement officiel via GitHub Releases. Installation sur ton PC, mises à jour automatiques.</p>
-        </div>
-        <div class="hero-stage" aria-label="Aperçu conceptuel de l'interface DevGitBrowser">
-          <div class="orb orb-one" aria-hidden="true"></div><div class="orb orb-two" aria-hidden="true"></div>
-          <div class="stage-badge stage-badge-top"><span class="badge-mini-icon"><svg class="ico"><use href="#i-shield"/></svg></span><span><strong>DevGitShield</strong><small>Protection active</small></span><span class="tiny-ok">✓</span></div>
-          <div class="browser-window" id="browser-demo">
-            <div class="browser-top"><div class="browser-mark"><img src="assets/logo-mark.png" width="28" height="28" alt=""><span>DEV<span>GIT</span></span></div><div class="browser-tabs"><span class="browser-tab active"><span class="tab-fav">✦</span> Nouvel onglet <span class="tab-close">×</span></span><span class="browser-tab off">DevGit Store</span><span class="browser-plus">+</span></div><div class="browser-controls">— □ ×</div></div>
-            <div class="browser-toolbar"><span class="toolbar-arr">‹</span><span class="toolbar-arr">›</span><span class="toolbar-arr">↻</span><div class="browser-address"><span class="address-secure">◈</span> devgit://welcome <span class="address-star">☆</span></div><span class="toolbar-button"><svg class="ico"><use href="#i-shield"/></svg></span><span class="toolbar-button"><svg class="ico"><use href="#i-grid"/></svg></span></div>
-            <div class="browser-screen">
-              <div class="browser-screen-glow"></div><div class="screen-grid"></div>
-              <div class="screen-center"><img src="assets/logo-mark.png" alt="" class="screen-logo" width="82" height="82"><span class="screen-welcome">BIENVENUE SUR DEVGITBROWSER</span><h2>Ton espace.<br><em>Sans limites.</em></h2><div class="fake-search"><span>⌕</span> Recherche ou saisis une adresse… <span class="fake-enter">↗</span></div><div class="fake-pills"><span>✧ DevGitShield</span><span>▦ DevGit Store</span><span>◈ VPN</span></div></div>
-              <div class="screen-shortcuts"><div><svg class="ico"><use href="#i-code"/></svg> Développer</div><div><svg class="ico"><use href="#i-lock"/></svg> Confidentialité</div><div><svg class="ico"><use href="#i-video"/></svg> Picture-in-Picture</div></div>
-            </div>
-            <div class="browser-status"><span><i></i> Sécurisé · DevGitShield actif</span><span>By CodexHempreur</span></div>
-          </div>
-          <div class="stage-badge stage-badge-bottom"><span class="badge-mini-icon violet"><svg class="ico"><use href="#i-grid"/></svg></span><span><strong>DevGit Store</strong><small>Tout ton univers, en un clic.</small></span><span class="badge-spark">✦</span></div>
-          <div class="stage-caption">UN AVANT-GOÛT DE L'EXPÉRIENCE <span>·</span> INTERFACE ILLUSTRATIVE</div>
-        </div>
+<section class="sec" id="installation">
+  <div class="wrap">
+    <div class="head"><p class="kicker">05 — Tutoriel d'installation</p><h2>Installer DevGitBrowser<br><span class="grad">en 2 minutes.</span></h2>
+      <p>Windows va afficher un ou deux avertissements pendant l'installation. <b>C'est normal</b>, et voici pourquoi.</p></div>
+
+    <div class="reassure">
+      <div class="reassure-ico">🛡️</div>
+      <div>
+        <h3>Pourquoi Windows affiche un avertissement ?</h3>
+        <p>Windows affiche une alerte pour <b>tout programme qui n'a pas de « signature numérique »</b>. Ce certificat coûte plusieurs centaines d'euros par an, et DevGitBrowser est un projet gratuit et indépendant qui n'en a pas encore. L'alerte ne veut <b>pas</b> dire que le fichier est dangereux, seulement que Windows ne connaît pas encore son éditeur.</p>
+        <ul class="ticks">
+          <li>L'installateur est compilé <b>automatiquement et publiquement</b> par GitHub Actions, à partir du code source visible par tous</li>
+          <li>Télécharge-le <b>uniquement</b> depuis ce site ou depuis la page GitHub officielle</li>
+          <li>Pour une vérification supplémentaire, tu peux l'analyser gratuitement sur <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a> avant de l'ouvrir</li>
+        </ul>
       </div>
-      <div class="hero-scroll container"><span>SCROLL POUR EXPLORER</span><div class="scroll-line"></div><span>↓</span></div>
-    </section>
+    </div>
 
-    <div class="features-ribbon" aria-label="Fonctionnalités principales"><div class="ribbon-content"><span><svg class="ico"><use href="#i-shield"/></svg> DEVGITSHIELD</span><i></i><span><svg class="ico"><use href="#i-grid"/></svg> DEVGIT STORE</span><i></i><span><svg class="ico"><use href="#i-globe"/></svg> VPN TOR</span><i></i><span><svg class="ico"><use href="#i-lock"/></svg> COFFRE CHIFFRÉ</span><i></i><span><svg class="ico"><use href="#i-code"/></svg> OUTILS DÉVELOPPEUR</span></div></div>
+    <ol class="tuto">
+      <li class="step">
+        <div class="step-txt"><span class="num">1</span><h3>Télécharge l'installateur</h3>
+          <p>Clique sur <b>« Télécharger pour Windows »</b>. Tu récupères le fichier <code>DevGitBrowser-Setup-<span class="ver">1.9.1</span>.exe</code>.</p>
+          <p class="note">Si Edge ou Chrome indique que le fichier <i>« n'est pas couramment téléchargé »</i>, clique sur <b>« ··· »</b> à côté du fichier, puis sur <b>« Conserver »</b> et <b>« Conserver quand même »</b>.</p></div>
+        <figure class="shot"><div class="mock mock-dl">
+          <div class="mdl-row"><span class="mdl-file">📄</span><div><b>DevGitBrowser-Setup-<span class="ver">1.9.1</span>.exe</b><small>Ce fichier n'est pas couramment téléchargé.</small></div><span class="mdl-dots hl">···</span></div>
+          <div class="mdl-menu"><span>Supprimer</span><span class="hl">Conserver</span><span>Signaler ce fichier</span></div>
+        </div><figcaption>Illustration : avertissement de téléchargement (Edge/Chrome)</figcaption></figure>
+      </li>
+      <li class="step">
+        <div class="step-txt"><span class="num">2</span><h3>« Windows a protégé votre ordinateur »</h3>
+          <p>En ouvrant le fichier, une fenêtre bleue Microsoft Defender SmartScreen peut apparaître. Elle s'affiche pour toutes les applications non signées.</p>
+          <p class="note">Clique sur <b>« Informations complémentaires »</b>, puis sur le bouton <b>« Exécuter quand même »</b> qui apparaît en bas.</p></div>
+        <figure class="shot"><div class="mock mock-ss">
+          <b class="ss-title">Windows a protégé votre ordinateur</b>
+          <p>Microsoft Defender SmartScreen a empêché le démarrage d'une application non reconnue…</p>
+          <span class="ss-link hl">Informations complémentaires</span>
+          <p class="ss-small">Application : DevGitBrowser-Setup-<span class="ver">1.9.1</span>.exe<br>Éditeur : Éditeur inconnu</p>
+          <div class="ss-btns"><span class="hl">Exécuter quand même</span><span>Ne pas exécuter</span></div>
+        </div><figcaption>Illustration : écran SmartScreen (l'apparence varie selon ta version de Windows)</figcaption></figure>
+      </li>
+      <li class="step">
+        <div class="step-txt"><span class="num">3</span><h3>Autorise l'installation</h3>
+          <p>Windows demande : <i>« Voulez-vous autoriser cette application à apporter des modifications à votre appareil ? »</i> avec <b>Éditeur : inconnu</b>. C'est pour la même raison : l'absence de signature.</p>
+          <p class="note">Clique sur <b>« Oui »</b>.</p></div>
+        <figure class="shot"><div class="mock mock-uac">
+          <div class="uac-top">Contrôle de compte d'utilisateur</div>
+          <b>Voulez-vous autoriser cette application provenant d'un éditeur inconnu à apporter des modifications à votre appareil ?</b>
+          <p class="uac-app"><img src="assets/icon.png" alt="" width="28" height="28"><span>DevGitBrowser-Setup-<span class="ver">1.9.1</span>.exe<br><small>Éditeur : Inconnu · Origine du fichier : disque dur</small></span></p>
+          <div class="uac-btns"><span class="hl">Oui</span><span>Non</span></div>
+        </div><figcaption>Illustration : contrôle de compte d'utilisateur (UAC)</figcaption></figure>
+      </li>
+      <li class="step">
+        <div class="step-txt"><span class="num">4</span><h3>Suis l'assistant</h3>
+          <p>Choisis le dossier d'installation (celui proposé convient très bien) puis clique sur <b>« Installer »</b>. Un raccourci est créé sur le bureau et dans le menu Démarrer.</p></div>
+        <figure class="shot"><div class="mock mock-setup">
+          <div class="set-head"><img src="assets/logo-mark.png" alt="" width="34" height="34"><b>Installation de DevGitBrowser</b></div>
+          <div class="set-bar"><i></i></div><small>Extraction des fichiers…</small>
+          <div class="set-btns"><span>Annuler</span><span class="hl">Installer</span></div>
+        </div><figcaption>Illustration : assistant d'installation</figcaption></figure>
+      </li>
+      <li class="step">
+        <div class="step-txt"><span class="num">5</span><h3>C'est prêt !</h3>
+          <p>DevGitBrowser s'ouvre sur un message de bienvenue. Les avertissements Windows ne réapparaîtront plus : les mises à jour suivantes s'installent toutes seules, en un clic.</p>
+          <p class="note">Astuce : choisis un thème dans le menu ☰ et active le VPN avec 🌐.</p></div>
+        <figure class="shot"><div class="mock mock-ready"><img src="assets/brand-source.png" alt=""><b>Bienvenue sur DevGitBrowser</b><small>Ton espace. Sans limites.</small></div><figcaption>Premier lancement</figcaption></figure>
+      </li>
+    </ol>
+  </div>
+</section>
 
-    <section class="section section-features" id="fonctionnalites" aria-labelledby="features-title">
-      <div class="container">
-        <div class="section-heading heading-split"><div><span class="kicker"><span class="kicker-box">01</span> UN NAVIGATEUR. DES POSSIBILITÉS.</span><h2 id="features-title">Tout ce qu'il te faut.<br><span class="gradient-type">Rien de superflu.</span></h2></div><p>Un navigateur pensé pour la navigation quotidienne, la personnalisation et les utilisateurs qui aiment garder le contrôle.</p></div>
-        <div class="bento-grid">
-          <article class="feature-card feature-shield"><div class="card-top"><span class="feature-icon cyan"><svg class="ico"><use href="#i-shield"/></svg></span><span class="card-index">01 / PROTECTION</span></div><div class="shield-visual" aria-hidden="true"><div class="shield-halo"><svg class="ico"><use href="#i-shield"/></svg></div><div class="visual-scan"></div><span class="visual-label">PROTECTION EN COURS <span>●</span></span></div><div class="card-bottom"><h3>DevGitShield</h3><p>Blocage des publicités, traceurs et nuisances, avec des listes de filtres actualisées et un contrôle site par site.</p><a class="text-link" href="#protection">Découvrir la protection <svg class="ico"><use href="#i-arrow"/></svg></a></div></article>
-          <article class="feature-card feature-store"><div class="card-top"><span class="feature-icon pink"><svg class="ico"><use href="#i-grid"/></svg></span><span class="card-index">02 / PERSONNALISATION</span></div><div class="store-visual" aria-hidden="true"><div class="store-mini mini-violet"><svg class="ico"><use href="#i-zap"/></svg><span>MatchPulse</span></div><div class="store-mini mini-blue"><svg class="ico"><use href="#i-video"/></svg><span>DevGit Video</span></div><div class="store-mini mini-mint"><svg class="ico"><use href="#i-grid"/></svg><span>+ Extensions</span></div></div><div class="card-bottom"><h3>DevGit Store</h3><p>Ta boutique d'extensions intégrée. Recherche, installe et mets à jour tes extensions directement dans le navigateur.</p><a class="text-link" href="#boutique">Explorer la boutique <svg class="ico"><use href="#i-arrow"/></svg></a></div></article>
-          <article class="feature-card feature-vpn"><div class="card-top"><span class="feature-icon violet"><svg class="ico"><use href="#i-globe"/></svg></span><span class="card-index">03 / CONNECTIVITÉ</span></div><div class="globe-visual" aria-hidden="true"><div class="globe-rings"><div class="globe-core">◎</div></div><div class="globe-caption">RÉSEAU TOR<br><span>CONNEXION À LA DEMANDE</span></div></div><div class="card-bottom"><h3>VPN DevGit</h3><p>Accès au réseau Tor depuis le navigateur, avec sélection d'un pays de sortie et contrôle de la connexion.</p></div></article>
-          <article class="feature-card feature-small"><div class="card-top"><span class="feature-icon violet"><svg class="ico"><use href="#i-lock"/></svg></span><span class="card-index">04 / VIE PRIVÉE</span></div><h3>Coffre de mots de passe</h3><p>Stockage chiffré, mot de passe maître et remplissage sur demande. Tes données restent dans ton profil Windows.</p><span class="tiny-pill"><span class="tiny-led"></span> CHIFFREMENT LOCAL</span></article>
-          <article class="feature-card feature-small"><div class="card-top"><span class="feature-icon blue"><svg class="ico"><use href="#i-code"/></svg></span><span class="card-index">05 / DÉVELOPPEMENT</span></div><h3>Outils réseau & DevTools</h3><p>Inspection des requêtes, outils Chromium et compatibilité IE11 pour certains anciens sites Windows.</p><span class="tiny-pill"><span class="tiny-led"></span> POUR LES CURIEUX</span></article>
-          <article class="feature-card feature-small"><div class="card-top"><span class="feature-icon pink"><svg class="ico"><use href="#i-fullscreen"/></svg></span><span class="card-index">06 / MULTITÂCHE</span></div><h3>Picture-in-Picture</h3><p>Garde tes vidéos en fenêtre flottante. Détache et rattache les onglets pour organiser ton espace de travail.</p><span class="tiny-pill"><span class="tiny-led"></span> LIBERTÉ D'AFFICHAGE</span></article>
-        </div>
+<section class="sec x-sec" id="zone18" aria-labelledby="x-title">
+  <div class="wrap x-in">
+    <div class="x-copy">
+      <p class="kicker x-kicker">06 — Zone réservée aux adultes · 18+</p>
+      <h2 id="x-title">DGBx, <span class="x-grad">le mode caché.</span></h2>
+      <p>DevGitBrowser intègre un mode secret réservé aux <b>personnes majeures</b> : une interface dédiée, sombre et élégante, qui regroupe des plateformes adultes <b>légales et connues</b>, classées par catégorie, avec recherche et favoris.</p>
+      <ul class="ticks x-ticks">
+        <li><b>Invisible par défaut</b> : aucun bouton ni menu, il ne s'ouvre qu'avec une commande secrète</li>
+        <li><b>Confirmation de majorité</b> obligatoire à la première ouverture</li>
+        <li><b>Code d'accès</b> facultatif (4 à 8 chiffres), avec blocage après plusieurs erreurs</li>
+        <li><b>Navigation privée</b> : rien dans l'historique ni dans la session restaurée, et tout se ferme en un clic sur « Quitter DGBx »</li>
+        <li>Les plateformes sont seulement listées : DevGitBrowser n'héberge aucun contenu</li>
+      </ul>
+      <div class="x-gate" id="x-gate">
+        <p>La commande d'accès est réservée aux personnes majeures.</p>
+        <button class="btn x-btn" id="x-reveal" type="button">J'ai 18 ans ou plus, afficher la commande</button>
+        <div class="x-cmd hidden" id="x-cmd">Tape <code>%SxOnSite%</code> dans la barre d'adresse de DevGitBrowser, puis appuie sur Entrée.</div>
       </div>
-    </section>
+      <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton ordinateur, active un <b>code d'accès</b> DGBx et le contrôle parental de Windows (Microsoft Family Safety).</p>
+    </div>
+    <div class="x-visual" aria-hidden="true">
+      <div class="x-card"><img src="assets/logo-dgbx.png" alt=""><span class="x-18">18+</span></div>
+    </div>
+  </div>
+</section>
 
-    <section class="section section-protection" id="protection" aria-labelledby="shield-title">
-      <div class="container protection-grid"><div class="protection-visual" aria-hidden="true"><div class="large-ring ring-outer"></div><div class="large-ring ring-inner"></div><div class="protection-core"><svg class="ico"><use href="#i-shield"/></svg></div><span class="scan-label scan-top">[ DEV GIT SHIELD ]</span><span class="scan-label scan-bottom">PROTECTION / ACTIVÉE</span><div class="protect-chip chip-one">✓ Contrôle par site</div><div class="protect-chip chip-two">✓ Listes mises à jour</div></div><div class="protection-copy"><span class="kicker"><span class="kicker-box">02</span> PROTECTION INTÉGRÉE</span><h2 id="shield-title">Navigue léger.<br><span class="gradient-type">Reste aux commandes.</span></h2><p>Avec DevGitShield, le blocage est intégré au navigateur, sans extension supplémentaire. Il combine filtrage réseau et règles cosmétiques pour une navigation plus agréable.</p><div class="checks"><div><svg class="ico"><use href="#i-check"/></svg> Listes compatibles EasyList et uBlock Origin</div><div><svg class="ico"><use href="#i-check"/></svg> Protections dédiées à YouTube et Twitch</div><div><svg class="ico"><use href="#i-check"/></svg> Pause du filtrage pour un site donné</div><div><svg class="ico"><use href="#i-check"/></svg> Contrôle des permissions et HTTPS prioritaire</div></div><p class="fine-print">Comme tout bloqueur, DevGitShield ne peut pas garantir le blocage de 100 % des publicités. Le moteur IE historique ne bénéficie pas du filtrage Chromium.</p></div></div>
-    </section>
+<section class="sec" id="faq">
+  <div class="wrap faq">
+    <div class="head"><p class="kicker">07 — Questions fréquentes</p><h2>Les bonnes questions.</h2></div>
+    <div class="faq-list">
+      <details><summary>DevGitBrowser est-il vraiment gratuit ?</summary><p>Oui, entièrement. Pas d'abonnement, pas de version payante, pas de publicité. Le code source est public sur GitHub.</p></details>
+      <details><summary>Est-ce que l'installateur contient un virus ?</summary><p>Non. L'avertissement de Windows vient uniquement de l'absence de signature numérique payante. L'installateur est compilé automatiquement par GitHub Actions à partir du code public, et tu peux le vérifier sur VirusTotal avant de l'ouvrir.</p></details>
+      <details><summary>Mes données sont-elles envoyées quelque part ?</summary><p>Non. Historique, favoris, mots de passe et paramètres restent sur ton PC. Seules des statistiques anonymes (version, pays, temps d'utilisation) peuvent être envoyées, et uniquement si tu l'acceptes.</p></details>
+      <details><summary>Le VPN est-il aussi rapide qu'un VPN payant ?</summary><p>Non : il utilise le réseau Tor, gratuit et très respectueux de la vie privée mais plus lent. Il convient parfaitement pour masquer ton IP en navigation, moins pour la vidéo en haute définition.</p></details>
+      <details><summary>DevGitShield bloque-t-il 100 % des publicités ?</summary><p>Aucun bloqueur ne peut le garantir, car les sites modifient régulièrement leurs systèmes. Les listes sont mises à jour chaque jour, et tu peux mettre le blocage en pause sur un site en un clic.</p></details>
+      <details><summary>Comment désinstaller DevGitBrowser ?</summary><p>Paramètres Windows → Applications → Applications installées → DevGitBrowser → Désinstaller.</p></details>
+      <details><summary>Fonctionne-t-il sur Mac ou Linux ?</summary><p>Pas pour le moment : DevGitBrowser est conçu pour Windows 10 et 11 en 64 bits.</p></details>
+      <details><summary>J'ai trouvé un bug, que faire ?</summary><p>Signale-le sur <a href="https://github.com/hempreur/DevGitBrowser/issues" target="_blank" rel="noopener">GitHub</a> ou sur le serveur Discord de la communauté (section ci-dessous).</p></details>
+    </div>
+  </div>
+</section>
 
-    <section class="section section-ecosystem" id="boutique" aria-labelledby="ecosystem-title"><div class="container"><div class="section-heading center-heading"><span class="kicker"><span class="kicker-box">03</span> TON NAVIGATEUR. TON ÉCOSYSTÈME.</span><h2 id="ecosystem-title">Une boutique.<br><span class="gradient-type">Des possibilités infinies.</span></h2><p>Avec DevGit Store, les extensions sont à portée de clic, sans quitter DevGitBrowser. Les paquets sont vérifiés avant installation et les mises à jour se font automatiquement.</p></div><div class="ecosystem-wrap"><div class="ecosystem-glow" aria-hidden="true"></div><div class="store-showcase"><div class="store-showcase-head"><div><span class="store-tag">DEVGIT STORE</span><h3>Explore tes extensions</h3><p>Installe des fonctionnalités supplémentaires.</p></div><div class="store-top-icon"><svg class="ico"><use href="#i-grid"/></svg></div></div><div class="showcase-search">⌕ <span>Rechercher une extension…</span><kbd>⌘ K</kbd></div><div class="extension-list"><div class="extension-demo"><div class="extension-art gradient-orange"><svg class="ico"><use href="#i-zap"/></svg></div><div><strong>MatchPulse</strong><small>Suivi de matchs et alertes</small></div><span class="demo-state">INCLUSE</span></div><div class="extension-demo"><div class="extension-art gradient-pink"><svg class="ico"><use href="#i-video"/></svg></div><div><strong>DevGit Video</strong><small>MP4 / MP3 · Traitement local</small></div><span class="demo-button">INSTALLER</span></div><div class="extension-demo"><div class="extension-art gradient-blue"><svg class="ico"><use href="#i-grid"/></svg></div><div><strong>Tes prochaines extensions</strong><small>Une boutique qui évolue avec toi</small></div><span class="demo-button ghost">DÉCOUVRIR</span></div></div><div class="store-showcase-foot"><svg class="ico"><use href="#i-lock"/></svg> Paquets vérifiés par empreinte SHA-256 <span>↗</span></div></div><div class="ecosystem-aside"><span class="mini-label">INSTALLATION EN QUELQUES CLICS</span><h3>Moins de réglages.<br><span>Plus de possibilités.</span></h3><p>Découvre les extensions proposées dans la boutique et personnalise ton expérience selon tes besoins.</p><div class="store-point"><div class="point-n">01</div><div><strong>Choisis une extension</strong><small>Depuis le catalogue intégré</small></div></div><div class="store-point"><div class="point-n">02</div><div><strong>Vérifie et installe</strong><small>Autorisations et intégrité du paquet</small></div></div><div class="store-point"><div class="point-n">03</div><div><strong>Profite des mises à jour</strong><small>Suivi automatique des nouvelles versions</small></div></div></div></div><p class="demo-disclaimer">Aperçu illustratif de la boutique. Les extensions disponibles dépendent du catalogue publié.</p></div></section>
+<section class="sec sec-alt" id="communaute">
+  <div class="wrap community">
+    <div class="comm-copy">
+      <p class="kicker">08 — Communauté &amp; support</p>
+      <h2>Parlons-en<br><span class="grad">ensemble.</span></h2>
+      <p>Une question, une idée, un bug ? Rejoins la communauté DevGitBrowser sur Discord ou écris directement sur GitHub.</p>
+      <div class="comm-cards">
+        <a class="comm discord" id="discord-link" href="https://discord.com/channels/898797495142998077" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.3 18.3 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.4C.6 9 0 13.6.3 18.1a19.9 19.9 0 0 0 6 3l1.3-2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.8-9.7-3.6-13.7ZM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg>
+          <div><b>Discord</b><small id="discord-sub">Rejoindre le serveur de la communauté</small></div></a>
+        <a class="comm github" href="https://github.com/hempreur/DevGitBrowser/issues" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.2-3.1-.1-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.1 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+          <div><b>GitHub</b><small>Signaler un bug ou proposer une idée</small></div></a>
+      </div>
+    </div>
+    <div class="discord-widget">
+      <iframe src="https://discord.com/widget?id=898797495142998077&amp;theme=dark" width="100%" height="420" title="Serveur Discord DevGitBrowser" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" loading="lazy"></iframe>
+    </div>
+  </div>
+</section>
 
-    <section class="section section-more" aria-labelledby="more-title"><div class="container"><div class="section-heading heading-split"><div><span class="kicker"><span class="kicker-box">04</span> POUR ALLER ENCORE PLUS LOIN</span><h2 id="more-title">Pensé pour<br><span class="gradient-type">ton quotidien.</span></h2></div><p>Les petites fonctionnalités qui font la différence quand on passe ses journées sur le web.</p></div><div class="more-grid"><article class="more-card"><span class="more-number">01</span><span class="more-icon"><svg class="ico"><use href="#i-video"/></svg></span><h3>DevGit Video</h3><p>Extension disponible via DevGit Store : choix MP4/MP3, qualité vidéo et conversion sur le PC de l'utilisateur, pour les contenus autorisés.</p></article><article class="more-card"><span class="more-number">02</span><span class="more-icon"><svg class="ico"><use href="#i-headphones"/></svg></span><h3>Radio intégrée</h3><p>Un lecteur radio séparé pour continuer d'écouter pendant que tu navigues.</p></article><article class="more-card"><span class="more-number">03</span><span class="more-icon"><svg class="ico"><use href="#i-zap"/></svg></span><h3>Mode gaming</h3><p>Des réglages de performance et de mise en veille des onglets pour mieux gérer les ressources.</p></article><article class="more-card"><span class="more-number">04</span><span class="more-icon"><svg class="ico"><use href="#i-bookmark"/></svg></span><h3>Historique & favoris</h3><p>Retrouve tes pages, tes favoris et tes onglets, conservés dans ton profil Windows.</p></article><article class="more-card"><span class="more-number">05</span><span class="more-icon"><svg class="ico"><use href="#i-refresh"/></svg></span><h3>Mises à jour automatiques</h3><p>DevGitBrowser vérifie les nouvelles versions et propose de redémarrer pour les installer.</p></article><article class="more-card"><span class="more-number">06</span><span class="more-icon"><svg class="ico"><use href="#i-monitor"/></svg></span><h3>MatchPulse</h3><p>Extension intégrée de suivi des matchs avec notifications et lecture en consultation des tickets compatibles.</p></article></div></div></section>
+<section class="final">
+  <div class="wrap final-in">
+    <img src="assets/logo-mark.png" alt="" width="84" height="84">
+    <h2>Prêt à essayer DevGitBrowser ?</h2>
+    <p>Gratuit, sans compte, installé en deux minutes.</p>
+    <a class="btn btn-primary btn-lg dl-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest">Télécharger v<b class="ver">1.9.1</b> pour Windows</a>
+  </div>
+</section>
+</main>
 
-    <section class="section section-download" id="telecharger" aria-labelledby="download-title"><div class="container"><div class="download-panel"><div class="download-glow" aria-hidden="true"></div><div class="download-logo-wrap"><img src="assets/logo-mark.png" width="132" height="132" alt="Logo officiel DevGitBrowser"></div><div class="download-text"><span class="kicker"><span class="kicker-box">05</span> PRÊT À PASSER À LA VITESSE SUPÉRIEURE ?</span><h2 id="download-title">Le prochain onglet<br><span class="gradient-type">change tout.</span></h2><p>Rejoins l'expérience DevGitBrowser. Un installateur Windows, des outils intégrés, et tout un écosystème à explorer.</p><div class="download-cta"><a class="btn btn-primary btn-large" href="https://github.com/hempreur/DevGitBrowser/releases/download/v1.9.1/DevGitBrowser-Setup-1.9.1.exe" data-release-download><svg class="ico"><use href="#i-download"/></svg> Télécharger gratuitement <svg class="ico arrow"><use href="#i-arrow"/></svg></a><a class="text-link" href="https://github.com/hempreur/DevGitBrowser/releases/latest" target="_blank" rel="noopener noreferrer">Voir la release officielle <svg class="ico"><use href="#i-arrow-up"/></svg></a></div><p class="download-info"><svg class="ico"><use href="#i-windows"/></svg> Windows 10 / 11 · 64 bits · <span data-version-label>Version 1.9.1</span> <span class="download-sep">·</span> Installation .exe via GitHub</p></div></div></div></section>
-
-    <section class="section section-faq" id="questions" aria-labelledby="faq-title"><div class="container faq-layout"><div><span class="kicker"><span class="kicker-box">06</span> BESOIN DE SAVOIR</span><h2 id="faq-title">Les bonnes<br><span class="gradient-type">questions.</span></h2><p>On a rassemblé l'essentiel avant que tu te lances.</p><a class="text-link" href="https://github.com/hempreur/DevGitBrowser/issues" target="_blank" rel="noopener noreferrer">Signaler un problème <svg class="ico"><use href="#i-arrow-up"/></svg></a></div><div class="faq-list"><details><summary>DevGitBrowser fonctionne sur quels systèmes ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>DevGitBrowser est conçu pour Windows 10 et Windows 11 en version 64 bits. Le dépôt ne fournit pas actuellement d'installateur officiel macOS ou Linux.</p></details><details><summary>Comment installer DevGitBrowser ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>Clique sur « Télécharger ». Tu récupéreras l'installateur Windows officiel depuis GitHub Releases. Exécute le fichier .exe et suis l'assistant d'installation.</p></details><details><summary>Les mises à jour sont-elles automatiques ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>Oui. Le navigateur vérifie les mises à jour au démarrage et périodiquement, puis te propose de redémarrer pour appliquer une version téléchargée.</p></details><details><summary>Mes données de navigation vont-elles sur le VPS ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>L'historique, les favoris et les paramètres sont conservés dans ton profil Windows. Les statistiques anonymes sont facultatives et nécessitent ton consentement ; le VPS sert également la boutique d'extensions.</p></details><details><summary>Comment fonctionne DevGit Store ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>Ouvre le panneau Extensions de DevGitBrowser. La boutique affiche les extensions publiées sur le serveur DevGit : tu peux consulter leurs autorisations et les installer directement. Les paquets sont vérifiés avant installation.</p></details><details><summary>Les vidéos sont-elles converties sur le serveur ?<svg class="ico"><use href="#i-chevron"/></svg></summary><p>Non. Pour DevGit Video (version 2.0), la boutique ne distribue que l'extension. Les opérations de téléchargement et de conversion s'effectuent localement sur le PC Windows, avec les outils embarqués dans DevGitBrowser 1.9.1 ou plus récent.</p></details></div></div></section>
-  </main>
-
-  <footer class="footer"><div class="container"><div class="footer-main"><div class="footer-brand"><a class="brand" href="#top"><img class="brand-logo" src="assets/logo-mark.png" width="46" height="46" alt=""><span class="brand-type">DEV<span>GIT</span><small>BROWSER</small></span></a><p>Ton web. Tes outils. Tes règles.<br>Une création CodexHempreur INC.</p></div><div class="footer-links"><div><h3>EXPLORER</h3><a href="#fonctionnalites">Fonctionnalités</a><a href="#protection">DevGitShield</a><a href="#boutique">DevGit Store</a><a href="#questions">FAQ</a></div><div><h3>PROJET</h3><a href="https://github.com/hempreur/DevGitBrowser" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="https://github.com/hempreur/DevGitBrowser/releases" target="_blank" rel="noopener noreferrer">Téléchargements ↗</a><a href="https://github.com/hempreur/DevGitBrowser/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Notes de version ↗</a><a href="https://github.com/hempreur/DevGitBrowser/issues" target="_blank" rel="noopener noreferrer">Signaler un bug ↗</a></div></div></div><div class="footer-bottom"><span>© <span id="year">2026</span> CodexHempreur INC. Tous droits réservés.</span><span>DESIGN : NEON / CHROMIUM / WINDOWS</span><a href="#top">REMONTER ↑</a></div></div></footer>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand"><img src="assets/logo-mark.png" alt="" width="32" height="32"><div><b>DevGitBrowser</b><small>© <span id="year">2026</span> CodexHempreur INC</small></div></div>
+    <nav aria-label="Liens de pied de page">
+      <a href="https://github.com/hempreur/DevGitBrowser" target="_blank" rel="noopener">Code source</a>
+      <a href="https://github.com/hempreur/DevGitBrowser/releases" target="_blank" rel="noopener">Toutes les versions</a>
+      <a href="https://github.com/hempreur/DevGitBrowser/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Nouveautés</a>
+      <a href="#installation">Installation</a>
+      <a href="#communaute">Support</a>
+    </nav>
+    <p class="foot-note">DevGitBrowser n'est pas affilié à Google, Microsoft ni au projet Tor. Chromium est une marque de Google LLC. Windows est une marque de Microsoft Corporation.</p>
+  </div>
+</footer>
+<script src="script.js" defer></script>
 </body>
 </html>
