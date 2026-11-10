@@ -1,3 +1,11 @@
+## 1.9.1 — DevGit Video local (extension DevGit Store)
+
+- DevGit Store continue à distribuer les extensions depuis le VPS. **Aucune vidéo, URL vidéo ou opération de conversion ne passe par le VPS.**
+- Nouvelle extension `extensions/devgit-video/` installable depuis DevGit Store : bouton MP4/MP3 sur YouTube/Shorts, sélecteur de résolution / débit audio, enregistrement Windows.
+- Le moteur yt-dlp + FFmpeg s'exécute **uniquement sur le PC Windows de l'utilisateur**, dans le processus local DevGitBrowser. Les exécutables officiels sont téléchargés et vérifiés à la compilation de l'installateur, et fournis avec le navigateur.
+- Confirmation native du chemin de sauvegarde, vérification stricte des identifiants YouTube, validation du format et de la qualité, sans commande shell arbitraire. Installation de la version 1.9.1 nécessaire avant d'utiliser l'extension depuis la boutique.
+- Limites : disponibilité des vidéos dépend de YouTube et des droits d'utilisation ; aucune conversion sans consentement de l'utilisateur. La qualité de réencodage MP3 n'améliore pas celle de la source.
+
 ## 1.9.0 — DevGit Store : boutique d'extensions hébergée sur le serveur DevGit
 
 ### Nouveautés
