@@ -10,10 +10,11 @@
 <body>
 <header id="chrome">
   <div class="tab-row">
-    <div class="brand" aria-label="DevGitBrowser"><img class="brand-image" src="../assets/logo-mark.png" alt="Logo DevGitBrowser"><span class="brand-word">DEV<span>GIT</span></span></div>
+    <div class="brand" aria-label="DevGitBrowser"><span class="brand-logo"><img class="brand-image" src="../assets/logo-mark.png" alt="Logo DevGitBrowser"></span><span class="brand-word">DEV<span>GIT</span></span></div>
     <div id="tabs" class="tabs" role="tablist" aria-label="Onglets"></div>
     <button class="tab-add" id="add-tab" title="Nouvel onglet (Ctrl+T)" aria-label="Nouvel onglet"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     <div class="tab-drop-space" id="tab-drop-space"></div>
+    <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b></span><span id="clock" class="clock">--:--</span></div>
   </div>
   <div class="nav-row">
     <div class="nav-cluster">
@@ -37,11 +38,11 @@
       <button id="extensions-button" class="nav-tool icon" title="Extensions (MatchPulse…)" aria-label="Extensions"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><em id="extension-counter">0</em></button>
       <button id="legacy-button" class="nav-tool small hidden" title="Moteur IE intégré (sites anciens)">IE</button>
       <button id="x-exit" class="nav-tool x-exit hidden" title="Quitter le mode DGBx (onglets du mode fermés)">Quitter DGBx</button>
-      <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b></span><span id="clock" class="clock">--:--</span></div>
       <button id="menu-button" class="nav-tool icon menu-button" title="Menu DevGitBrowser" aria-label="Menu"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg><i id="menu-dot" class="menu-dot hidden"></i></button>
     </div>
   </div>
   <nav id="bookmarks-bar" class="bookmarks-bar" aria-label="Barre de favoris"></nav>
+  <div id="tm-banner" class="pw-banner tm-banner hidden" role="dialog" aria-label="Statistiques anonymes"><span class="pw-ico">📊</span><span>Aider à améliorer DevGitBrowser ? Envoi de <b>statistiques anonymes</b> : version, pays de Windows, temps d’utilisation et nombre de pages. Jamais les sites visités, ni ton adresse IP. Modifiable dans Paramètres → Confidentialité.</span><button id="tm-yes" class="primary small-btn" type="button">Oui, j’aide</button><button id="tm-no" class="outline small-btn" type="button">Non merci</button></div>
   <div id="pw-banner" class="pw-banner hidden" role="dialog" aria-label="Enregistrer le mot de passe"><span class="pw-ico">🔑</span><span id="pw-text">Enregistrer le mot de passe ?</span><input id="pw-master" type="password" class="hidden" placeholder="Mot de passe maître" aria-label="Mot de passe maître" autocomplete="off"><button id="pw-save" class="primary small-btn" type="button">Enregistrer</button><button id="pw-never" class="outline small-btn" type="button">Jamais pour ce site</button><button id="pw-dismiss" class="outline small-btn" type="button" aria-label="Fermer">✕</button></div>
   <div id="update-banner" class="update-banner hidden" role="status"><span id="update-text">Mise à jour prête.</span><button id="update-restart" class="primary small-btn" type="button">Redémarrer et mettre à jour</button><button id="update-later" class="outline small-btn" type="button">Plus tard</button></div>
   <div id="find-bar" class="find-bar hidden" role="search"><span class="find-ico"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M20 20l-4.6-4.6"/></svg></span><input id="find-text" type="search" placeholder="Rechercher dans cette page" aria-label="Rechercher du texte"><span id="find-count" class="find-count"></span><button id="find-prev" title="Précédent (Maj+Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button id="find-next" title="Suivant (Entrée)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button id="find-close" title="Fermer (Échap)"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
@@ -111,7 +112,7 @@
 
 <section id="panel-admin" class="panel admin-panel hidden" role="dialog" aria-label="Panneau admin">
   <div class="panel-wrap">
-    <div class="panel-header"><div><span class="kicker">ADMIN • DEVGITBROWSER</span><h2>Statistiques du navigateur</h2><p>Chiffres publics de ton dépôt GitHub, sans collecte de données sur les utilisateurs.</p></div><button class="x" id="admin-close" aria-label="Fermer">✕</button></div>
+    <div class="panel-header"><div><span class="kicker">ADMIN • DEVGITBROWSER</span><h2>Statistiques du navigateur</h2><p>Utilisateurs (statistiques anonymes envoyées avec leur accord) et téléchargements GitHub.</p></div><button class="x" id="admin-close" aria-label="Fermer">✕</button></div>
     <div id="admin-lock" class="section-card admin-lock">
       <h3>🔐 Accès admin</h3><p class="muted">Saisis ta clé admin (format DGB-XXXX-XXXX-XXXX-XXXX).</p>
       <form id="admin-unlock-form" class="inline-buttons"><input id="admin-key" class="compact-input wide" type="password" autocomplete="off" spellcheck="false" placeholder="DGB-XXXX-XXXX-XXXX-XXXX" aria-label="Clé admin"><button class="primary" type="submit">Déverrouiller</button></form>
@@ -125,10 +126,17 @@
     </div>
     <div id="admin-dash" class="hidden">
       <div class="admin-toolbar"><span id="admin-updated" class="muted"></span><button id="admin-refresh" class="outline" type="button">Actualiser</button></div>
+      <div class="section-card admin-server"><h3>🌍 Utilisateurs dans le monde</h3>
+        <div id="admin-server-setup" class="hidden"><p class="muted" id="admin-server-hint"></p><form id="admin-token-form" class="inline-buttons"><input id="admin-token" class="compact-input wide" type="password" autocomplete="off" placeholder="Jeton affiché à la fin de l’installation du serveur" aria-label="Jeton du serveur"><button class="primary" type="submit">Enregistrer</button></form></div>
+        <div id="admin-server-data" class="hidden"><div id="admin-server-kpis" class="admin-kpis"></div>
+          <div class="admin-cols"><div><h4>Utilisateurs actifs par jour (30 j)</h4><div id="admin-daily" class="admin-daily"></div></div><div><h4>Classement par pays (30 j)</h4><ol id="admin-countries" class="admin-countries"></ol></div></div>
+          <div class="admin-cols"><div><h4>Satisfaction</h4><div id="admin-rating" class="admin-rating"></div></div><div><h4>Versions utilisées</h4><div id="admin-uversions" class="admin-bars"></div></div></div>
+          <button id="admin-token-change" class="link-btn" type="button">Changer le jeton du serveur</button></div>
+      </div>
+      <h3 class="admin-sub">Téléchargements (GitHub)</h3>
       <div id="admin-kpis" class="admin-kpis"></div>
       <div class="section-card"><h3>Adoption par version</h3><div id="admin-versions" class="admin-bars"></div></div>
       <div class="section-card"><h3>Satisfaction et communauté</h3><div id="admin-community" class="admin-kpis small"></div></div>
-      <div class="section-card admin-note"><h3>Utilisateurs actifs, heures passées, pays</h3><p class="muted">Ces chiffres demandent qu’une petite mesure anonyme soit envoyée par chaque navigateur vers un serveur de statistiques. DevGitBrowser n’envoie rien pour l’instant. En attendant, « Vérifications / jour » donne une bonne idée de l’activité : chaque navigateur ouvert interroge les mises à jour au démarrage puis toutes les 4 heures.</p></div>
     </div>
   </div>
 </section>
@@ -303,6 +311,7 @@
       <div class="setting-line"><div><strong>Protection anti-hameçonnage et anti-malware</strong><p id="phishing-status">Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus (listes publiques mises à jour chaque jour, vérification locale).</p></div><label class="switch"><input type="checkbox" data-pref="phishingProtection"><span></span></label></div>
       <div class="setting-line"><div><strong>DNS sécurisé (DNS over HTTPS)</strong><p>Tes requêtes DNS sont chiffrées : ton fournisseur d’accès ne voit plus les sites consultés et ne peut pas les bloquer par DNS.</p></div><div class="inline-buttons"><select id="dns-mode" class="compact-select" aria-label="Mode DNS"><option value="automatic">Automatique</option><option value="secure">Toujours (strict)</option><option value="off">Désactivé</option></select><select id="dns-provider" class="compact-select" aria-label="Fournisseur DNS"></select></div></div>
       <div class="setting-line"><div><strong>Proposer d’enregistrer les mots de passe</strong><p>Dans le coffre chiffré local (menu ☰ → Mots de passe).</p></div><label class="switch"><input type="checkbox" data-pref="savePasswords"><span></span></label></div>
+      <div class="setting-line" id="telemetry-line"><div><strong>Statistiques anonymes</strong><p>Aide le créateur à savoir combien de personnes utilisent DevGitBrowser : version, pays de Windows, temps d’utilisation et nombre de pages, avec un identifiant aléatoire. Jamais les sites visités ni ton adresse IP. Désactiver efface l’identifiant.</p></div><label class="switch"><input type="checkbox" data-pref="telemetry"><span></span></label></div>
       <div class="setting-line"><div><strong>Mode HTTPS prioritaire</strong><p>Les adresses http:// sont d’abord ouvertes en connexion chiffrée. Si le site ne le prend pas en charge, une page te propose de continuer en HTTP.</p></div><label class="switch"><input type="checkbox" data-pref="httpsOnly"><span></span></label></div>
       <div class="setting-line"><div><strong>Signal « Ne pas vendre / partager » (GPC)</strong><p>Envoie Global Privacy Control et Do Not Track à tous les sites.</p></div><label class="switch"><input type="checkbox" data-pref="gpc"><span></span></label></div>
       <div class="setting-line"><div><strong>Protection de l’adresse IP locale (WebRTC)</strong><p>Les sites de visioconférence fonctionnent, sans pouvoir lire l’adresse IP de ton réseau local.</p></div><label class="switch"><input type="checkbox" data-pref="webrtcProtection"><span></span></label></div>
@@ -346,6 +355,7 @@
         <div class="progress hidden" id="about-progress"><span></span></div>
         <div class="form-buttons"><button id="about-check" type="button" class="primary">Rechercher des mises à jour</button><button id="about-install" type="button" class="primary hidden">Redémarrer et installer</button><button id="about-releases" type="button" class="outline">Notes de version</button></div></div>
     </div>
+    <div class="section-card" id="rate-card"><h3>Ton avis compte</h3><p class="muted" id="rate-text">Note DevGitBrowser : ta note anonyme aide à savoir si le navigateur plaît.</p><div id="rate-stars" class="rate-stars" role="radiogroup" aria-label="Note de 1 à 5"></div></div>
     <div class="section-card"><h3>Informations techniques</h3><dl id="about-table" class="about-table"></dl>
       <div class="form-buttons"><button id="about-copy" type="button" class="outline">Copier les informations de diagnostic</button><button id="about-repo" type="button" class="outline">Dépôt GitHub</button></div></div>
     <div class="section-card"><h3>Crédits et licences</h3><p>Conçu et développé par <strong>CodexHempreur INC</strong>. Basé sur Electron et Chromium. DevGitShield utilise le moteur <em>@ghostery/adblocker</em> (MPL-2.0) et les listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles. MatchPulse utilise le flux sportif public ESPN (non officiel) et, en option, API-Football. Le VPN DevGit utilise le logiciel libre Tor (The Tor Project, licence BSD) ; la radio, l’annuaire libre radio-browser.info ; la protection anti-hameçonnage, les listes malware-filter (URLhaus / PhishTank / OpenPhish).</p><p class="signature-line">By CodexHempreur</p></div>

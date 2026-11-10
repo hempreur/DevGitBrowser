@@ -1,3 +1,21 @@
+## 1.8.0 — Statistiques mondiales, météo illustrée, horloge dans la barre d'onglets
+
+### Nouveautés
+- **Serveur de statistiques** (`server/stats/`) à installer sur un VPS en une commande, avec HTTPS automatique (Caddy) et sans dépendance.
+- **Statistiques anonymes** : une bannière demande l'accord une seule fois. Le réglage est modifiable dans Paramètres → Confidentialité. Si l'utilisateur refuse, rien n'est envoyé et l'identifiant aléatoire est effacé.
+- **Panneau admin « Utilisateurs dans le monde »** :
+  - utilisateurs actifs (jour, 7 j, 30 j), total et nouveaux ;
+  - heures passées et trafic (pages ouvertes) ;
+  - classement par pays avec drapeaux ;
+  - versions utilisées ;
+  - graphique sur 30 jours ;
+  - satisfaction (note moyenne et répartition).
+  - Le jeton du serveur est stocké chiffré.
+- **Note du navigateur** (1 à 5 ★) dans À propos.
+- **Météo illustrée** : petites images animées (soleil, lune, éclaircies, nuages, brouillard, bruine, pluie, averses, neige, orage).
+- **Horloge et météo** déplacées tout en haut à droite, au niveau des onglets.
+- **Brillance du logo** : un reflet lumineux passe de gauche à droite (désactivé si Windows demande moins d'animations).
+
 ## 1.7.0 — Horloge, météo, PiP au survol des vidéos, panneau admin
 
 ### Nouveautés

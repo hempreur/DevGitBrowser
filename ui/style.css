@@ -380,3 +380,41 @@ body.x-mode .clock{color:#ffd0e6}
 .admin-bar span{color:#a9b4e0;text-align:right}
 .admin-bar-track{height:10px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden}
 .admin-bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#4f7bff,#c940ff)}
+
+/* 1.8 — horloge/météo dans la rangée des onglets, images météo, brillance du logo */
+.tab-row .clock-weather{height:30px;margin-left:6px;flex:none;padding:0 10px}
+.tab-row .clock{font-size:13px}
+.weather-pill i{display:inline-flex;width:20px;height:20px}
+.w-ico{width:20px;height:20px;overflow:visible}
+.w-sun{transform-origin:50% 50%}
+.w-ico.w-sun .w-sun{animation:w-spin 18s linear infinite;transform-origin:12px 12px}
+@keyframes w-spin{to{transform:rotate(360deg)}}
+.w-ico.w-rain path[stroke],.w-ico.w-showers g[stroke]{animation:w-drop 1.1s ease-in-out infinite}
+@keyframes w-drop{0%,100%{transform:translateY(-1px);opacity:.75}50%{transform:translateY(1px);opacity:1}}
+.brand-logo{position:relative;display:inline-flex;flex:none;--logo-mask:url(../assets/logo-mark.png)}
+.brand-logo::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.05) 38%,rgba(255,255,255,.95) 50%,rgba(255,255,255,.05) 62%,transparent 70%) no-repeat;
+  background-size:250% 100%;background-position:180% 0;
+  -webkit-mask:var(--logo-mask) center/contain no-repeat;mask:var(--logo-mask) center/contain no-repeat;
+  mix-blend-mode:screen;animation:logo-shine 3.6s ease-in-out infinite}
+@keyframes logo-shine{0%{background-position:180% 0}55%,100%{background-position:-80% 0}}
+body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
+@media (prefers-reduced-motion:reduce){.brand-logo::after,.w-ico *{animation:none!important}}
+.tm-banner span b{color:#fff}
+.rate-stars{display:flex;gap:6px}
+.rate-stars button{background:none;border:0;font-size:30px;line-height:1;color:#3a4766;cursor:pointer;padding:0 2px;transition:transform .1s,color .1s}
+.rate-stars button.on{color:#ffc83d;text-shadow:0 0 12px #ffc83d66}
+.rate-stars:hover button{color:#ffc83d}.rate-stars button:hover~button{color:#3a4766}
+.rate-stars button:hover{transform:scale(1.15)}
+.admin-sub{margin:22px 0 10px;font-size:15px;color:#a9b4e0}
+.admin-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px}
+.admin-cols h4{margin:8px 0 10px;font-size:13px;color:#cfd6f5}
+.admin-daily{display:flex;align-items:flex-end;gap:3px;height:120px;padding:6px;border-radius:10px;background:rgba(255,255,255,.03)}
+.admin-day{flex:1;height:100%;display:flex;align-items:flex-end}
+.admin-day i{display:block;width:100%;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#c940ff,#4f7bff)}
+.admin-countries{margin:0;padding:0;list-style:none;display:grid;gap:5px;counter-reset:c}
+.admin-countries li{display:flex;justify-content:space-between;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.03);font-size:13px;counter-increment:c}
+.admin-countries li span::before{content:counter(c) '.';color:#8f9ac8;margin-right:8px}
+.admin-rating-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.admin-rating-head strong{font-size:30px;color:#ffc83d}
+.admin-rating .admin-bar,.admin-server .admin-bar{grid-template-columns:44px 1fr 70px}

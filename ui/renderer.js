@@ -601,7 +601,7 @@ function renderThemes(hostId,active){
 function strength(pw){let n=0;if(pw.length>=8)n++;if(pw.length>=12)n++;if(/[a-z]/.test(pw)&&/[A-Z]/.test(pw))n++;if(/\d/.test(pw))n++;if(/[^A-Za-z0-9]/.test(pw))n++;return Math.min(4,n);}
 function showStrength(input,bar,label){const n=strength(input.value);bar.style.width=(n/4*100)+'%';bar.dataset.level=String(n);label.textContent='Force : '+['très faible','faible','moyenne','bonne','excellente'][n];}
 function updateExtras(state){
-  updateClockWeather(state);
+  updateClockWeather(state);updateTelemetry(state);
   applyTheme(state.theme);
   applyXmode(state);
   // VPN
@@ -886,6 +886,26 @@ $('x-random').addEventListener('click',()=>{const free=(window.DGBX_CATALOG||[])
 
 
 // ======================================================================== Horloge et météo
+// Petites images météo (SVG dessinés, sans dépendance externe).
+const W_SUN='<g class="w-sun"><circle cx="12" cy="12" r="4.6" fill="#ffc83d"/><g stroke="#ffc83d" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M5.4 18.6 7 17M17 7l1.6-1.6"/></g></g>';
+const W_SMALLSUN='<g class="w-sun"><circle cx="8.5" cy="8.5" r="3.6" fill="#ffc83d"/><g stroke="#ffc83d" stroke-width="1.6" stroke-linecap="round"><path d="M8.5 1.8v1.6M1.8 8.5h1.6M3.7 3.7l1.1 1.1M13.3 3.7l-1.1 1.1M3.7 13.3l1.1-1.1"/></g></g>';
+const W_MOON='<path d="M15.5 3.5a8.5 8.5 0 1 0 5 13.6A7 7 0 0 1 15.5 3.5z" fill="#d9e2ff"/>';
+const W_SMALLMOON='<path d="M10 2.2a6 6 0 1 0 4.2 9.6A5 5 0 0 1 10 2.2z" fill="#d9e2ff"/>';
+const W_CLOUD=(y=0,c='#e8eefc')=>`<path transform="translate(0 ${y})" d="M7 18.5h10.2a3.8 3.8 0 0 0 .4-7.6 5.3 5.3 0 0 0-10.2-1.2A4.4 4.4 0 0 0 7 18.5z" fill="${c}"/>`;
+const W_DROPS='<g stroke="#4fa8ff" stroke-width="1.9" stroke-linecap="round"><path d="M8.5 19.5l-1 2.6M12.5 19.5l-1 2.6M16.5 19.5l-1 2.6"/></g>';
+const W_FINEDROPS='<g fill="#4fa8ff"><circle cx="8.5" cy="20.6" r="1"/><circle cx="12.5" cy="21.4" r="1"/><circle cx="16.5" cy="20.6" r="1"/></g>';
+const W_SNOW='<g fill="#ffffff"><circle cx="8.5" cy="20.4" r="1.25"/><circle cx="12.5" cy="21.6" r="1.25"/><circle cx="16.5" cy="20.4" r="1.25"/></g>';
+const W_BOLT='<path d="M12.8 16.5 10 21h2.6l-1.2 3 4-5.2h-2.7l1.6-2.3z" fill="#ffd23d"/>';
+const W_FOG='<g stroke="#c9d3ea" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h16M6 13h12M4 17h16"/></g>';
+const WEATHER_ICONS={
+  sun:W_SUN, moon:W_MOON,
+  partly:W_SMALLSUN+W_CLOUD(1), 'partly-night':W_SMALLMOON+W_CLOUD(1),
+  cloud:W_CLOUD(0,'#dfe6f7'), fog:W_FOG,
+  drizzle:W_CLOUD(-3,'#c9d4ec')+W_FINEDROPS, rain:W_CLOUD(-3,'#b7c4e0')+W_DROPS,
+  showers:W_SMALLSUN+W_CLOUD(-2,'#c9d4ec')+W_DROPS, snow:W_CLOUD(-3,'#e8eefc')+W_SNOW, storm:W_CLOUD(-3,'#9eabc8')+W_BOLT,
+};
+function weatherSvg(kind){return `<svg viewBox="0 0 24 24" class="w-ico w-${kind}" aria-hidden="true">${WEATHER_ICONS[kind]||WEATHER_ICONS.cloud}</svg>`;}
+
 const clockFmt=new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'});
 const dateFmt=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 function tickClock(){const now=new Date();$('clock').textContent=clockFmt.format(now);$('clock').title=dateFmt.format(now);}
@@ -895,7 +915,7 @@ function updateClockWeather(state){
   $('clock').classList.toggle('hidden',!showClock);
   const w=state.weather?.now;
   $('weather-pill').classList.toggle('hidden',!w);
-  if(w){$('weather-icon').textContent=w.icon;$('weather-temp').textContent=`${w.temp}°`;$('weather-pill').title=`${w.city} : ${w.temp} °C, ${w.label}${w.stale?' (hors ligne)':''}`;}
+  if(w){if($('weather-icon').dataset.kind!==w.icon){$('weather-icon').innerHTML=weatherSvg(w.icon);$('weather-icon').dataset.kind=w.icon;}$('weather-temp').textContent=`${w.temp}°`;$('weather-pill').title=`${w.city} : ${w.temp} °C, ${w.label}${w.stale?' (hors ligne)':''}`;}
   $('clock-weather').classList.toggle('hidden',!showClock&&!w);
   if(document.activeElement!==$('weather-city'))$('weather-city').value=state.weather?.city||'';
   $('weather-status').textContent=w?`${w.city} : ${w.temp} °C, ${w.label}. Laisse vide et enregistre pour masquer la température.`:(state.weather?.city?`Ville : ${state.weather.city} (température en cours de chargement…)`:'Indique ta ville pour afficher la température à côté de l’horloge (source gratuite Open-Meteo, mise à jour toutes les 20 minutes).');
@@ -931,14 +951,43 @@ $('admin-recover-form').addEventListener('submit',async e=>{
 $('admin-copy').addEventListener('click',()=>navigator.clipboard.writeText($('admin-newkey-value').textContent).then(()=>notify('Clé copiée.')).catch(()=>{}));
 $('admin-refresh').addEventListener('click',loadAdminStats);
 function kpi(label,value,hint){const box=elem('div','admin-kpi');box.append(elem('span','',label),elem('strong','',value));if(hint)box.append(elem('small','',hint));return box;}
+const FLAG=cc=>/^[A-Z]{2}$/.test(cc)&&cc!=='ZZ'?String.fromCodePoint(...[...cc].map(c=>0x1F1E6+c.charCodeAt(0)-65)):'🏳️';
+const regionNames=(()=>{try{return new Intl.DisplayNames(['fr'],{type:'region'});}catch{return null;}})();
+const countryName=cc=>{if(cc==='ZZ')return 'Inconnu';try{return regionNames?.of(cc)||cc;}catch{return cc;}};
+function bars(list,max,label){return list.map(([name,value])=>{const row=elem('div','admin-bar');const track=elem('div','admin-bar-track');const fill=elem('div','admin-bar-fill');fill.style.width=Math.max(2,Math.round(value/Math.max(1,max)*100))+'%';track.append(fill);row.append(elem('b','',name),track,elem('span','',label(value)));return row;});}
+function renderServer(res){
+  const srv=res.server;
+  $('admin-server-setup').classList.toggle('hidden',Boolean(srv));$('admin-server-data').classList.toggle('hidden',!srv);
+  if(!srv){
+    $('admin-server-hint').textContent=res.serverError==='NO_SERVER'?'Le serveur de statistiques n’est pas encore relié à cette version du navigateur.':res.serverError==='NO_TOKEN'?`Serveur : ${res.serverUrl}. Colle le jeton affiché à la fin de l’installation sur ton VPS.`:`Serveur injoignable : ${res.serverError}`;
+    $('admin-token-form').classList.toggle('hidden',res.serverError==='NO_SERVER');return;
+  }
+  $('admin-server-kpis').replaceChildren(
+    kpi('Actifs aujourd’hui',nf.format(srv.active.today),`${nf.format(srv.active.week)} sur 7 j · ${nf.format(srv.active.month)} sur 30 j`),
+    kpi('Utilisateurs au total',nf.format(srv.totalUsers),`+${nf.format(srv.newUsers30)} nouveaux sur 30 j`),
+    kpi('Heures passées',nf.format(srv.hours.month)+' h',`${nf.format(srv.hours.today)} h aujourd’hui (30 derniers jours)`),
+    kpi('Trafic généré',nf.format(srv.pages.month),`pages ouvertes sur 30 j · ${nf.format(srv.pages.today)} aujourd’hui`));
+  const byDay=new Map(srv.daily.map(d=>[d.day,d]));
+  const days=[...Array(30)].map((_,i)=>{const k=new Date(Date.now()-(29-i)*86400000).toISOString().slice(0,10);return byDay.get(k)||{day:k,users:0,hours:0,pages:0};});
+  const maxDay=Math.max(1,...days.map(d=>d.users));
+  $('admin-daily').replaceChildren(...days.map(d=>{const col=elem('div','admin-day');const bar=elem('i');bar.style.height=(d.users?Math.max(3,Math.round(d.users/maxDay*100)):0)+'%';col.title=`${d.day} : ${d.users} utilisateurs, ${d.hours} h, ${d.pages} pages`;col.append(bar);return col;}));
+  $('admin-countries').replaceChildren(...(srv.countries.length?srv.countries.slice(0,10).map(([cc,n])=>{const li=elem('li');li.append(elem('span','',`${FLAG(cc)} ${countryName(cc)}`),elem('b','',nf.format(n)));return li;}):[elem('li','muted','Pas encore de données.')]));
+  const r=srv.rating;const maxR=Math.max(1,...r.distribution);
+  const head=elem('div','admin-rating-head');head.append(elem('strong','',r.count?String(r.average).replace('.',','):'—'),elem('span','',r.count?`★ sur 5 · ${nf.format(r.count)} avis`:'Aucun avis pour l’instant'));
+  $('admin-rating').replaceChildren(head,...bars([5,4,3,2,1].map(n=>[n+' ★',r.distribution[n-1]]),maxR,v=>nf.format(v)));
+  $('admin-uversions').replaceChildren(...bars(srv.versions.map(([v,n])=>['v'+v,n]),Math.max(1,...srv.versions.map(v=>v[1])),v=>nf.format(v)+' util.'));
+}
 async function loadAdminStats(){
   $('admin-updated').textContent='Chargement…';
-  const st=await run(()=>api.adminStats());
-  if(!st){$('admin-updated').textContent='Statistiques indisponibles.';return;}
-  $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date(st.fetchedAt));
+  const res=await run(()=>api.adminStats());
+  if(!res){$('admin-updated').textContent='Statistiques indisponibles.';return;}
+  $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date());
+  renderServer(res);
+  const st=res.github;
+  if(!st){$('admin-kpis').replaceChildren(elem('p','muted','GitHub : '+res.githubError));$('admin-versions').replaceChildren();$('admin-community').replaceChildren();return;}
   $('admin-kpis').replaceChildren(
     kpi('Installations',nf.format(st.totals.installs),'Téléchargements de l’installateur'),
-    kpi('Vérifications / jour',st.activity?nf.format(st.activity.checksPerDay):'—',st.activity?`Navigateurs actifs, version ${st.activity.version}`:''),
+    kpi('Vérifications / jour',st.activity?nf.format(st.activity.checksPerDay):'—',st.activity?`Mises à jour vérifiées, version ${st.activity.version}`:''),
     kpi('Mises à jour installées',nf.format(st.totals.updates),'Mises à jour automatiques téléchargées'),
     kpi('Versions publiées',nf.format(st.totals.releases),''));
   const max=Math.max(1,...st.versions.map(v=>v.installs+v.updates));
@@ -948,3 +997,21 @@ async function loadAdminStats(){
     row.append(elem('b','',v.tag),track,elem('span','',`${nf.format(v.installs)} install. · ${nf.format(v.updates)} MAJ`));return row;}));
   $('admin-community').replaceChildren(kpi('★ Étoiles',nf.format(st.repo.stars),'Les gens qui aiment le projet'),kpi('Abonnés',nf.format(st.repo.watchers),''),kpi('Forks',nf.format(st.repo.forks),''),kpi('Signalements ouverts',nf.format(st.repo.openIssues),'Bugs / demandes sur GitHub'));
 }
+$('admin-token-form').addEventListener('submit',async e=>{e.preventDefault();const ok=await run(()=>api.adminSetToken($('admin-token').value),'Jeton du serveur enregistré (chiffré).');$('admin-token').value='';if(ok)loadAdminStats();});
+$('admin-token-change').addEventListener('click',()=>{$('admin-server-data').classList.add('hidden');$('admin-server-setup').classList.remove('hidden');$('admin-token-form').classList.remove('hidden');$('admin-server-hint').textContent='Colle le nouveau jeton du serveur.';$('admin-token').focus();});
+
+// ======================================================================== Statistiques anonymes et note
+function updateTelemetry(state){
+  const tm=state.telemetry||{};
+  $('tm-banner').classList.toggle('hidden',!(tm.available&&!tm.asked&&state.welcomed&&!state.xmode));
+  $('telemetry-line').classList.toggle('hidden',!tm.available);
+  $('rate-card').classList.toggle('hidden',!tm.available);
+  const box=$('rate-stars');
+  if(box.dataset.value!==String(tm.rating||0)||!box.childElementCount){
+    box.dataset.value=String(tm.rating||0);
+    box.replaceChildren(...[1,2,3,4,5].map(n=>{const b=elem('button',n<=(tm.rating||0)?'on':'','★');b.type='button';b.title=`${n} sur 5`;b.setAttribute('role','radio');b.setAttribute('aria-checked',String(n===tm.rating));b.addEventListener('click',()=>run(()=>api.rate(n),'Merci pour ta note !'));return b;}));
+    $('rate-text').textContent=tm.rating?`Ta note : ${tm.rating}/5. Tu peux la changer à tout moment.`:'Note DevGitBrowser : ta note anonyme aide à savoir si le navigateur plaît.';
+  }
+}
+$('tm-yes').addEventListener('click',()=>run(()=>api.telemetryConsent(true),'Merci ! Statistiques anonymes activées.'));
+$('tm-no').addEventListener('click',()=>run(()=>api.telemetryConsent(false),'Aucune statistique ne sera envoyée.'));
