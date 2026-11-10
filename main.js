@@ -62,7 +62,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'' };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -84,6 +84,8 @@ function loadSettings() {
     if (VPN_COUNTRIES.some(c=>c.code===raw.vpnCountry)) p.vpnCountry=raw.vpnCountry;
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
+    if (raw.xmodeAge===true) p.xmodeAge=true;
+    if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
     for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
@@ -173,7 +175,7 @@ function tabState(t) {
   if (t.engine==='mshtml') { back = true; forward = true; }
   return { id: t.id, title: t.title, url: t.url, loading: t.loading, back, forward, engine:t.engine||'chromium',
     favicon: t.favicon||'', audible: Boolean(t.audible), muted, pinned:false, secure: /^https:/.test(t.url),
-    blocked: adBlocker && !wc.isDestroyed() ? adBlocker.blockedFor(wc.id) : 0, error: t.loadError||'', sleeping: Boolean(t.sleeping) };
+    blocked: adBlocker && !wc.isDestroyed() ? adBlocker.blockedFor(wc.id) : 0, error: t.loadError||'', sleeping: Boolean(t.sleeping), xTab: Boolean(t.xTab) };
 }
 function currentOrigin(s) { return siteOrigin(activeTab(s)?.url || ''); }
 function currentHost(s) { try { return new URL(activeTab(s)?.url||'').hostname.replace(/^www\./,''); } catch { return ''; } }
@@ -205,7 +207,7 @@ function publicState(s) {
     searchEngines: Object.entries(SEARCH_ENGINES).map(([id,e])=>({id,name:e.name})),
     themes: THEMES, theme: settings.theme, welcomed: settings.welcomed,
     vpn: tor ? {...tor.state, countries: VPN_COUNTRIES} : {status:'off', available:false, countries: VPN_COUNTRIES},
-    gaming: settings.gamingMode, radio: {open: Boolean(radioWin && !radioWin.isDestroyed()), now: radioNow},
+    gaming: settings.gamingMode, xmode: Boolean(s.xmode), xmodeSetup: {age: settings.xmodeAge, code: Boolean(settings.xmodeCode)}, radio: {open: Boolean(radioWin && !radioWin.isDestroyed()), now: radioNow},
     passwords: vault ? {...vault.status(), here: {form: Boolean(t?.loginForm), count: t?.url ? vault.forOrigin(t.url).length : 0, never: Boolean(t?.url && vault.isUnlocked() && vault.isNever(t.url))},
       offer: pendingPassword && pendingPassword.windowId===s.id ? {origin: pendingPassword.origin, username: pendingPassword.username, update: pendingPassword.update} : null} : null,
     security: { phishing: phishing ? phishing.state() : null, dns: {mode: settings.secureDns, provider: settings.dnsProvider, providers: Object.entries(DNS_PROVIDERS).map(([id,d])=>({id,name:d.name}))} },
@@ -303,7 +305,7 @@ function searchOrAddress(text) {
   return url;
 }
 function rememberClosed(t) {
-  if (!t?.url) return;
+  if (!t?.url || t.xTab) return;
   closedTabs.unshift({url:t.url,title:t.title});
   if (closedTabs.length>25) closedTabs.length=25;
 }
@@ -333,7 +335,7 @@ function attachPageHandlers(t) {
   wc.on('page-title-updated', (_event, title) => {
     if (String(wc.getURL()).startsWith('data:')) return;
     t.title = String(title).slice(0,90); sendState(t.owner);
-    if (settings.recordHistory && t.engine==='chromium') browsing?.updateTitle(t.url, t.title);
+    if (settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium') browsing?.updateTitle(t.url, t.title);
   });
   wc.on('page-favicon-updated', (_event, icons) => {
     const icon = (icons||[]).find(u => /^https:\/\//i.test(u) || /^data:image\//i.test(u));
@@ -345,7 +347,7 @@ function attachPageHandlers(t) {
   wc.on('did-navigate', (_event, url, httpCode) => {
     if (isWebUrl(url)) { t.loadError=''; t.favicon=''; t.upgradeHits=null; if (/^https:/i.test(url)) t.httpsUpgradedFrom=''; }
     update(); applySiteZoom(t);
-    if (isWebUrl(url) && settings.recordHistory && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
+    if (isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
   });
   wc.on('did-finish-load',async()=>{
     if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
@@ -359,7 +361,7 @@ function attachPageHandlers(t) {
       }
     }catch{}
   });
-  wc.on('did-navigate-in-page', (_e, url, isMainFrame) => { update(); if (isMainFrame && isWebUrl(url) && settings.recordHistory && t.engine==='chromium') browsing?.record(url, wc.getTitle()); });
+  wc.on('did-navigate-in-page', (_e, url, isMainFrame) => { update(); if (isMainFrame && isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium') browsing?.record(url, wc.getTitle()); });
   wc.setBackgroundThrottling(true);
   if(typeof wc.setZoomMode==='function')wc.setZoomMode('isolated');
   if (settings.webrtcProtection) { try { wc.setWebRTCIPHandlingPolicy('default_public_interface_only'); } catch {} }
@@ -441,7 +443,7 @@ function attachPageHandlers(t) {
 }
 function newTab(s, url = '', options = {}) {
   if (s.tabs.size >= MAX_TABS) throw new Error(`Maximum de ${MAX_TABS} onglets par fenêtre.`);
-  const t = { id:++nextTabId, owner:s, view:null, url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false,favicon:'',audible:false,loadError:'',httpsUpgradedFrom:'' };
+  const t = { id:++nextTabId, owner:s, view:null, xTab:Boolean(s.xmode), url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false,favicon:'',audible:false,loadError:'',httpsUpgradedFrom:'' };
   createTabView(t);
   if (Number.isInteger(options.index)) insertInMap(s.tabs, t.id, t, options.index); else s.tabs.set(t.id, t);
   if (options.lazy && isWebUrl(url)) {
@@ -523,7 +525,28 @@ function navigateTab(t,text) {
   t.view.webContents.loadURL(url).then(()=>applySiteZoom(t)).catch(() => {});
   if (s.activeId===t.id && !s.panelOpen) t.view.webContents.focus();
 }
-function navigate(s,text) { const t = activeTab(s); if (t) navigateTab(t,text); }
+const XMODE_COMMAND = /^\s*%SxOnSite%\s*$/i;
+function navigate(s,text) { if (XMODE_COMMAND.test(String(text||''))) return; const t = activeTab(s); if (t) navigateTab(t,text); }
+// ---- Mode DGBx (caché) : réservé aux adultes, navigation privée, code d'accès facultatif.
+function hashCode(code) {
+  const salt = crypto.randomBytes(16);
+  return 'scrypt$' + salt.toString('base64') + '$' + crypto.scryptSync(String(code), salt, 32, {N: 1 << 14}).toString('base64');
+}
+function checkCode(code) {
+  const [, salt, hash] = String(settings.xmodeCode).split('$');
+  if (!salt || !hash) return true;
+  const got = crypto.scryptSync(String(code||''), Buffer.from(salt, 'base64'), 32, {N: 1 << 14});
+  const want = Buffer.from(hash, 'base64');
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+let xmodeFailures = 0, xmodeBlockedUntil = 0;
+function exitXmode(s) {
+  s.xmode = false;
+  // Les onglets ouverts depuis le mode DGBx sont fermés en le quittant (aucune trace).
+  for (const t of [...s.tabs.values()]) if (t.xTab) closeTab(s, t.id);
+  if (s.activeId === null && !s.win.isDestroyed()) { try { newTab(s); } catch {} }
+  broadcast();
+}
 function showPhishingWarning(t, url, domain) {
   logger.warn('Site dangereux bloqué', domain);
   t.title='⛔ Site dangereux bloqué'; t.url=url; t.loadError='Hameçonnage';
@@ -1150,8 +1173,9 @@ function uniquePath(folder,name) {
 // ---- Restauration de la session (après une mise à jour ou un redémarrage)
 function sessionSnapshot() {
   return {version:1, savedAt:Date.now(), windows:[...windows.values()].filter(s=>!s.win.isDestroyed()).map(s=>{
-    const tabs=[...s.tabs.values()].map(t=>t.url).filter(isWebUrl);
-    const keys=[...s.tabs.values()].filter(t=>isWebUrl(t.url)).map(t=>t.id);
+    const kept=[...s.tabs.values()].filter(t=>isWebUrl(t.url) && !t.xTab);
+    const tabs=kept.map(t=>t.url);
+    const keys=kept.map(t=>t.id);
     const bounds=s.win.isMaximized()||s.win.isFullScreen() ? {...s.win.getNormalBounds(),maximized:true} : s.win.getBounds();
     return {tabs, active:Math.max(0,keys.indexOf(s.activeId)), bounds};
   }).filter(w=>w.tabs.length)};
@@ -1771,6 +1795,31 @@ function registerIpc(){
     },
     'prefs:set':(_s,key,value)=>setPreference(String(key),value),
     'app:welcomed':()=>{settings.welcomed=true;saveSettings();broadcast();},
+    'xmode:setup':(s,confirmAge,code)=>{
+      if(confirmAge!==true)throw new Error('Ce mode est réservé aux personnes majeures.');
+      const pin=String(code||'');
+      if(pin && !/^\d{4,8}$/.test(pin))throw new Error('Le code d’accès doit contenir 4 à 8 chiffres.');
+      settings.xmodeAge=true; settings.xmodeCode=pin?hashCode(pin):''; saveSettings();
+      s.xmode=true; broadcast(); return true;
+    },
+    'xmode:enter':(s,code)=>{
+      if(!settings.xmodeAge)throw new Error('Confirmation de majorité requise.');
+      if(Date.now()<xmodeBlockedUntil)throw new Error('Trop d’essais. Réessaie dans une minute.');
+      if(settings.xmodeCode && !checkCode(code)){ if(++xmodeFailures>=5){xmodeFailures=0;xmodeBlockedUntil=Date.now()+60_000;} throw new Error('Code d’accès incorrect.'); }
+      xmodeFailures=0; s.xmode=true; broadcast(); return true;
+    },
+    'xmode:exit':s=>exitXmode(s),
+    'xmode:reset-code':(s,code,next)=>{
+      if(!s.xmode)throw new Error('Ouvre d’abord le mode DGBx.');
+      if(settings.xmodeCode && !checkCode(code))throw new Error('Code actuel incorrect.');
+      const pin=String(next||''); if(pin && !/^\d{4,8}$/.test(pin))throw new Error('Le code d’accès doit contenir 4 à 8 chiffres.');
+      settings.xmodeCode=pin?hashCode(pin):''; saveSettings(); broadcast(); return true;
+    },
+    'xmode:open':(s,url)=>{
+      if(!s.xmode)throw new Error('Mode DGBx fermé.');
+      if(typeof url!=='string'||!isWebUrl(url))throw new Error('Adresse invalide.');
+      const id=newTab(s,url); const t=s.tabs.get(id); if(t){t.xTab=true; sendState(s);} return id;
+    },
     'app:open-log':()=>shell.openPath(logger.path()||app.getPath('userData')),
     'app:repair':async(s,what)=>{
       if(what==='filters'){adBlocker?.refresh().catch(()=>{});phishing?.refresh().catch(()=>{});return 'Mise à jour des filtres lancée.';}

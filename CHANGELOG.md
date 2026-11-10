@@ -1,3 +1,12 @@
+## 1.6.0 — Nouveau logo DGB et mode caché DGBx
+
+### Nouveautés
+- **Nouveau logo DGB** pour l'application (icône de l'exe, barre des tâches) et pour l'interface.
+- **Mode caché DGBx** : taper `%SxOnSite%` dans la barre d'adresse ouvre une interface sombre magenta et néon, avec rangées de plateformes adultes connues (gratuites et freemium) façon catalogue vidéo, recherche, catégories, favoris ♥ et « Reprendre ».
+  - Confirmation de majorité obligatoire à la première entrée, code d'accès facultatif (4 à 8 chiffres, haché avec scrypt, blocage 60 s après 5 erreurs).
+  - Navigation privée dans ce mode : rien dans l'historique, la restauration de session ni les onglets fermés récemment. Les onglets du mode se ferment quand on clique sur « Quitter DGBx ».
+  - La commande n'est jamais envoyée au moteur de recherche.
+
 ## 1.5.1 — MatchPulse : nouvelle source fiable pour le direct
 
 ### MatchPulse 0.6.0
