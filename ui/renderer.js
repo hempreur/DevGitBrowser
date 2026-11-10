@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -37,6 +37,7 @@ function favicon(url,title,src){
 
 // ---------------------------------------------------------------- Panneaux
 async function showPanel(name){
+  if(panel==='admin'&&name!=='admin')api.adminClose().catch(()=>{});
   panel=name||'';
   for(const key of panels)$(`panel-${key}`).classList.toggle('hidden',key!==panel);
   if(panel)closeFind(false);
@@ -157,8 +158,6 @@ function updateToolbar(state){
   const star=$('bookmark-star');
   star.disabled=!hasPage;star.classList.toggle('on',Boolean(state.bookmarkedHere));
   star.title=state.bookmarkedHere?'Retirer des favoris (Ctrl+D)':'Ajouter aux favoris (Ctrl+D)';
-  $('pip-button').disabled=!hasPage || t?.engine!=='chromium';
-  $('pip-button').classList.toggle('attention',Boolean(t?.audible));
   const sh=state.shieldHere||{}, guard=state.adblock||{};
   const shieldOn=guard.enabled && !sh.allowed;
   $('shield-button').classList.toggle('off',!shieldOn);
@@ -441,8 +440,9 @@ $('update-restart').addEventListener('click',()=>run(()=>api.installUpdate()));
 $('update-later').addEventListener('click',()=>{$('update-banner').dataset.dismissed='1';$('update-banner').classList.add('hidden');});
 
 // ---------------------------------------------------------------- Navigation
-const XMODE_COMMAND=/^\s*%SxOnSite%\s*$/i;
-function submitNavigation(value){
+const XMODE_COMMAND=/^\s*%SxOnSite%\s*$/i,ADMIN_COMMAND=/^\s*%AdminDBG%\s*$/i;
+function submitNavigation(value){ if(ADMIN_COMMAND.test(String(value||''))){$('address').value='';$('start-address').value='';$('address').blur();openAdmin();return Promise.resolve();}
+ 
   // Commande cachée : ne part jamais vers un moteur de recherche ni dans l'historique.
   if(XMODE_COMMAND.test(String(value||''))){$('address').value='';$('start-address').value='';$('address').blur();toggleXmode();return Promise.resolve();}
   return run(async()=>{if(panel)await showPanel('');await api.go(value);$('address').blur();});
@@ -457,7 +457,6 @@ $('shield-button').addEventListener('click',()=>run(()=>api.shieldMenu()));
 $('extensions-button').addEventListener('click',()=>run(()=>showPanel(panel==='extensions'?'':'extensions')));
 $('site-info').addEventListener('click',()=>run(()=>showPanel(activeTab()?.url?(panel==='security'?'':'security'):'')).then(()=>{if(!activeTab()?.url)$('address').focus();}));
 $('bookmark-star').addEventListener('click',()=>run(()=>api.toggleBookmark()));
-$('pip-button').addEventListener('click',()=>run(()=>api.pip()).then(message=>{if(message)notify(message);}));
 const openNetwork=()=>run(()=>api.network(),'Analyse réseau ouverte dans une fenêtre indépendante.');
 const openLegacy=()=>run(()=>api.legacy());
 $('legacy-button').addEventListener('click',openLegacy);
@@ -602,6 +601,7 @@ function renderThemes(hostId,active){
 function strength(pw){let n=0;if(pw.length>=8)n++;if(pw.length>=12)n++;if(/[a-z]/.test(pw)&&/[A-Z]/.test(pw))n++;if(/\d/.test(pw))n++;if(/[^A-Za-z0-9]/.test(pw))n++;return Math.min(4,n);}
 function showStrength(input,bar,label){const n=strength(input.value);bar.style.width=(n/4*100)+'%';bar.dataset.level=String(n);label.textContent='Force : '+['très faible','faible','moyenne','bonne','excellente'][n];}
 function updateExtras(state){
+  updateClockWeather(state);
   applyTheme(state.theme);
   applyXmode(state);
   // VPN
@@ -883,3 +883,68 @@ function renderXHome(){
 }
 $('x-search').addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(renderXHome,150);});
 $('x-random').addEventListener('click',()=>{const free=(window.DGBX_CATALOG||[]).flatMap(c=>c.sites).filter(s=>s.price!=='Payant');xOpen(free[Math.floor(Math.random()*free.length)]);});
+
+
+// ======================================================================== Horloge et météo
+const clockFmt=new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'});
+const dateFmt=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function tickClock(){const now=new Date();$('clock').textContent=clockFmt.format(now);$('clock').title=dateFmt.format(now);}
+tickClock();setTimeout(()=>{tickClock();setInterval(tickClock,60_000);},(60-new Date().getSeconds())*1000+50);
+function updateClockWeather(state){
+  const showClock=state.preferences?.showClock!==false;
+  $('clock').classList.toggle('hidden',!showClock);
+  const w=state.weather?.now;
+  $('weather-pill').classList.toggle('hidden',!w);
+  if(w){$('weather-icon').textContent=w.icon;$('weather-temp').textContent=`${w.temp}°`;$('weather-pill').title=`${w.city} : ${w.temp} °C, ${w.label}${w.stale?' (hors ligne)':''}`;}
+  $('clock-weather').classList.toggle('hidden',!showClock&&!w);
+  if(document.activeElement!==$('weather-city'))$('weather-city').value=state.weather?.city||'';
+  $('weather-status').textContent=w?`${w.city} : ${w.temp} °C, ${w.label}. Laisse vide et enregistre pour masquer la température.`:(state.weather?.city?`Ville : ${state.weather.city} (température en cours de chargement…)`:'Indique ta ville pour afficher la température à côté de l’horloge (source gratuite Open-Meteo, mise à jour toutes les 20 minutes).');
+}
+$('weather-form').addEventListener('submit',async e=>{
+  e.preventDefault();const city=$('weather-city').value.trim();
+  const res=await run(()=>api.weatherCity(city));
+  if(res)notify(`Météo : ${res.name}${res.country?', '+res.country:''} enregistrée.`);else if(!city)notify('Température masquée.');
+});
+$('clock-weather').addEventListener('click',()=>{if(!current?.weather?.city){showPanel('settings').then(()=>setTimeout(()=>$('weather-city').focus(),60));}else run(()=>api.weatherRefresh());});
+
+// ======================================================================== Panneau admin (%AdminDBG%)
+const nf=new Intl.NumberFormat('fr-FR');
+function openAdmin(){
+  $('admin-lock').classList.remove('hidden');$('admin-dash').classList.add('hidden');
+  $('admin-recover-form').classList.add('hidden');$('admin-newkey').classList.add('hidden');
+  $('admin-key').value='';for(const id of ['admin-w1','admin-w2','admin-w3'])$(id).value='';
+  showPanel('admin').then(()=>setTimeout(()=>$('admin-key').focus(),40));
+}
+async function closeAdmin(){await api.adminClose().catch(()=>{});$('admin-kpis').replaceChildren();$('admin-versions').replaceChildren();$('admin-community').replaceChildren();await showPanel('');}
+$('admin-close').addEventListener('click',closeAdmin);
+$('admin-unlock-form').addEventListener('submit',async e=>{
+  e.preventDefault();const ok=await run(()=>api.adminUnlock($('admin-key').value));$('admin-key').value='';
+  if(ok){$('admin-lock').classList.add('hidden');$('admin-dash').classList.remove('hidden');loadAdminStats();}
+});
+$('admin-lost').addEventListener('click',()=>{$('admin-recover-form').classList.toggle('hidden');$('admin-w1').focus();});
+$('admin-recover-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const key=await run(()=>api.adminRecover([$('admin-w1').value,$('admin-w2').value,$('admin-w3').value]));
+  for(const id of ['admin-w1','admin-w2','admin-w3'])$(id).value='';
+  if(key){$('admin-newkey-value').textContent=key;$('admin-newkey').classList.remove('hidden');notify('Nouvelle clé admin générée.');}
+});
+$('admin-copy').addEventListener('click',()=>navigator.clipboard.writeText($('admin-newkey-value').textContent).then(()=>notify('Clé copiée.')).catch(()=>{}));
+$('admin-refresh').addEventListener('click',loadAdminStats);
+function kpi(label,value,hint){const box=elem('div','admin-kpi');box.append(elem('span','',label),elem('strong','',value));if(hint)box.append(elem('small','',hint));return box;}
+async function loadAdminStats(){
+  $('admin-updated').textContent='Chargement…';
+  const st=await run(()=>api.adminStats());
+  if(!st){$('admin-updated').textContent='Statistiques indisponibles.';return;}
+  $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date(st.fetchedAt));
+  $('admin-kpis').replaceChildren(
+    kpi('Installations',nf.format(st.totals.installs),'Téléchargements de l’installateur'),
+    kpi('Vérifications / jour',st.activity?nf.format(st.activity.checksPerDay):'—',st.activity?`Navigateurs actifs, version ${st.activity.version}`:''),
+    kpi('Mises à jour installées',nf.format(st.totals.updates),'Mises à jour automatiques téléchargées'),
+    kpi('Versions publiées',nf.format(st.totals.releases),''));
+  const max=Math.max(1,...st.versions.map(v=>v.installs+v.updates));
+  $('admin-versions').replaceChildren(...st.versions.map(v=>{
+    const row=elem('div','admin-bar');const bar=elem('div','admin-bar-fill');bar.style.width=Math.max(2,Math.round((v.installs+v.updates)/max*100))+'%';
+    const track=elem('div','admin-bar-track');track.append(bar);
+    row.append(elem('b','',v.tag),track,elem('span','',`${nf.format(v.installs)} install. · ${nf.format(v.updates)} MAJ`));return row;}));
+  $('admin-community').replaceChildren(kpi('★ Étoiles',nf.format(st.repo.stars),'Les gens qui aiment le projet'),kpi('Abonnés',nf.format(st.repo.watchers),''),kpi('Forks',nf.format(st.repo.forks),''),kpi('Signalements ouverts',nf.format(st.repo.openIssues),'Bugs / demandes sur GitHub'));
+}
