@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <title>DevGitBrowser • CodexHempreur INC</title>
 <link rel="icon" type="image/png" href="../assets/icon.png">
-<link rel="stylesheet" href="style.css"><script defer src="renderer.js"></script>
+<link rel="stylesheet" href="style.css"><script defer src="x-catalog.js"></script><script defer src="renderer.js"></script>
 </head>
 <body>
 <header id="chrome">
@@ -37,6 +37,7 @@
       <button id="shield-button" class="nav-tool icon shield-button" title="DevGitShield — bloqueur de publicités" aria-label="DevGitShield"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l7.5 2.8v5.6c0 4.4-3.1 7.9-7.5 9.2-4.4-1.3-7.5-4.8-7.5-9.2V6z"/></svg><em id="shield-count">0</em></button>
       <button id="extensions-button" class="nav-tool icon" title="Extensions (MatchPulse…)" aria-label="Extensions"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><em id="extension-counter">0</em></button>
       <button id="legacy-button" class="nav-tool small hidden" title="Moteur IE intégré (sites anciens)">IE</button>
+      <button id="x-exit" class="nav-tool x-exit hidden" title="Quitter le mode DGBx (onglets du mode fermés)">Quitter DGBx</button>
       <button id="menu-button" class="nav-tool icon menu-button" title="Menu DevGitBrowser" aria-label="Menu"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg><i id="menu-dot" class="menu-dot hidden"></i></button>
     </div>
   </div>
@@ -75,6 +76,38 @@
     <button id="card-network" class="quick-item"><span class="quick-icon net">◉</span><strong>Analyse réseau LIVE</strong><small>Requêtes et réponses en direct</small><span class="mini-arrow">↗</span></button>
   </div>
 </main>
+
+
+<main id="x-home" class="x-home hidden" aria-label="DGBx">
+  <section class="x-hero">
+    <div class="x-hero-text">
+      <img src="../assets/logo-dgbx.png" alt="DGBx" class="x-logo">
+      <p class="x-tagline">Les meilleures plateformes adultes réunies au même endroit. Navigation privée : rien n’est enregistré dans l’historique, et les onglets du mode se ferment quand tu le quittes.</p>
+      <div class="x-hero-actions"><input id="x-search" type="search" placeholder="Rechercher une plateforme…" aria-label="Rechercher une plateforme"><button id="x-random" class="x-btn" type="button">▶ Surprends-moi</button></div>
+      <div class="x-chips" id="x-chips"></div>
+    </div>
+  </section>
+  <div id="x-rows" class="x-rows"></div>
+  <footer class="x-foot">Réservé aux personnes majeures (18+). Les plateformes listées sont des services tiers légaux qui appliquent leurs propres règles et contrôles d’âge. En cas de pratique devenue envahissante : <b>joueurs-info-service</b> / <b>sos-addictions.org</b>. <button id="x-code" class="x-link" type="button">Code d’accès</button></footer>
+</main>
+
+<section id="panel-xgate" class="panel x-gate hidden" role="dialog" aria-modal="true" aria-label="Accès au mode DGBx">
+  <div class="x-gate-card">
+    <img src="../assets/logo-dgbx.png" alt="DGBx" class="x-gate-logo">
+    <div id="x-gate-first">
+      <h2>Contenu réservé aux adultes</h2>
+      <p>Ce mode donne accès à des sites pornographiques. Il est strictement réservé aux personnes <b>majeures (18 ans et plus)</b>.</p>
+      <label class="x-check"><input type="checkbox" id="x-age"> J’ai 18 ans ou plus et j’accepte d’accéder à des contenus pour adultes.</label>
+      <label for="x-new-code">Code d’accès (4 à 8 chiffres, conseillé si l’ordinateur est partagé)</label>
+      <input id="x-new-code" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Facultatif">
+    </div>
+    <div id="x-gate-code" class="hidden">
+      <h2>Mode DGBx verrouillé</h2><p>Saisis ton code d’accès.</p>
+      <input id="x-enter-code" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Code d’accès">
+    </div>
+    <div class="x-gate-actions"><button id="x-gate-cancel" class="x-btn ghost" type="button">Annuler</button><button id="x-gate-ok" class="x-btn" type="button">Entrer</button></div>
+  </div>
+</section>
 
 <section id="panel-library" class="panel hidden">
   <div class="panel-wrap">

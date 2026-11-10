@@ -4,7 +4,7 @@ Run only when brand-source.png is updated: python assets/generate-icon.py
 from pathlib import Path
 from PIL import Image
 ROOT=Path(__file__).resolve().parent
-source=Image.open(ROOT/'brand-source.png').convert('RGBA')
+source=Image.open(ROOT/'brand-source.png').convert('RGBA')  # logo DGB1 (fond transparent)
 bbox=source.getchannel('A').getbbox()
 if not bbox: raise ValueError('Source logo has no visible pixels')
 logo=source.crop(bbox)

@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -147,7 +147,8 @@ function updateToolbar(state){
   $('reload').classList.toggle('is-loading',Boolean(t?.loading));
   $('reload').title=t?.loading?'Arrêter le chargement':'Actualiser (F5)';
   const hasPage=Boolean(t?.url);
-  $('welcome').classList.toggle('hidden',hasPage);
+  $('welcome').classList.toggle('hidden',hasPage||Boolean(state.xmode));
+  $('x-home').classList.toggle('hidden',hasPage||!state.xmode);
   const secure=hasPage && t.url.startsWith('https://') && !t.error;
   const info=$('site-info');
   info.classList.toggle('secure',secure);info.classList.toggle('insecure',hasPage && !secure);info.classList.toggle('empty',!hasPage);
@@ -440,7 +441,12 @@ $('update-restart').addEventListener('click',()=>run(()=>api.installUpdate()));
 $('update-later').addEventListener('click',()=>{$('update-banner').dataset.dismissed='1';$('update-banner').classList.add('hidden');});
 
 // ---------------------------------------------------------------- Navigation
-function submitNavigation(value){return run(async()=>{if(panel)await showPanel('');await api.go(value);$('address').blur();});}
+const XMODE_COMMAND=/^\s*%SxOnSite%\s*$/i;
+function submitNavigation(value){
+  // Commande cachée : ne part jamais vers un moteur de recherche ni dans l'historique.
+  if(XMODE_COMMAND.test(String(value||''))){$('address').value='';$('start-address').value='';$('address').blur();toggleXmode();return Promise.resolve();}
+  return run(async()=>{if(panel)await showPanel('');await api.go(value);$('address').blur();});
+}
 $('add-tab').addEventListener('click',()=>run(async()=>{await showPanel('');await api.newTab();$('address').focus();}));
 $('back').addEventListener('click',()=>run(()=>api.back()));
 $('forward').addEventListener('click',()=>run(()=>api.forward()));
@@ -597,6 +603,7 @@ function strength(pw){let n=0;if(pw.length>=8)n++;if(pw.length>=12)n++;if(/[a-z]
 function showStrength(input,bar,label){const n=strength(input.value);bar.style.width=(n/4*100)+'%';bar.dataset.level=String(n);label.textContent='Force : '+['très faible','faible','moyenne','bonne','excellente'][n];}
 function updateExtras(state){
   applyTheme(state.theme);
+  applyXmode(state);
   // VPN
   const vpn=state.vpn||{};
   const on=vpn.status==='on',busy=vpn.status==='starting';
@@ -791,3 +798,88 @@ $('welcome-next').addEventListener('click',async()=>{
 });
 $('welcome-skip').addEventListener('click',()=>{if(welcomeStep===2){welcomeStep=3;showWelcomeStep();}else finishWelcome();});
 $('welcome-master').addEventListener('input',()=>showStrength($('welcome-master'),$('welcome-strength-bar'),$('welcome-strength')));
+
+// ======================================================================== Mode DGBx
+let xRendered=false;
+const X_FAV_KEY='dgbx-fav',X_RECENT_KEY='dgbx-recent';
+const xStore={get:(k)=>{try{return JSON.parse(localStorage.getItem(k))||[];}catch{return [];}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+function toggleXmode(){
+  if(current?.xmode){run(()=>api.xExit(),'Mode DGBx fermé.');return;}
+  const setup=current?.xmodeSetup||{};
+  $('x-gate-first').classList.toggle('hidden',Boolean(setup.age));
+  $('x-gate-code').classList.toggle('hidden',!(setup.age&&setup.code));
+  $('x-age').checked=false;$('x-new-code').value='';$('x-enter-code').value='';
+  if(setup.age&&!setup.code){run(()=>api.xEnter(''));return;}
+  showPanel('xgate').then(()=>setTimeout(()=>(setup.age?$('x-enter-code'):$('x-age')).focus(),40));
+}
+$('x-gate-cancel').addEventListener('click',()=>showPanel(''));
+$('x-gate-ok').addEventListener('click',async()=>{
+  const setup=current?.xmodeSetup||{};
+  const ok=setup.age?await run(()=>api.xEnter($('x-enter-code').value)):await run(()=>api.xSetup($('x-age').checked,$('x-new-code').value));
+  $('x-new-code').value='';$('x-enter-code').value='';
+  if(ok)await showPanel('');
+});
+for(const id of ['x-enter-code','x-new-code'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('x-gate-ok').click();});
+$('x-exit').addEventListener('click',()=>run(()=>api.xExit(),'Mode DGBx fermé.'));
+$('x-code').addEventListener('click',async()=>{
+  const now=current?.xmodeSetup?.code?prompt('Code actuel :'):'';if(now===null)return;
+  const next=prompt('Nouveau code (4 à 8 chiffres, vide pour supprimer le code) :');if(next===null)return;
+  await run(()=>api.xResetCode(now||'',next.trim()),next.trim()?'Code d’accès modifié.':'Code d’accès supprimé.');
+});
+function applyXmode(state){
+  const on=Boolean(state.xmode);
+  if(document.body.classList.contains('x-mode')!==on){
+    document.body.classList.toggle('x-mode',on);
+    for(const img of document.querySelectorAll('.brand-image,.footer-brand img'))img.src=on?'../assets/logo-dgbx-mark.png':'../assets/logo-mark.png';
+  }
+  $('x-exit').classList.toggle('hidden',!on);
+  if(on&&!xRendered)renderXHome();
+}
+function xOpen(site){
+  const recent=[site.url,...xStore.get(X_RECENT_KEY).filter(u=>u!==site.url)].slice(0,12);xStore.set(X_RECENT_KEY,recent);
+  run(()=>api.xOpen(site.url)).then(()=>renderXHome());
+}
+function xCard(site,index){
+  const card=elem('button','x-card');card.type='button';card.title=site.desc;
+  card.style.setProperty('--hue',String((index*47)%360));
+  const fav=xStore.get(X_FAV_KEY).includes(site.url);
+  const art=elem('span','x-art');art.append(elem('b','',site.name.replace(/[^A-Za-z0-9&]/g,'').slice(0,2).toUpperCase()));
+  const star=elem('span','x-fav'+(fav?' on':''),fav?'♥':'♡');star.title=fav?'Retirer de ma liste':'Ajouter à ma liste';
+  star.addEventListener('click',ev=>{ev.stopPropagation();const list=xStore.get(X_FAV_KEY);xStore.set(X_FAV_KEY,fav?list.filter(u=>u!==site.url):[site.url,...list]);renderXHome();});
+  const info=elem('span','x-info');
+  info.append(elem('strong','',site.name),elem('small','',site.desc),elem('i','x-price x-'+site.price.toLowerCase(),site.price));
+  card.append(art,star,info);
+  card.addEventListener('click',()=>xOpen(site));
+  return card;
+}
+function xRow(title,sites,offset=0){
+  if(!sites.length)return null;
+  const row=elem('section','x-row');const head=elem('div','x-row-head');head.append(elem('h3','',title));
+  const track=elem('div','x-track');sites.forEach((site,i)=>track.append(xCard(site,i+offset)));
+  const left=elem('button','x-nav left','‹'),right=elem('button','x-nav right','›');
+  left.type=right.type='button';
+  left.addEventListener('click',()=>track.scrollBy({left:-track.clientWidth*0.85,behavior:'smooth'}));
+  right.addEventListener('click',()=>track.scrollBy({left:track.clientWidth*0.85,behavior:'smooth'}));
+  row.append(head,left,track,right);return row;
+}
+function renderXHome(){
+  xRendered=true;
+  const catalog=window.DGBX_CATALOG||[];
+  const all=catalog.flatMap(c=>c.sites);
+  const q=$('x-search').value.trim().toLowerCase();
+  const rows=[];
+  if(q){
+    rows.push(xRow(`Résultats pour « ${$('x-search').value.trim()} »`,all.filter(s=>(s.name+' '+s.desc+' '+s.tags.join(' ')).toLowerCase().includes(q))));
+  }else{
+    const favs=xStore.get(X_FAV_KEY).map(u=>all.find(s=>s.url===u)).filter(Boolean);
+    const recent=xStore.get(X_RECENT_KEY).map(u=>all.find(s=>s.url===u)).filter(Boolean);
+    rows.push(xRow('♥ Ma liste',favs,3),xRow('Reprendre',recent,7));
+    catalog.forEach((c,i)=>rows.push(xRow(c.title,c.sites,i*5)));
+  }
+  const list=rows.filter(Boolean);
+  $('x-rows').replaceChildren(...(list.length?list:[elem('p','x-empty','Aucune plateforme ne correspond.')]));
+  $('x-chips').replaceChildren(...catalog.map(c=>{const b=elem('button','x-chip',c.title.split(' · ')[0]);b.type='button';
+    b.addEventListener('click',()=>{$('x-search').value='';renderXHome();document.querySelectorAll('.x-row')[catalog.indexOf(c)+(xStore.get(X_FAV_KEY).length?1:0)+(xStore.get(X_RECENT_KEY).length?1:0)]?.scrollIntoView({behavior:'smooth',block:'start'});});return b;}));
+}
+$('x-search').addEventListener('input',()=>{clearTimeout(suggestTimer);suggestTimer=setTimeout(renderXHome,150);});
+$('x-random').addEventListener('click',()=>{const free=(window.DGBX_CATALOG||[]).flatMap(c=>c.sites).filter(s=>s.price!=='Payant');xOpen(free[Math.floor(Math.random()*free.length)]);});
