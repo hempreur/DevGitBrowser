@@ -71,7 +71,7 @@ jobs:
       - name: Vérifier les exécutables vidéo dans le paquet Windows
         shell: pwsh
         run: |
-          foreach ($name in @('yt-dlp.exe','ffmpeg.exe','ffprobe.exe')) {
+          foreach ($name in @('yt-dlp.exe','ffmpeg.exe','ffprobe.exe','deno.exe')) {
             if (!(Test-Path ("dist/win-unpacked/resources/video/" + $name))) { throw "Outil vidéo absent : $name" }
           }
       - name: Contrôler MatchPulse et la mise à jour dans le paquet Windows
