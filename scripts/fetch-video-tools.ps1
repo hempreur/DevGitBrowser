@@ -29,4 +29,17 @@ try {
     Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $dest $name) -Force
   }
 } finally { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
-Write-Host 'Moteur vidéo Windows local intégré.'
+# Deno, requis par yt-dlp pour les défis JavaScript de YouTube.
+$denoUrl = 'https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip'
+$denoSha = 'cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf'
+$denoWork = Join-Path $env:TEMP ("dgb-deno-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $denoWork -Force | Out-Null
+try {
+  $denoZip = Join-Path $denoWork 'deno.zip'
+  Invoke-WebRequest -Uri $denoUrl -OutFile $denoZip
+  $denoGot = (Get-FileHash -Path $denoZip -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($denoGot -ne $denoSha) { throw "Empreinte Deno invalide : $denoGot" }
+  Expand-Archive -Path $denoZip -DestinationPath (Join-Path $denoWork 'unpacked') -Force
+  Copy-Item -LiteralPath (Join-Path $denoWork 'unpacked/deno.exe') -Destination (Join-Path $dest 'deno.exe') -Force
+} finally { Remove-Item -LiteralPath $denoWork -Recurse -Force -ErrorAction SilentlyContinue }
+Write-Host 'Moteurs locaux yt-dlp, FFmpeg et Deno intégrés.'
