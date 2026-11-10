@@ -102,12 +102,13 @@ function updateTabs(state){
   const host=$('tabs');
   const nodes=[];
   for(const tab of state.tabs){
-    const b=elem('div','tab'+(tab.id===state.activeId?' active':'')+(tab.loading?' loading':''));
+    const b=elem('div','tab'+(tab.id===state.activeId?' active':'')+(tab.loading?' loading':'')+(tab.private?' private':''));
     b.dataset.id=tab.id;b.setAttribute('role','tab');b.setAttribute('aria-selected',String(tab.id===state.activeId));b.draggable=true;
-    b.title=(tab.title||'Nouvel onglet')+(tab.url?'\n'+tab.url:'');
+    b.title=(tab.private?'🕶 Onglet privé sous VPN · rien n’est conservé\n':'')+(tab.title||'Nouvel onglet')+(tab.url?'\n'+tab.url:'');
     const icon=tab.loading?elem('span','tab-spinner'):tab.url?favicon(tab.url,tab.title,tab.favicon):elem('span','tab-home','✦');
     const label=elem('span','tab-title',tab.title||'Nouvel onglet');
     b.append(icon,label);
+    if(tab.private)b.append(elem('span','tab-private','🕶'));
     if(tab.engine==='mshtml')b.append(elem('span','tab-badge','IE'));
     if(tab.audible||tab.muted){
       const audio=elem('button','tab-audio'+(tab.muted?' muted':''),tab.muted?'🔇':'🔊');audio.type='button';audio.title=tab.muted?'Réactiver le son':'Couper le son';
@@ -425,7 +426,7 @@ function renderUpdate(u){
 async function loadAbout(){
   const info=await run(()=>api.about());if(!info)return;
   $('about-version').textContent='v'+info.version;
-  const rows=[['Version',info.version+(info.packaged?'':' (développement)')],['Éditeur',info.author],['Chromium',info.chrome],['Electron',info.electron],['Node.js',info.node],['V8',info.v8],
+  const rows=[['Version',info.version+(info.packaged?'':' (développement)')],['Éditeur',info.author],['Chromium',info.chrome],['Electron',info.electron],['Vidéos protégées (Widevine)',info.widevine?.available?(info.widevine.state+(info.widevine.version?' · '+info.widevine.version:'')+(info.widevine.error?' · '+info.widevine.error:'')):'module absent'],['Node.js',info.node],['V8',info.v8],
     ['Système',`${info.os} · ${info.arch}`],['Langue',info.locale],['Extensions incluses',info.extensions.map(e=>`${e.name} ${e.version}${e.loaded?'':' (erreur)'}`).join(', ')||'—'],
     ['DevGitShield',info.shield?`${info.shield.enabled?'actif':'désactivé'} · ${info.shield.quality}`:'—'],['Historique / favoris',`${info.history} pages · ${info.bookmarks} favoris`],
     ['Accélération graphique',info.gpu?'activée':'désactivée'],['Profil',info.userData],['User-Agent',info.userAgent]];
@@ -449,6 +450,9 @@ function submitNavigation(value){ if(ADMIN_COMMAND.test(String(value||''))){$('a
   return run(async()=>{if(panel)await showPanel('');await api.go(value);$('address').blur();});
 }
 $('add-tab').addEventListener('click',()=>run(async()=>{await showPanel('');await api.newTab();$('address').focus();}));
+// Clic droit sur + : nouvel onglet normal ou privé sous VPN.
+$('add-tab').addEventListener('contextmenu',event=>{event.preventDefault();run(()=>api.newTabMenu());});
+$('add-tab').title='Nouvel onglet (Ctrl+T) · clic droit : onglet privé sous VPN (Ctrl+Maj+N)';
 $('back').addEventListener('click',()=>run(()=>api.back()));
 $('forward').addEventListener('click',()=>run(()=>api.forward()));
 $('reload').addEventListener('click',()=>run(()=>api.reload()));
@@ -586,14 +590,14 @@ api.initial().then(state=>{render(state);reportChromeHeight();if(!state.welcomed
 
 // ======================================================================== 1.5
 const THEME_SWATCH='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="34"><defs><linearGradient id="g"><stop offset="0" stop-color="#06091c"/><stop offset=".35" stop-color="#267bfd"/><stop offset=".75" stop-color="#a03ef0"/><stop offset="1" stop-color="#45e6fa"/></linearGradient></defs><rect width="120" height="34" rx="8" fill="url(#g)"/></svg>');
-const THEME_FILTERS={neon:'none',ocean:'hue-rotate(-38deg)',emeraude:'hue-rotate(-125deg) saturate(.9)',rubis:'hue-rotate(75deg) saturate(1.05)',solaire:'hue-rotate(150deg) saturate(.95)',graphite:'saturate(.18) brightness(1.04)',clair:'invert(.93) hue-rotate(180deg) brightness(1.02)'};
 function applyTheme(theme){const value=theme&&theme!=='neon'?theme:'';if((document.documentElement.dataset.theme||'')!==value){if(value)document.documentElement.dataset.theme=value;else delete document.documentElement.dataset.theme;}}
 function renderThemes(hostId,active){
   const host=$(hostId);if(!host||!current)return;
   host.replaceChildren(...(current.themes||[]).map(th=>{
     const card=elem('button','theme-card'+(th.id===active?' active':''));card.type='button';
-    const swatch=elem('span','swatch');swatch.style.filter=THEME_FILTERS[th.id]||'none';
-    const img=elem('img');img.src=THEME_SWATCH;img.alt='';swatch.append(img);
+    const swatch=elem('span','swatch');const c=Array.isArray(th.colors)&&th.colors.length===4?th.colors:null;
+    if(c){swatch.style.background=`linear-gradient(120deg,${c[0]} 0 32%,${c[1]} 32% 58%,${c[2]} 58% 80%,${c[3]} 80%)`;swatch.style.border='1px solid rgba(127,127,127,.35)';}
+    else{const img=elem('img');img.src=THEME_SWATCH;img.alt='';swatch.append(img);}
     card.append(swatch,elem('b','',th.name));
     card.addEventListener('click',()=>run(()=>api.preference('theme',th.id)));
     return card;
@@ -916,7 +920,7 @@ function updateClockWeather(state){
   $('clock').classList.toggle('hidden',!showClock);
   const w=state.weather?.now;
   $('weather-pill').classList.toggle('hidden',!w);
-  if(w){if($('weather-icon').dataset.kind!==w.icon){$('weather-icon').innerHTML=weatherSvg(w.icon);$('weather-icon').dataset.kind=w.icon;}$('weather-temp').textContent=`${w.temp}°`;$('weather-pill').title=`${w.city} : ${w.temp} °C, ${w.label}${w.stale?' (hors ligne)':''}`;}
+  if(w){if($('weather-icon').dataset.kind!==w.icon){$('weather-icon').innerHTML=weatherSvg(w.icon);$('weather-icon').dataset.kind=w.icon;}$('weather-temp').textContent=`${w.temp}°`;$('weather-place').textContent=w.city;$('weather-pill').title=`${w.city} : ${w.temp} °C, ${w.label}${w.stale?' (hors ligne)':''}`;}
   $('clock-weather').classList.toggle('hidden',!showClock&&!w);
   if(document.activeElement!==$('weather-city'))$('weather-city').value=state.weather?.city||'';
   $('weather-status').textContent=w?`${w.city} : ${w.temp} °C, ${w.label}. Laisse vide et enregistre pour masquer la température.`:(state.weather?.city?`Ville : ${state.weather.city} (température en cours de chargement…)`:'Indique ta ville pour afficher la température à côté de l’horloge (source gratuite Open-Meteo, mise à jour toutes les 20 minutes).');

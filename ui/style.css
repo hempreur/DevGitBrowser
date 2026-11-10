@@ -229,18 +229,6 @@ html,body{height:100%;width:100%;overflow:hidden;}
 
 /* Thèmes : un filtre sur l'élément racine teinte toute l'interface ; les images
    (logo, icônes de sites) sont contre-filtrées pour garder leurs vraies couleurs. */
-:root[data-theme="ocean"]{filter:hue-rotate(-38deg)}
-:root[data-theme="ocean"] img{filter:hue-rotate(38deg)}
-:root[data-theme="emeraude"]{filter:hue-rotate(-125deg) saturate(.9)}
-:root[data-theme="emeraude"] img{filter:saturate(1.11) hue-rotate(125deg)}
-:root[data-theme="rubis"]{filter:hue-rotate(75deg) saturate(1.05)}
-:root[data-theme="rubis"] img{filter:saturate(.95) hue-rotate(-75deg)}
-:root[data-theme="solaire"]{filter:hue-rotate(150deg) saturate(.95)}
-:root[data-theme="solaire"] img{filter:saturate(1.05) hue-rotate(-150deg)}
-:root[data-theme="graphite"]{filter:saturate(.18) brightness(1.04)}
-:root[data-theme="graphite"] img{filter:saturate(5.5)}
-:root[data-theme="clair"]{filter:invert(.93) hue-rotate(180deg) brightness(1.02)}
-:root[data-theme="clair"] img,:root[data-theme="clair"] .letter-icon{filter:invert(1) hue-rotate(180deg)}
 .theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:10px}
 .theme-card{border:2px solid #2c3778;border-radius:12px;padding:10px;background:#0b1233;color:#e8f0ff;text-align:left;cursor:pointer}
 .theme-card.active{border-color:#50d9fa;box-shadow:0 0 12px #3fbff066}
@@ -433,3 +421,7 @@ body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
 .store-actions{grid-column:2;display:flex;gap:8px;align-items:center;justify-content:flex-end}
 .admin-store .inline-buttons{flex-wrap:wrap}
 .small-btn.danger{border-color:#814957;color:#ffb6bf}
+.weather-pill em{font-style:normal;font-weight:600;font-size:12px;opacity:.85;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 1.10 — onglets privés sous VPN */
+.tab.private{background:linear-gradient(140deg,#24124a,#16113a)!important;border-color:#6d4bd8!important}
+.tab-private{font-size:12px;margin-left:2px;flex:none;filter:drop-shadow(0 0 4px #9b6dff)}

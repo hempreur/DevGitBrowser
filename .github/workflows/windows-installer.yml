@@ -68,8 +68,33 @@ jobs:
       - name: Télécharger et vérifier les outils vidéo locaux
         shell: pwsh
         run: ./scripts/fetch-video-tools.ps1
-      - name: Compiler DevGitBrowser pour Windows x64
-        run: npm run build:win
+      - name: Préparer DevGitBrowser pour Windows x64 (dossier)
+        run: npm run build:win:dir
+      # Netflix et les autres plateformes exigent une signature VMP (Widevine) de
+      # l'exécutable FINAL : elle est faite ici, après les fusibles et l'icône,
+      # puis l'installateur est construit à partir de ce dossier signé.
+      - name: Signature VMP Widevine (castLabs EVS)
+        shell: pwsh
+        env:
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:EVS_ACCOUNT_NAME) -or [string]::IsNullOrEmpty($env:EVS_PASSWD)) {
+            Write-Host "::warning::Secrets EVS_ACCOUNT_NAME / EVS_PASSWD absents : pas de signature VMP. Netflix refusera la lecture (les autres sites fonctionnent)."
+            exit 0
+          }
+          python -m pip install --upgrade --quiet castlabs-evs
+          # Mode non interactif : identifiants lus dans EVS_ACCOUNT_NAME / EVS_PASSWD.
+          $env:EVS_NO_ASK = '1'
+          python -m castlabs_evs.account refresh
+          if ($LASTEXITCODE -ne 0) { python -m castlabs_evs.account reauth }
+          if ($LASTEXITCODE -ne 0) { throw 'Connexion au compte castLabs EVS impossible (vérifie les secrets EVS_ACCOUNT_NAME / EVS_PASSWD).' }
+          python -m castlabs_evs.vmp sign-pkg dist/win-unpacked
+          if ($LASTEXITCODE -ne 0) { throw 'Signature VMP impossible.' }
+          python -m castlabs_evs.vmp verify-pkg dist/win-unpacked
+          if ($LASTEXITCODE -ne 0) { throw 'Signature VMP invalide.' }
+      - name: Construire l'installateur depuis le dossier signé
+        run: npm run build:win:installer
       - name: Vérifier les exécutables vidéo dans le paquet Windows
         shell: pwsh
         run: |

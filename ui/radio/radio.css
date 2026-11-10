@@ -30,9 +30,23 @@ body{margin:0;height:100vh;display:flex;flex-direction:column;background:#070b22
 .star.on{color:#ffcf5a}
 .empty{color:#8b9cc9;text-align:center;padding:30px 10px}
 footer{padding:6px 12px;font-size:10px;color:#7586b4;border-top:1px solid #1d2766}
-:root[data-theme="ocean"]{filter:hue-rotate(-38deg)}:root[data-theme="ocean"] img{filter:hue-rotate(38deg)}
-:root[data-theme="emeraude"]{filter:hue-rotate(-125deg) saturate(.9)}:root[data-theme="emeraude"] img{filter:saturate(1.11) hue-rotate(125deg)}
-:root[data-theme="rubis"]{filter:hue-rotate(75deg) saturate(1.05)}:root[data-theme="rubis"] img{filter:saturate(.95) hue-rotate(-75deg)}
-:root[data-theme="solaire"]{filter:hue-rotate(150deg) saturate(.95)}:root[data-theme="solaire"] img{filter:saturate(1.05) hue-rotate(-150deg)}
-:root[data-theme="graphite"]{filter:saturate(.18) brightness(1.04)}:root[data-theme="graphite"] img{filter:saturate(5.5)}
-:root[data-theme="clair"]{filter:invert(.93) hue-rotate(180deg) brightness(1.02)}:root[data-theme="clair"] img{filter:invert(1) hue-rotate(180deg)}
+
+/* Thèmes (v1.10) */
+:root[data-theme="noir"]{--r-bg:#050505;--r-su:#121212;--r-su2:#1a1a1a;--r-li:#2a2a2a;--r-tx:#f4f4f4;--r-mu:#a1a1a1;--r-ac:#f4f4f4;--r-on:#050505}
+:root[data-theme="blanc"]{--r-bg:#f3f3f1;--r-su:#ffffff;--r-su2:#f4f4f2;--r-li:#dddcd7;--r-tx:#18191b;--r-mu:#5f6368;--r-ac:#1f2937;--r-on:#ffffff}
+:root[data-theme="nature"]{--r-bg:#0d1511;--r-su:#16241c;--r-su2:#1c2d23;--r-li:#2b4133;--r-tx:#eef3ea;--r-mu:#a7b8a3;--r-ac:#8fc27c;--r-on:#0d1511}
+:root[data-theme="sable"]{--r-bg:#efe6d6;--r-su:#fbf7ef;--r-su2:#f1e8d7;--r-li:#ddcdb1;--r-tx:#3a2e22;--r-mu:#7a6852;--r-ac:#b5643a;--r-on:#fffaf2}
+:root[data-theme="ocean"]{--r-bg:#061821;--r-su:#0d2a39;--r-su2:#123546;--r-li:#1d4659;--r-tx:#e5f3f7;--r-mu:#92b4c1;--r-ac:#3fc1c9;--r-on:#04202a}
+:root[data-theme="velours"]{--r-bg:#140b10;--r-su:#23131d;--r-su2:#2c1825;--r-li:#45263a;--r-tx:#f6eaf0;--r-mu:#c2a5b4;--r-ac:#c9a46a;--r-on:#1b0f16}
+:root[data-theme]:not([data-theme="neon"]) body{background:var(--r-bg);color:var(--r-tx)}
+:root[data-theme]:not([data-theme="neon"]) .player{background:var(--r-su)}
+:root[data-theme]:not([data-theme="neon"]) :is(.controls,.logo,.filters input,.filters select,.station img,.station .fallback){background:var(--r-su2);border-color:var(--r-li);color:var(--r-tx)}
+:root[data-theme]:not([data-theme="neon"]) .play{background:var(--r-ac);color:var(--r-on)}
+:root[data-theme]:not([data-theme="neon"]) :is(.now small,.meta,.station small,.empty,footer,.tabs button){color:var(--r-mu)}
+:root[data-theme]:not([data-theme="neon"]) :is(.tabs button,.ghost,footer){border-color:var(--r-li)}
+:root[data-theme]:not([data-theme="neon"]) .tabs button.active{background:var(--r-su2);color:var(--r-tx);border-color:var(--r-ac)}
+:root[data-theme]:not([data-theme="neon"]) .station:hover{background:var(--r-su);border-color:var(--r-li)}
+:root[data-theme]:not([data-theme="neon"]) .station.playing{background:var(--r-su2);border-color:var(--r-ac)}
+:root[data-theme]:not([data-theme="neon"]) :is(.ghost,.star.on){color:var(--r-ac)}
+:root[data-theme]:not([data-theme="neon"]) .controls input{accent-color:var(--r-ac)}
+:root[data-theme="blanc"],:root[data-theme="sable"]{color-scheme:light}

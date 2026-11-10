@@ -116,13 +116,15 @@ test('Blocked requests are counted per tab and reset on navigation',async t=>{
   f.service.resetTab(12);
   assert.equal(f.service.blockedFor(12),0);
 });
-test('Early scriptlets: uBlock rules + dedicated YouTube/Twitch protections, nothing on paused sites',async t=>{
+test('Early scriptlets: uBlock rules (+ YouTube/Twitch protections in boost mode), nothing on paused sites',async t=>{
   const f=fixture(t,{allowlist:['example.org']});
   await f.service.start();await f.service.updatePromise;
   const yt=f.service.earlyScripts('https://www.youtube.com/watch?v=abc');
   assert.equal(yt.enabled,true);
   assert.ok(yt.scripts.includes('/*ubo-scriptlet*/'));
-  assert.ok(yt.scripts.some(s=>s.includes('__devgitYouTubeShield')));
+  assert.ok(!yt.scripts.some(s=>s.includes('__devgitYouTubeShield')),'protections maison désactivées par défaut');
+  f.service.setBoost(true);
+  assert.ok(f.service.earlyScripts('https://www.youtube.com/watch?v=abc').scripts.some(s=>s.includes('__devgitYouTubeShield')));
   assert.match(yt.css,/ytd-ad-slot-renderer/);
   const tw=f.service.earlyScripts('https://www.twitch.tv/somechannel');
   assert.ok(tw.scripts.some(s=>s.includes('__devgitTwitchShield')));

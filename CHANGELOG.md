@@ -1,3 +1,25 @@
+## 1.10.0 — Netflix (Widevine), DevGitShield sans casse, onglets privés sous VPN, nouveaux thèmes
+
+### Vidéos protégées (Netflix, Prime Video, Disney+, Spotify…)
+- Le navigateur passe à **Electron for Content Security (castLabs) 45.2.1**, la même version d'Electron avec en plus le module DRM **Widevine**, installé et mis à jour automatiquement en arrière-plan. Son état est visible dans À propos.
+- La permission `mediaKeySystem` est autorisée. Elle était refusée par la politique de permissions, d'où l'erreur M7701-1003 de Netflix.
+- La compilation est découpée en trois étapes : dossier, signature **VMP** (castLabs EVS), puis installateur. C'est obligatoire pour Netflix, qui exige un exécutable signé VMP. La signature utilise les secrets GitHub `EVS_ACCOUNT_NAME` et `EVS_PASSWD`.
+
+### DevGitShield : fin des sites bloqués
+- Les scriptlets uBlock Origin étaient injectés **deux fois** (préchargement DevGitShield + moteur Ghostery). C'était la cause des blocages complets de YouTube et Twitch. Ils ne sont plus injectés qu'une fois, au plus tôt.
+- Les protections maison YouTube/Twitch (interception de `JSON.parse`, des Workers et accélération des publicités), détectables par ces sites, passent dans un **mode renforcé facultatif**, désactivé par défaut. Le blocage s'appuie sur les filtres uBlock Origin mis à jour chaque jour (quick-fixes, unbreak).
+- Le type de chaque requête est désormais celui fourni par Chromium, plus « deviné » depuis l'URL : des scripts et des images de sites légitimes étaient bloqués par erreur.
+- Les listes « anti-nuisances » (cookies, pop-ups), connues pour casser des sites, deviennent facultatives, comme dans uBlock Origin.
+- Nouveau raccourci dans le menu 🛡️ : « *site* ne fonctionne pas ? Mettre la protection en pause ici ».
+
+### Nouveautés
+- **Onglet privé sous VPN** : clic droit sur **+** → « Naviguer en mode privé », ou Ctrl+Maj+N.
+  - L'onglet utilise une session séparée en mémoire, effacée à la fermeture du dernier onglet privé.
+  - Il passe **toujours** par le VPN, avec blocage de toute connexion directe tant que le VPN n'est pas prêt et WebRTC verrouillé.
+  - Rien n'est conservé : ni historique, ni restauration de session.
+- **Nouveaux thèmes** : Néon, Noir, Blanc, Nature, Sable, Océan et Velours. Ce sont de vraies palettes de couleurs (fonds, surfaces, textes, accents) au lieu d'un filtre de couleur global, appliquées aussi à la radio. Les anciens choix sont repris automatiquement.
+- **Météo** : le nom de la ville s'affiche à côté de la température.
+
 ## 1.9.1 — DevGit Video local (extension DevGit Store)
 
 - DevGit Store continue à distribuer les extensions depuis le VPS. **Aucune vidéo, URL vidéo ou opération de conversion ne passe par le VPS.**

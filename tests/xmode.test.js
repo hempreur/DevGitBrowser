@@ -6,7 +6,7 @@ test('la commande %SxOnSite% est interceptée et jamais envoyée à la recherche
   assert.match(main,/function navigate\(s,text\) \{ if \(XMODE_COMMAND\.test/);
 });
 test('les onglets DGBx sont exclus de l\'historique et de la session',()=>{
-  assert.match(main,/!t\.xTab\)/);
+  assert.match(main,/!t\.xTab && !t\.private\)/);
   assert.match(main,/xTab:Boolean\(s\.xmode\)/);
 });
 test('le code d\'accès est haché (scrypt) et la majorité est obligatoire',()=>{

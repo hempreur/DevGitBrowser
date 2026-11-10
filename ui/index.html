@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <title>DevGitBrowser • CodexHempreur INC</title>
 <link rel="icon" type="image/png" href="../assets/icon.png">
-<link rel="stylesheet" href="style.css"><script defer src="x-catalog.js"></script><script defer src="renderer.js"></script>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="themes.css"><script defer src="x-catalog.js"></script><script defer src="renderer.js"></script>
 </head>
 <body>
 <header id="chrome">
@@ -14,7 +14,7 @@
     <div id="tabs" class="tabs" role="tablist" aria-label="Onglets"></div>
     <button class="tab-add" id="add-tab" title="Nouvel onglet (Ctrl+T)" aria-label="Nouvel onglet"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     <div class="tab-drop-space" id="tab-drop-space"></div>
-    <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b></span><span id="clock" class="clock">--:--</span></div>
+    <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b><em id="weather-place"></em></span><span id="clock" class="clock">--:--</span></div>
   </div>
   <div class="nav-row">
     <div class="nav-cluster">

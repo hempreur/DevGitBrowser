@@ -6,7 +6,7 @@ const invoke = (channel,...args) => ipcRenderer.invoke(`dgb:${channel}`,...args)
 const listen = channel => cb => { const fn=(_event,value)=>cb(value); ipcRenderer.on(channel,fn); return()=>ipcRenderer.off(channel,fn); };
 contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   initial:()=>invoke('initial'),
-  newTab:url=>invoke('tab:new',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),
+  newTab:url=>invoke('tab:new',url||''),newTabMenu:()=>invoke('tab:new-menu'),newPrivateTab:url=>invoke('tab:new-private',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),
   tabContext:id=>invoke('tab:context',id),muteTab:id=>invoke('tab:mute',id),detachTab:id=>invoke('tab:detach',id),
   moveTab:(id,index)=>invoke('tab:move',id,index),attachTab:(id,index)=>invoke('tab:attach',id,index),
   dragStart:id=>invoke('tab:drag-start',id),dragEnd:id=>invoke('tab:drag-end',id),
