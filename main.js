@@ -23,6 +23,7 @@ const { PhishingGuard } = require('./lib/phishing');
 const logger = require('./lib/logger');
 const admin = require('./lib/admin');
 const weather = require('./lib/weather');
+const store = require('./lib/store');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
 const STATS_PIN = String(require('./package.json').devgitStats?.pin || '');
@@ -39,6 +40,7 @@ const popupLimiter = new PopupLimiter();
 const windows = new Map();
 const networkWindows = new Map(); // owner-window id -> {win, monitor}
 const installed = new Map(); // private GitHub only; key -> {id, name, fingerprint, directory, error}
+const storeInstalled = new Map(); // DevGit Store (VPS) : id -> {chromeId, name, version, sha256, directory, error}
 const bundledInstalled = new Map(); // official extensions shipped with DevGitBrowser; never removed by GitHub
 const popupOrigins = new WeakMap(); // popup webContents -> opener origin for about:blank windows
 const ephemeralMedia = new Map();
@@ -67,7 +69,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', weatherCity:null, showClock:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -91,6 +93,9 @@ function loadSettings() {
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
     if (admin.isHash(raw.adminKey)) p.adminKey=raw.adminKey;
+    if (raw.store && typeof raw.store==='object' && !Array.isArray(raw.store)) for (const [id,v] of Object.entries(raw.store).slice(0,100)) {
+      if (store.validId(id) && v && /^[a-f0-9]{64}$/.test(v.sha256) && typeof v.version==='string' && v.version.length<=24) p.store[id]={version:v.version,sha256:v.sha256};
+    }
     if (validTelemetryId(raw.telemetryId)) p.telemetryId=raw.telemetryId;
     if (raw.telemetryAsked===true) p.telemetryAsked=true;
     if (raw.telemetry===true && p.telemetryId) p.telemetry=true;
@@ -231,8 +236,10 @@ function publicState(s) {
       lastSync, syncing, lastError },
     extensions: [
       ...[...bundledInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version||'',error:info.error||null,loaded:Boolean(info.id),source:'included'})),
-      ...[...installed.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.id),source:'github'}))
-    ]
+      ...[...installed.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.id),source:'github'})),
+      ...[...storeInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.chromeId),source:'store'}))
+    ],
+    storeAvailable: Boolean(telemetry?.available), storeInstalled: Object.fromEntries([...storeInstalled].map(([k,v])=>[k,{version:v.version,loaded:Boolean(v.chromeId),error:v.error||null}])),
   };
 }
 function sendState(s) {
@@ -771,7 +778,7 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
-  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating'].includes(key)) throw new Error('Réglage protégé.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store'].includes(key)) throw new Error('Réglage protégé.');
   if (key==='telemetry') { setTelemetry(value); return; }
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
@@ -1286,6 +1293,73 @@ async function selectRepository(name, branchValue) {
   settings.github={...info,branch};saveSettings();
   lastError='';await syncGithub();return publicGitInfo();
 }
+// ---- DevGit Store : extensions publiées sur le serveur DevGit (VPS), installées à la demande.
+const storeFolder = () => path.join(app.getPath('userData'), 'store-extensions');
+let storeCatalog = null, storeCatalogAt = 0, storeTimer = null;
+const RESERVED_STORE_IDS = new Set(['matchpulse', ...BUILTIN_KEYS.map(k => store.slug(k))]);
+async function fetchStoreCatalog(force) {
+  if (!telemetry?.available) throw new Error('Aucun serveur DevGit configuré dans cette version.');
+  if (!force && storeCatalog && Date.now() - storeCatalogAt < 5 * 60_000) return storeCatalog;
+  const data = await telemetry.api('/v1/store/catalog');
+  const list = (Array.isArray(data?.extensions) ? data.extensions : []).filter(e => store.validId(e.id) && !RESERVED_STORE_IDS.has(e.id) && /^[a-f0-9]{64}$/.test(e.sha256)).slice(0, 200);
+  storeCatalog = list.map(e => ({id: e.id, name: String(e.name || e.id).slice(0, 80), version: String(e.version || ''), description: String(e.description || '').slice(0, 300),
+    author: String(e.author || '').slice(0, 60), size: Number(e.size) || 0, sha256: e.sha256, updated: e.updated || '', installs: Number(e.installs) || 0}));
+  storeCatalogAt = Date.now(); return storeCatalog;
+}
+async function loadStoreDirectory(id, info, dir) {
+  const loaded = await browsingSession.extensions.loadExtension(dir, {allowFileAccess: false});
+  const previous = storeInstalled.get(id);
+  if (previous?.chromeId && previous.chromeId !== loaded.id) try { browsingSession.extensions.removeExtension(previous.chromeId); } catch {}
+  storeInstalled.set(id, {chromeId: loaded.id, name: loaded.name || info.name, version: info.version, sha256: info.sha256, directory: dir, error: null});
+}
+async function installStoreExtension(id, {silent = false} = {}) {
+  if (!store.validId(id) || RESERVED_STORE_IDS.has(id)) throw new Error('Extension inconnue.');
+  const entry = (await fetchStoreCatalog(true)).find(e => e.id === id);
+  if (!entry) throw new Error('Cette extension n’est plus disponible.');
+  const buf = await telemetry.api('/v1/store/package/' + id, {raw: true, maxBytes: 40 * 1024 * 1024, timeout: 120_000});
+  const bundle = store.parseBundle(buf, entry.sha256, id);
+  const dir = store.unpack(bundle, path.join(storeFolder(), id, entry.sha256.slice(0, 16)));
+  await loadStoreDirectory(id, {name: bundle.manifest.name, version: String(bundle.manifest.version), sha256: entry.sha256}, dir);
+  // Nettoyer les anciennes versions de cette extension.
+  for (const old of fs.readdirSync(path.join(storeFolder(), id))) if (old !== entry.sha256.slice(0, 16)) try { fs.rmSync(path.join(storeFolder(), id, old), {recursive: true, force: true}); } catch {}
+  const isNew = !settings.store[id];
+  settings.store[id] = {version: String(bundle.manifest.version), sha256: entry.sha256}; saveSettings();
+  if (isNew && telemetry.enabled) telemetry.api('/v1/store/installed', {method: 'POST', body: {id}}).catch(() => {});
+  if (!silent) logger.info('Store : extension installée', id, bundle.manifest.version);
+  broadcast(); return {id, name: bundle.manifest.name, version: String(bundle.manifest.version)};
+}
+function uninstallStoreExtension(id) {
+  const info = storeInstalled.get(id);
+  if (info?.chromeId) try { browsingSession.extensions.removeExtension(info.chromeId); } catch {}
+  storeInstalled.delete(id); delete settings.store[id]; saveSettings();
+  try { fs.rmSync(path.join(storeFolder(), id), {recursive: true, force: true}); } catch {}
+  broadcast(); return true;
+}
+async function loadStoreExtensions() {
+  for (const [id, info] of Object.entries(settings.store)) {
+    const dir = path.join(storeFolder(), id, info.sha256.slice(0, 16));
+    try {
+      const manifest = store.checkManifest(JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')));
+      await loadStoreDirectory(id, {name: manifest.name, version: info.version, sha256: info.sha256}, dir);
+    } catch (e) { storeInstalled.set(id, {chromeId: null, name: id, version: info.version, sha256: info.sha256, directory: dir, error: 'À réinstaller : ' + (e.message || e)}); }
+  }
+  broadcast();
+}
+// Mises à jour automatiques des extensions de la boutique (au démarrage puis toutes les 6 h).
+async function updateStoreExtensions() {
+  if (!telemetry?.available || !Object.keys(settings.store).length) return;
+  try {
+    const list = await fetchStoreCatalog(true);
+    for (const id of Object.keys(settings.store)) {
+      const entry = list.find(e => e.id === id), mine = settings.store[id];
+      if (entry && (entry.sha256 !== mine.sha256 || storeInstalled.get(id)?.error)) {
+        try { const r = await installStoreExtension(id, {silent: true}); logger.info('Store : mise à jour', id, r.version); }
+        catch (e) { logger.warn('Store : mise à jour impossible', id, e.message); }
+      }
+    }
+  } catch (e) { logger.warn('Store', e.message); }
+}
+function startStore() { clearInterval(storeTimer); setTimeout(updateStoreExtensions, 30_000).unref?.(); storeTimer = setInterval(updateStoreExtensions, 6 * 3_600_000); storeTimer.unref?.(); }
 async function loadBundledExtensions() {
   for (const key of BUILTIN_KEYS) {
     try {
@@ -1894,6 +1968,32 @@ function registerIpc(){
       if(!v){statsTokenMemory='';try{fs.rmSync(userDataFile('stats-token.dat'),{force:true});}catch{}return true;}
       storeStatsToken(v); return true;
     },
+    'store:catalog':async(_s,force)=>{const list=await fetchStoreCatalog(force===true);return list.map(e=>({...e,installed:settings.store[e.id]?.version||'',update:Boolean(settings.store[e.id]&&settings.store[e.id].sha256!==e.sha256)}));},
+    'store:details':async(_s,id)=>{
+      // Autorisations demandées, lues dans le paquet vérifié, affichées avant l'installation.
+      const entry=(await fetchStoreCatalog(false)).find(e=>e.id===id);if(!entry)throw new Error('Extension inconnue.');
+      const bundle=store.parseBundle(await telemetry.api('/v1/store/package/'+id,{raw:true,maxBytes:40*1024*1024,timeout:120_000}),entry.sha256,id);
+      return {id,name:bundle.manifest.name,version:String(bundle.manifest.version),permissions:store.permissionsOf(bundle.manifest)};
+    },
+    'store:install':(_s,id)=>installStoreExtension(String(id||'')),
+    'store:uninstall':(_s,id)=>{if(!store.validId(String(id||'')))throw new Error('Extension inconnue.');return uninstallStoreExtension(String(id));},
+    'store:publish':async(s,wantedId)=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      const token=readStatsToken();if(!token)throw new Error('Enregistre d’abord le jeton du serveur (section Utilisateurs dans le monde).');
+      const pick=await dialog.showOpenDialog(s.win,{title:'Dossier de l’extension à publier (contenant manifest.json)',properties:['openDirectory']});
+      if(pick.canceled||!pick.filePaths[0])return null;
+      const id=wantedId?String(wantedId):'';
+      if(id&&!store.validId(id))throw new Error('Identifiant invalide (minuscules, chiffres et tirets).');
+      const bundle=store.buildBundle(pick.filePaths[0],id||undefined);
+      if(RESERVED_STORE_IDS.has(bundle.id))throw new Error('Ce nom est réservé aux extensions intégrées.');
+      const result=await telemetry.api('/v1/store/publish',{method:'POST',body:bundle,token,timeout:180_000});
+      storeCatalog=null;logger.info('Store : publication',bundle.id,result?.version);return result;
+    },
+    'store:unpublish':async(s,id)=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      if(!store.validId(String(id||'')))throw new Error('Extension inconnue.');
+      await telemetry.api('/v1/store/'+id,{method:'DELETE',token:readStatsToken()});storeCatalog=null;return true;
+    },
     'telemetry:consent':(_s,yes)=>{setTelemetry(yes===true);return settings.telemetry;},
     'telemetry:rate':async(_s,stars)=>{
       const n=Number(stars); if(!telemetry)throw new Error('Notation indisponible.');
@@ -2083,6 +2183,7 @@ else {
     token=restoreToken();
     // Built-in extensions work for every Windows profile, with or without GitHub.
     await loadBundledExtensions();
+    loadStoreExtensions().then(startStore).catch(e=>logger.warn('Store',e.message));
     restoreSession();
     if(settings.gamingMode)applyProcessPriority();
     updater.start();

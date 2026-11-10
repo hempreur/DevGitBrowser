@@ -116,11 +116,11 @@ function send(res, code, obj) {
   res.writeHead(code, {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'});
   res.end(obj === undefined ? '' : JSON.stringify(obj));
 }
-function readBody(req) {
+function readBody(req, limit = 2048) {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
-    req.on('data', c => { size += c.length; if (size <= 2048) chunks.push(c); else if (size > 65536) req.destroy(); });
-    req.on('end', () => { if (size > 2048) return reject(new Error('too large')); try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(new Error('bad json')); } });
+    req.on('data', c => { size += c.length; if (size <= limit) chunks.push(c); else if (size > limit + 65536) req.destroy(); });
+    req.on('end', () => { if (size > limit) return reject(new Error('too large')); try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(new Error('bad json')); } });
     req.on('error', reject);
   });
 }
@@ -130,9 +130,63 @@ function authorized(req) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+// ------------------------------------------------------------- DevGit Store
+const STORE_DIR = path.join(DATA_DIR, 'store');
+const PKG_DIR = path.join(STORE_DIR, 'pkg');
+fs.mkdirSync(PKG_DIR, {recursive: true});
+const CATALOG_FILE = path.join(STORE_DIR, 'catalog.json');
+let catalog = {extensions: {}};
+try { catalog = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')); } catch {}
+const saveCatalog = () => { const tmp = CATALOG_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(catalog, null, 1)); fs.renameSync(tmp, CATALOG_FILE); };
+const STORE_ID = /^[a-z0-9][a-z0-9-]{1,39}$/;
+const storePath = p => typeof p === 'string' && p.length <= 200 && !p.startsWith('/') && !p.includes('\\') &&
+  p.split('/').length <= 12 && p.split('/').every(seg => seg && seg !== '..' && !seg.startsWith('.') && /^[A-Za-z0-9 _.()@+\-]+$/.test(seg));
+const text = (v, n) => String(v || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+function publish(bundle) {
+  const m = bundle && bundle.manifest;
+  if (bundle?.format !== 'dgx1' || !STORE_ID.test(bundle.id) || !Array.isArray(bundle.files) || !bundle.files.length || bundle.files.length > 600) throw new Error('paquet invalide');
+  if (![2, 3].includes(m?.manifest_version) || typeof m.name !== 'string' || !/^\d{1,5}(\.\d{1,5}){0,3}$/.test(String(m.version))) throw new Error('manifest invalide');
+  if (!bundle.files.every(f => storePath(f.path) && typeof f.data === 'string') || !bundle.files.some(f => f.path === 'manifest.json')) throw new Error('fichiers invalides');
+  const buf = Buffer.from(JSON.stringify({format: 'dgx1', id: bundle.id, manifest: m, files: bundle.files.map(f => ({path: f.path, data: f.data}))}));
+  const sha = crypto.createHash('sha256').update(buf).digest('hex');
+  fs.writeFileSync(path.join(PKG_DIR, bundle.id + '.json'), buf);
+  const prev = catalog.extensions[bundle.id] || {};
+  catalog.extensions[bundle.id] = {id: bundle.id, name: text(m.name, 80), version: String(m.version), description: text(m.description, 300),
+    author: typeof m.author === 'string' ? text(m.author, 60) : '', manifest_version: m.manifest_version, size: buf.length, sha256: sha, updated: new Date().toISOString(),
+    published: prev.published || new Date().toISOString(), installs: prev.installs || 0};
+  saveCatalog();
+  return catalog.extensions[bundle.id];
+}
+function publicCatalog() { return {extensions: Object.values(catalog.extensions).sort((a, b) => a.name.localeCompare(b.name))}; }
+
 const handler = async (req, res) => {
   const url = req.url.split('?')[0];
   try {
+    if (req.method === 'GET' && url === '/v1/store/catalog') return send(res, 200, publicCatalog());
+    let m;
+    if (req.method === 'GET' && (m = url.match(/^\/v1\/store\/package\/([a-z0-9-]{2,40})$/)) && catalog.extensions[m[1]]) {
+      res.writeHead(200, {'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'});
+      return fs.createReadStream(path.join(PKG_DIR, m[1] + '.json')).pipe(res);
+    }
+    if (req.method === 'POST' && url === '/v1/store/installed') {
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, {error: 'rate'});
+      const body = await readBody(req);
+      const ext = catalog.extensions[String(body.id || '')];
+      if (!ext) return send(res, 400, {error: 'invalid'});
+      ext.installs = (ext.installs || 0) + 1; saveCatalog(); return send(res, 204);
+    }
+    if (req.method === 'POST' && url === '/v1/store/publish') {
+      if (!authorized(req)) return send(res, 401, {error: 'unauthorized'});
+      let body; try { body = await readBody(req, 30 * 1024 * 1024); } catch { return send(res, 413, {error: 'trop gros'}); }
+      try { return send(res, 200, publish(body)); } catch (e) { return send(res, 400, {error: e.message}); }
+    }
+    if (req.method === 'DELETE' && (m = url.match(/^\/v1\/store\/([a-z0-9-]{2,40})$/))) {
+      if (!authorized(req)) return send(res, 401, {error: 'unauthorized'});
+      delete catalog.extensions[m[1]]; saveCatalog();
+      try { fs.rmSync(path.join(PKG_DIR, m[1] + '.json'), {force: true}); } catch {}
+      return send(res, 204);
+    }
     if (req.method === 'GET' && url === '/health') return send(res, 200, {ok: true});
     if (req.method === 'POST' && (url === '/v1/ping' || url === '/v1/rate')) {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -153,4 +207,4 @@ const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync
 const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
 if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-module.exports = {server, handler, ping, rate, stats, _db: () => db};
+module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, _db: () => db};

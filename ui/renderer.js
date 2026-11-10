@@ -44,6 +44,7 @@ async function showPanel(name){
   await api.panel(Boolean(panel));
   if(panel==='library')loadLibrary();
   if(panel==='about')loadAbout();
+  if(panel==='extensions')loadStore(false);
   if(panel==='passwords')loadVault();
   if(panel==='tasks')startPerf();else stopPerf();
   if(panel && current)render(current);
@@ -279,10 +280,10 @@ function updateGithub(state){
   $('extension-total').textContent=String(exts.length);
   if(!exts.length){list.append(elem('div','empty-list','Aucune extension chargée.'));}
   for(const ext of exts){
-    const item=elem('div','extension-row');const ico=elem('span','extension-ico',ext.source==='included'?'⚡':'▦');
-    const detail=elem('div','ext-detail');detail.append(elem('strong','',ext.name||ext.key),elem('small','',ext.source==='included'?`Officielle · fournie avec le navigateur · ${ext.version||'version inconnue'}`:`Dépôt GitHub privé · extensions/${ext.key} · ${ext.version||'version inconnue'}`));
+    const item=elem('div','extension-row');const ico=elem('span','extension-ico',ext.source==='included'?'⚡':ext.source==='store'?'🧩':'▦');
+    const detail=elem('div','ext-detail');detail.append(elem('strong','',ext.name||ext.key),elem('small','',ext.source==='included'?`Officielle · fournie avec le navigateur · ${ext.version||'version inconnue'}`:ext.source==='store'?`DevGit Store · ${ext.version||'version inconnue'} · mises à jour automatiques`:`Dépôt GitHub privé · extensions/${ext.key} · ${ext.version||'version inconnue'}`));
     if(ext.error)detail.append(elem('small','error-message',ext.error));
-    const stateLabel=elem('span',ext.loaded?'ext-ok':'ext-bad',ext.loaded?(ext.source==='included'?'INCLUSE':'CHARGÉE'):'ERREUR');
+    const stateLabel=elem('span',ext.loaded?'ext-ok':'ext-bad',ext.loaded?(ext.source==='included'?'INCLUSE':ext.source==='store'?'INSTALLÉE':'CHARGÉE'):'ERREUR');
     item.append(ico,detail,stateLabel);list.append(item);
   }
 }
@@ -983,6 +984,7 @@ async function loadAdminStats(){
   if(!res){$('admin-updated').textContent='Statistiques indisponibles.';return;}
   $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date());
   renderServer(res);
+  loadAdminStore();
   const st=res.github;
   if(!st){$('admin-kpis').replaceChildren(elem('p','muted','GitHub : '+res.githubError));$('admin-versions').replaceChildren();$('admin-community').replaceChildren();return;}
   $('admin-kpis').replaceChildren(
@@ -1015,3 +1017,63 @@ function updateTelemetry(state){
 }
 $('tm-yes').addEventListener('click',()=>run(()=>api.telemetryConsent(true),'Merci ! Statistiques anonymes activées.'));
 $('tm-no').addEventListener('click',()=>run(()=>api.telemetryConsent(false),'Aucune statistique ne sera envoyée.'));
+
+
+// ======================================================================== DevGit Store
+let storeItems=[],storeBusy=new Set();
+const fmtSize=n=>n>1048576?(n/1048576).toFixed(1).replace('.',',')+' Mo':Math.max(1,Math.round(n/1024))+' Ko';
+async function loadStore(force){
+  if(!current?.storeAvailable){$('store-card').classList.add('hidden');return;}
+  $('store-card').classList.remove('hidden');
+  try{storeItems=await api.storeCatalog(force);renderStore();}
+  catch(e){$('store-list').replaceChildren(elem('div','empty-list','Catalogue indisponible : '+String(e.message||e).replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'')));}
+}
+function renderStore(){
+  const q=$('store-search').value.trim().toLowerCase();
+  const items=storeItems.filter(e=>!q||(e.name+' '+e.description+' '+e.author).toLowerCase().includes(q));
+  if(!items.length){$('store-list').replaceChildren(elem('div','empty-list',storeItems.length?'Aucune extension ne correspond.':'Aucune extension publiée pour le moment.'));return;}
+  $('store-list').replaceChildren(...items.map(e=>{
+    const card=elem('div','store-item');const icon=elem('span','store-icon',(e.name.match(/[A-Za-z0-9]/g)||['?']).slice(0,2).join('').toUpperCase());
+    icon.style.setProperty('--h',String([...e.id].reduce((n,c)=>n+c.charCodeAt(0),0)%360));
+    const info=elem('div','store-info');info.append(elem('strong','',e.name),elem('small','',`v${e.version}${e.author?' · '+e.author:''} · ${fmtSize(e.size)} · ${e.installs} installation${e.installs>1?'s':''}`));
+    if(e.description)info.append(elem('p','',e.description));
+    const actions=elem('div','store-actions');const busy=storeBusy.has(e.id);
+    if(e.installed){
+      if(e.update){const up=elem('button','primary small-btn',busy?'…':'Mettre à jour');up.type='button';up.disabled=busy;up.addEventListener('click',()=>storeAction(e,'install'));actions.append(up);}
+      else actions.append(elem('span','ext-ok','INSTALLÉE'));
+      const rm=elem('button','outline small-btn',busy?'…':'Désinstaller');rm.type='button';rm.disabled=busy;rm.addEventListener('click',()=>storeAction(e,'uninstall'));actions.append(rm);
+    }else{const add=elem('button','primary small-btn',busy?'Installation…':'Installer');add.type='button';add.disabled=busy;add.addEventListener('click',()=>storeAction(e,'install'));actions.append(add);}
+    card.append(icon,info,actions);return card;}));
+}
+async function storeAction(e,what){
+  if(what==='install'&&!e.installed){
+    const d=await run(()=>api.storeDetails(e.id));if(!d)return;
+    const perms=d.permissions.length?'\n\nAutorisations demandées :\n• '+d.permissions.join('\n• '):'\n\nAucune autorisation particulière.';
+    if(!confirm(`Installer « ${d.name} » v${d.version} ?${perms}`))return;
+  }
+  if(what==='uninstall'&&!confirm(`Désinstaller « ${e.name} » ?`))return;
+  storeBusy.add(e.id);renderStore();
+  const ok=await run(()=>what==='install'?api.storeInstall(e.id):api.storeUninstall(e.id),what==='install'?(e.installed?`${e.name} mise à jour.`:`${e.name} installée.`):`${e.name} désinstallée.`);
+  storeBusy.delete(e.id);await loadStore(true);if(!ok)renderStore();
+}
+$('store-refresh').addEventListener('click',()=>loadStore(true));
+$('store-search').addEventListener('input',renderStore);
+
+// Admin : publication
+async function loadAdminStore(){
+  const box=$('admin-store-list');
+  if(!current?.storeAvailable){box.replaceChildren(elem('div','empty-list','Aucun serveur DevGit configuré.'));return;}
+  let list;try{list=await api.storeCatalog(true);}catch(e){box.replaceChildren(elem('div','empty-list','Catalogue indisponible.'));return;}
+  if(!list.length){box.replaceChildren(elem('div','empty-list','Aucune extension publiée.'));return;}
+  box.replaceChildren(...list.map(e=>{const row=elem('div','extension-row');const d=elem('div','ext-detail');
+    d.append(elem('strong','',`${e.name} · v${e.version}`),elem('small','',`${e.id} · ${fmtSize(e.size)} · ${e.installs} installation${e.installs>1?'s':''} · mise à jour ${new Date(e.updated).toLocaleDateString('fr-FR')}`));
+    const rm=elem('button','outline small-btn danger','Retirer');rm.type='button';
+    rm.addEventListener('click',async()=>{if(!confirm(`Retirer « ${e.name} » de la boutique ? Les navigateurs qui l’ont déjà la gardent.`))return;if(await run(()=>api.storeUnpublish(e.id),'Extension retirée de la boutique.'))loadAdminStore();});
+    row.append(elem('span','extension-ico','🧩'),d,rm);return row;}));
+}
+$('admin-store-publish').addEventListener('click',async()=>{
+  const btn=$('admin-store-publish');btn.disabled=true;btn.textContent='Publication…';
+  const r=await run(()=>api.storePublish($('admin-store-id').value.trim()));
+  btn.disabled=false;btn.textContent='Publier une extension…';
+  if(r){notify(`« ${r.name} » v${r.version} publiée sur la boutique.`);$('admin-store-id').value='';loadAdminStore();}
+});
