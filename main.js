@@ -21,6 +21,8 @@ const { PasswordVault, generatePassword } = require('./lib/vault');
 const { TorService, COUNTRIES: VPN_COUNTRIES } = require('./lib/tor');
 const { PhishingGuard } = require('./lib/phishing');
 const logger = require('./lib/logger');
+const admin = require('./lib/admin');
+const weather = require('./lib/weather');
 
 // Default chrome height; the interface reports its real height (favorites bar,
 // search bar, update banner) so web pages are never drawn over the controls.
@@ -62,7 +64,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'' };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', weatherCity:null, showClock:true };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -85,8 +87,10 @@ function loadSettings() {
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
+    if (admin.isHash(raw.adminKey)) p.adminKey=raw.adminKey;
+    if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -203,7 +207,9 @@ function publicState(s) {
     preferences: { httpsOnly:settings.httpsOnly, gpc:settings.gpc, webrtcProtection:settings.webrtcProtection, restoreSession:settings.restoreSession,
       showBookmarksBar:settings.showBookmarksBar, recordHistory:settings.recordHistory, clearHistoryOnExit:settings.clearHistoryOnExit,
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
-      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords },
+      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock },
+    weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
+    adminOpen: Boolean(s.adminOpen),
     searchEngines: Object.entries(SEARCH_ENGINES).map(([id,e])=>({id,name:e.name})),
     themes: THEMES, theme: settings.theme, welcomed: settings.welcomed,
     vpn: tor ? {...tor.state, countries: VPN_COUNTRIES} : {status:'off', available:false, countries: VPN_COUNTRIES},
@@ -526,7 +532,7 @@ function navigateTab(t,text) {
   if (s.activeId===t.id && !s.panelOpen) t.view.webContents.focus();
 }
 const XMODE_COMMAND = /^\s*%SxOnSite%\s*$/i;
-function navigate(s,text) { if (XMODE_COMMAND.test(String(text||''))) return; const t = activeTab(s); if (t) navigateTab(t,text); }
+function navigate(s,text) { if (XMODE_COMMAND.test(String(text||'')) || admin.ADMIN_COMMAND.test(String(text||''))) return; const t = activeTab(s); if (t) navigateTab(t,text); }
 // ---- Mode DGBx (caché) : réservé aux adultes, navigation privée, code d'accès facultatif.
 function hashCode(code) {
   const salt = crypto.randomBytes(16);
@@ -547,6 +553,19 @@ function exitXmode(s) {
   if (s.activeId === null && !s.win.isDestroyed()) { try { newTab(s); } catch {} }
   broadcast();
 }
+// ---- Météo (barre d'outils) : Open-Meteo, rafraîchie toutes les 20 minutes.
+let weatherNow = null, weatherTimer = null;
+const webFetch = (url, opts) => (browsingSession && typeof browsingSession.fetch === 'function' ? browsingSession.fetch(url, opts) : fetch(url, opts));
+async function refreshWeather() {
+  if (!settings.weatherCity) { weatherNow = null; broadcast(); return null; }
+  try { weatherNow = await weather.current(webFetch, settings.weatherCity); }
+  catch (e) { logger.warn('Météo', e.message); if (weatherNow) weatherNow.stale = true; }
+  broadcast(); return weatherNow;
+}
+function startWeather() { clearInterval(weatherTimer); refreshWeather(); weatherTimer = setInterval(refreshWeather, 20 * 60_000); }
+// ---- Panneau admin (%AdminDBG%) : clé obligatoire à chaque ouverture.
+const adminLimiter = admin.createLimiter();
+const adminKeyHash = () => settings.adminKey || admin.ORIGINAL_KEY_HASH;
 function showPhishingWarning(t, url, domain) {
   logger.warn('Site dangereux bloqué', domain);
   t.title='⛔ Site dangereux bloqué'; t.url=url; t.loadError='Hameçonnage';
@@ -725,6 +744,7 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed'].includes(key)) throw new Error('Réglage protégé.');
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
   if (key==='secureDns' && !['off','automatic','secure'].includes(value)) throw new Error('Mode DNS inconnu.');
@@ -879,7 +899,6 @@ function mainMenu(s) {
     {label:'Rechercher dans la page…', accelerator:'CmdOrCtrl+F', enabled:hasPage, click:()=>ui.send('dgb:focus-find')},
     {label:'Imprimer / enregistrer en PDF…', accelerator:'CmdOrCtrl+P', enabled:hasPage, click:()=>{ if(t.engine==='mshtml')hostCommand(t,'PRINT'); else t.view.webContents.print({printBackground:true},()=>{}); }},
     {label:'Enregistrer la page sous…', enabled:hasPage && t.engine==='chromium', click:()=>savePage(s,t).catch(e=>notice(s,e.message,true))},
-    {label:'Picture-in-Picture', enabled:hasPage, click:()=>togglePictureInPicture(s).then(m=>notice(s,m)).catch(e=>notice(s,e.message,true))},
     {label:`Zoom (${Math.round((hasPage && !t.view.webContents.isDestroyed()?t.view.webContents.getZoomFactor():1)*100)} %)`, enabled:hasPage, submenu:[
       {label:'Agrandir', accelerator:'CmdOrCtrl+Plus', click:()=>setZoom(s,1)},{label:'Réduire', accelerator:'CmdOrCtrl+-', click:()=>setZoom(s,-1)},{label:'Taille réelle', accelerator:'CmdOrCtrl+0', click:()=>setZoom(s,0)}]},
     {label:'Plein écran', accelerator:'F11', click:()=>s.win.setFullScreen(!s.win.isFullScreen())},
@@ -1519,6 +1538,12 @@ function passwordMenu(s) {
   popupMenu(s, items);
 }
 function registerPasswordCapture() {
+  // Bouton « Télécharger » du survol vidéo : uniquement les fichiers vidéo directs (pas les flux protégés).
+  ipcMain.on('dgb-video:download', (event, src) => {
+    const t = tabForWebContents(event.sender);
+    if (!t || typeof src !== 'string' || !/^https?:\/\//i.test(src) || src.length > 4000) return;
+    try { event.sender.downloadURL(src); notice(t.owner, 'Téléchargement de la vidéo lancé.'); } catch {}
+  });
   ipcMain.on('dgb-pw:form', (event, url) => {
     const t = tabForWebContents(event.sender);
     if (!t || event.senderFrame !== event.sender.mainFrame) return;
@@ -1706,7 +1731,6 @@ function registerIpc(){
     'nav:inspect':s=>{const t=activeTab(s);if(t?.engine==='mshtml')throw new Error('Les DevTools Chromium ne peuvent pas inspecter MSHTML. Reviens au mode moderne.');if(t?.url)t.view.webContents.openDevTools({mode:'detach'});},
     'nav:network':s=>showNetworkWindow(s),
     'nav:legacy':s=>toggleLegacyInTab(s),
-    'nav:pip':s=>togglePictureInPicture(s),
     'nav:find':(s,query,forward=true,newSearch=false)=>{
       const wc=activeTab(s)?.view.webContents;
       if(!wc || !activeTab(s).url || typeof query!=='string' || query.length>150)return;
@@ -1809,6 +1833,26 @@ function registerIpc(){
       xmodeFailures=0; s.xmode=true; broadcast(); return true;
     },
     'xmode:exit':s=>exitXmode(s),
+    'weather:set-city':async(_s,name)=>{
+      const q=String(name||'').trim();
+      if(!q){settings.weatherCity=null;saveSettings();weatherNow=null;broadcast();return null;}
+      settings.weatherCity=await weather.findCity(webFetch,q);saveSettings();
+      await refreshWeather();return settings.weatherCity;
+    },
+    'weather:refresh':()=>refreshWeather(),
+    'admin:unlock':(s,key)=>{
+      adminLimiter.check();
+      if(!admin.verifySecret(admin.normalizeKey(key),adminKeyHash())){adminLimiter.fail();logger.warn('Admin : clé refusée');throw new Error('Clé admin incorrecte.');}
+      adminLimiter.ok(); s.adminOpen=true; broadcast(); return true;
+    },
+    'admin:recover':(_s,words)=>{
+      adminLimiter.check();
+      if(!Array.isArray(words)||words.length!==3||!admin.verifySecret(admin.recoveryPhrase(words),admin.RECOVERY_HASH)){adminLimiter.fail();throw new Error('Mots de sécurité incorrects.');}
+      adminLimiter.ok(); const key=admin.generateKey(); settings.adminKey=admin.hashSecret(key); saveSettings();
+      logger.info('Admin : nouvelle clé générée'); return key;
+    },
+    'admin:close':s=>{s.adminOpen=false;broadcast();return true;},
+    'admin:stats':async s=>{ if(!s.adminOpen)throw new Error('Panneau admin verrouillé.'); return admin.fetchStats(webFetch); },
     'xmode:reset-code':(s,code,next)=>{
       if(!s.xmode)throw new Error('Ouvre d’abord le mode DGBx.');
       if(settings.xmodeCode && !checkCode(code))throw new Error('Code actuel incorrect.');
@@ -1985,6 +2029,7 @@ else {
       broadcast();
       if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
     }});
+    startWeather();
     token=restoreToken();
     // Built-in extensions work for every Windows profile, with or without GitHub.
     await loadBundledExtensions();

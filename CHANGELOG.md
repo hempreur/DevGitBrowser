@@ -1,3 +1,14 @@
+## 1.7.0 — Horloge, météo, PiP au survol des vidéos, panneau admin
+
+### Nouveautés
+- **Horloge numérique** en haut à droite (heure locale de l'ordinateur, date complète au survol). Désactivable dans Paramètres → Général.
+- **Température extérieure** à côté de l'horloge : choisis ta ville dans Paramètres → Général. La source est gratuite et sans clé (Open-Meteo), avec mise à jour toutes les 20 minutes.
+- **Picture-in-Picture au survol des vidéos** : un bouton semi-transparent apparaît en haut à droite de la vidéo sous le pointeur. Le bouton fixe de la barre d'outils et l'entrée du menu ☰ ont été retirés. Un bouton **Télécharger** s'ajoute quand la vidéo est un fichier direct (mp4, webm…). Le bouton est isolé de la page (Shadow DOM fermé, monde isolé).
+- **Panneau admin caché** : taper `%AdminDBG%` dans la barre d'adresse.
+  - L'accès demande une clé `DGB-XXXX-XXXX-XXXX-XXXX` à chaque ouverture. Seule son empreinte scrypt est stockée. Les essais sont verrouillés après 5 erreurs, avec une pause qui s'allonge.
+  - Si la clé est perdue, les 3 mots de sécurité, dans l'ordre, génèrent une nouvelle clé. L'ancienne cesse alors de fonctionner.
+  - Le panneau affiche les installations, les navigateurs actifs (vérifications de mise à jour par jour), l'adoption par version, les mises à jour, et les étoiles, forks et signalements GitHub. Aucune donnée n'est collectée sur les utilisateurs.
+
 ## 1.6.0 — Nouveau logo DGB et mode caché DGBx
 
 ### Nouveautés

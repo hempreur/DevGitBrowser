@@ -33,11 +33,11 @@
     <div class="nav-tools">
       <button id="radio-button" class="nav-tool icon" title="Radio : stations françaises et du monde" aria-label="Radio"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8 16 3.5"/><circle cx="15.5" cy="14" r="3"/><path d="M6.5 12.5h3M6.5 15.5h3"/></svg></button>
       <button id="vpn-button" class="nav-tool icon vpn-button" title="VPN DevGit (gratuit)" aria-label="VPN"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/></svg><em id="vpn-badge" class="hidden">ON</em></button>
-      <button id="pip-button" class="nav-tool icon" title="Picture-in-Picture : vidéo flottante au-dessus des fenêtres" aria-label="Picture-in-Picture"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11.5" width="6.5" height="5" rx="1" class="fill"/></svg></button>
       <button id="shield-button" class="nav-tool icon shield-button" title="DevGitShield — bloqueur de publicités" aria-label="DevGitShield"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l7.5 2.8v5.6c0 4.4-3.1 7.9-7.5 9.2-4.4-1.3-7.5-4.8-7.5-9.2V6z"/></svg><em id="shield-count">0</em></button>
       <button id="extensions-button" class="nav-tool icon" title="Extensions (MatchPulse…)" aria-label="Extensions"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg><em id="extension-counter">0</em></button>
       <button id="legacy-button" class="nav-tool small hidden" title="Moteur IE intégré (sites anciens)">IE</button>
       <button id="x-exit" class="nav-tool x-exit hidden" title="Quitter le mode DGBx (onglets du mode fermés)">Quitter DGBx</button>
+      <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b></span><span id="clock" class="clock">--:--</span></div>
       <button id="menu-button" class="nav-tool icon menu-button" title="Menu DevGitBrowser" aria-label="Menu"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg><i id="menu-dot" class="menu-dot hidden"></i></button>
     </div>
   </div>
@@ -106,6 +106,30 @@
       <input id="x-enter-code" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Code d’accès">
     </div>
     <div class="x-gate-actions"><button id="x-gate-cancel" class="x-btn ghost" type="button">Annuler</button><button id="x-gate-ok" class="x-btn" type="button">Entrer</button></div>
+  </div>
+</section>
+
+<section id="panel-admin" class="panel admin-panel hidden" role="dialog" aria-label="Panneau admin">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">ADMIN • DEVGITBROWSER</span><h2>Statistiques du navigateur</h2><p>Chiffres publics de ton dépôt GitHub, sans collecte de données sur les utilisateurs.</p></div><button class="x" id="admin-close" aria-label="Fermer">✕</button></div>
+    <div id="admin-lock" class="section-card admin-lock">
+      <h3>🔐 Accès admin</h3><p class="muted">Saisis ta clé admin (format DGB-XXXX-XXXX-XXXX-XXXX).</p>
+      <form id="admin-unlock-form" class="inline-buttons"><input id="admin-key" class="compact-input wide" type="password" autocomplete="off" spellcheck="false" placeholder="DGB-XXXX-XXXX-XXXX-XXXX" aria-label="Clé admin"><button class="primary" type="submit">Déverrouiller</button></form>
+      <button id="admin-lost" class="link-btn" type="button">Clé perdue ?</button>
+      <form id="admin-recover-form" class="admin-recover hidden">
+        <p class="muted">Donne les 3 mots de sécurité, dans l’ordre, pour générer une nouvelle clé (l’ancienne ne fonctionnera plus).</p>
+        <div class="admin-words"><input id="admin-w1" class="compact-input" type="password" autocomplete="off" placeholder="Mot 1" aria-label="Mot de sécurité 1"><input id="admin-w2" class="compact-input" type="password" autocomplete="off" placeholder="Mot 2" aria-label="Mot de sécurité 2"><input id="admin-w3" class="compact-input" type="password" autocomplete="off" placeholder="Mot 3" aria-label="Mot de sécurité 3"></div>
+        <button class="primary" type="submit">Générer une nouvelle KEY</button>
+        <div id="admin-newkey" class="admin-newkey hidden"><span>Ta nouvelle clé (note-la, elle ne sera plus affichée) :</span><code id="admin-newkey-value"></code><button id="admin-copy" class="outline" type="button">Copier</button></div>
+      </form>
+    </div>
+    <div id="admin-dash" class="hidden">
+      <div class="admin-toolbar"><span id="admin-updated" class="muted"></span><button id="admin-refresh" class="outline" type="button">Actualiser</button></div>
+      <div id="admin-kpis" class="admin-kpis"></div>
+      <div class="section-card"><h3>Adoption par version</h3><div id="admin-versions" class="admin-bars"></div></div>
+      <div class="section-card"><h3>Satisfaction et communauté</h3><div id="admin-community" class="admin-kpis small"></div></div>
+      <div class="section-card admin-note"><h3>Utilisateurs actifs, heures passées, pays</h3><p class="muted">Ces chiffres demandent qu’une petite mesure anonyme soit envoyée par chaque navigateur vers un serveur de statistiques. DevGitBrowser n’envoie rien pour l’instant. En attendant, « Vérifications / jour » donne une bonne idée de l’activité : chaque navigateur ouvert interroge les mises à jour au démarrage puis toutes les 4 heures.</p></div>
+    </div>
   </div>
 </section>
 
@@ -260,6 +284,8 @@
       <div class="setting-line"><div><strong>Moteur de recherche</strong><p>Utilisé quand le texte saisi n’est pas une adresse.</p></div><select id="search-engine" class="compact-select" aria-label="Moteur de recherche"></select></div>
       <div class="setting-line"><div><strong>Rouvrir les onglets au démarrage</strong><p>Restaure les fenêtres et onglets de la dernière session, y compris après une mise à jour.</p></div><label class="switch"><input type="checkbox" data-pref="restoreSession"><span></span></label></div>
       <div class="setting-line"><div><strong>Barre de favoris</strong><p>Afficher les favoris sous la barre d’adresse (Ctrl+Maj+B).</p></div><label class="switch"><input type="checkbox" data-pref="showBookmarksBar"><span></span></label></div>
+      <div class="setting-line"><div><strong>Horloge en haut à droite</strong><p>Heure locale de ton ordinateur.</p></div><label class="switch"><input type="checkbox" data-pref="showClock"><span></span></label></div>
+      <div class="setting-line"><div><strong>Température extérieure</strong><p id="weather-status">Indique ta ville pour afficher la température à côté de l’horloge (source gratuite Open-Meteo, mise à jour toutes les 20 minutes).</p></div><form id="weather-form" class="inline-buttons"><input id="weather-city" class="compact-input" type="text" maxlength="80" placeholder="Ex. : Lisbonne" aria-label="Ville pour la météo"><button class="primary" type="submit">Enregistrer</button></form></div>
       <div class="setting-line"><div><strong>Mises à jour automatiques</strong><p>Téléchargées en arrière-plan depuis les versions publiées sur GitHub, installées au prochain redémarrage.</p></div><label class="switch"><input type="checkbox" data-pref="autoUpdate"><span></span></label></div>
     </div>
     <div class="section-card">
