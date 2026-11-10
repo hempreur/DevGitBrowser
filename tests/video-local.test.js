@@ -6,7 +6,7 @@ const os=require('node:os');
 const path=require('node:path');
 const {VideoLocal,validateRequest,isYoutubeWatchUrl}=require('../lib/video-local');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dgb-video-'));
-for(const file of ['ffmpeg.exe','ffprobe.exe'])fs.writeFileSync(path.join(dir,file),'test');
+for(const file of ['ffmpeg.exe','ffprobe.exe','deno.exe'])fs.writeFileSync(path.join(dir,file),'test');
 const script=path.join(dir,'fake.js');
 fs.writeFileSync(script,`const fs=require('fs');const a=process.argv.slice(2);
 if(a.includes('--dump-single-json')){console.log(JSON.stringify({title:'Démo',formats:[{vcodec:'avc1',height:360},{vcodec:'vp9',height:720},{vcodec:'none',height:1080}]}));process.exit(0);}
