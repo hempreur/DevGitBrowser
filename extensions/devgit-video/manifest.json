@@ -1,0 +1,22 @@
+{
+  "manifest_version": 2,
+  "name": "DevGit Video — MP4 / MP3 local",
+  "short_name": "DevGit Video",
+  "version": "2.0.0",
+  "description": "Téléchargement et conversion MP4/MP3 sur l’ordinateur Windows. Le serveur DevGit Store distribue uniquement l’extension.",
+  "author": "CodexHempreur INC",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
