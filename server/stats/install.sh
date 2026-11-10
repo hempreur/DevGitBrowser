@@ -1,52 +1,76 @@
 #!/usr/bin/env bash
 # Installation du serveur de statistiques DevGitBrowser sur un VPS Debian / Ubuntu.
-# Usage :  curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats/install.sh | sudo bash
-#          (ou avec ton domaine : ... | sudo bash -s -- stats.mondomaine.fr)
+#
+#   curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats/install.sh | sudo bash
+#
+# Mode par défaut « séparé » : le serveur écoute seul en HTTPS sur le port 8443 avec son propre
+# certificat (épinglé par le navigateur). Il ne touche ni aux ports 80/443, ni à Docker, ni aux
+# autres services du VPS.
+# Option : DEVGIT_MODE=caddy pour passer par Caddy sur 80/443 (uniquement si ces ports sont libres).
 set -euo pipefail
 BRANCH="${DEVGIT_BRANCH:-main}"
 REPO_RAW="https://raw.githubusercontent.com/hempreur/DevGitBrowser/${BRANCH}/server/stats"
 APP_DIR=/opt/devgit-stats
 ENV_FILE=/etc/devgit-stats.env
-PORT=8787
+MODE="${DEVGIT_MODE:-standalone}"
+PORT="${DEVGIT_PORT:-8443}"
 
 [ "$(id -u)" -eq 0 ] || { echo "Lance ce script avec sudo."; exit 1; }
 command -v apt-get >/dev/null || { echo "Ce script est prévu pour Debian / Ubuntu."; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
-# Attendre (jusqu’à 10 min) que les mises à jour automatiques libèrent apt.
-echo "DPkg::Lock::Timeout \"600\";" > /etc/apt/apt.conf.d/99devgit-lock
+APT="apt-get -o DPkg::Lock::Timeout=600 -y -qq"
+rm -f /etc/apt/apt.conf.d/99devgit-lock
 
 echo "==> Paquets de base"
-apt-get update -qq
-apt-get install -y -qq curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https >/dev/null
+$APT update
+$APT install curl ca-certificates openssl >/dev/null
 
 echo "==> Node.js"
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 18 ]; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
-  apt-get install -y -qq nodejs >/dev/null
+  $APT install nodejs >/dev/null
 fi
 node -v
 
 echo "==> Domaine"
 DOMAIN="${1:-}"
+IP="$(curl -fsS4 https://api.ipify.org || true)"
 if [ -z "$DOMAIN" ]; then
-  IP="$(curl -fsS4 https://api.ipify.org || true)"
   [ -n "$IP" ] || { echo "Adresse IP publique introuvable : relance avec ton domaine en argument."; exit 1; }
-  # sslip.io : nom de domaine gratuit pointant vers l'IP (certificat HTTPS possible).
   DOMAIN="devgit-$(echo "$IP" | tr . -).sslip.io"
 fi
 echo "Domaine : $DOMAIN"
 
+if [ "$MODE" = "standalone" ] && ss -ltnH "( sport = :$PORT )" | grep -q . && ! systemctl is-active --quiet devgit-stats; then
+  echo "Le port $PORT est déjà utilisé par un autre programme. Relance avec DEVGIT_PORT=<autre port>."; exit 1
+fi
+
 echo "==> Application"
 id devgitstats >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin devgitstats
-mkdir -p "$APP_DIR/data"
+mkdir -p "$APP_DIR/data" "$APP_DIR/tls"
 curl -fsSL "$REPO_RAW/server.js" -o "$APP_DIR/server.js"
-chown -R devgitstats:devgitstats "$APP_DIR"
-if [ ! -f "$ENV_FILE" ]; then
-  TOKEN="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
+TOKEN=""
+[ -f "$ENV_FILE" ] && TOKEN="$(grep '^ADMIN_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)"
+[ -n "$TOKEN" ] || TOKEN="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
+
+if [ "$MODE" = "standalone" ]; then
+  if [ ! -s "$APP_DIR/tls/cert.pem" ]; then
+    SAN="DNS:$DOMAIN"; [ -n "$IP" ] && SAN="$SAN,IP:$IP"
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
+      -subj "/CN=$DOMAIN/O=DevGitBrowser Stats" -addext "subjectAltName=$SAN" \
+      -keyout "$APP_DIR/tls/key.pem" -out "$APP_DIR/tls/cert.pem" 2>/dev/null
+  fi
+  printf 'PORT=%s\nHOST=0.0.0.0\nDATA_DIR=%s/data\nADMIN_TOKEN=%s\nTLS_CERT=%s/tls/cert.pem\nTLS_KEY=%s/tls/key.pem\n' \
+    "$PORT" "$APP_DIR" "$TOKEN" "$APP_DIR" "$APP_DIR" > "$ENV_FILE"
+  URL="https://$DOMAIN:$PORT"
+else
+  PORT=8787
   printf 'PORT=%s\nHOST=127.0.0.1\nDATA_DIR=%s/data\nADMIN_TOKEN=%s\n' "$PORT" "$APP_DIR" "$TOKEN" > "$ENV_FILE"
-  chmod 600 "$ENV_FILE"
+  URL="https://$DOMAIN"
 fi
-TOKEN="$(grep '^ADMIN_TOKEN=' "$ENV_FILE" | cut -d= -f2-)"
+chmod 600 "$ENV_FILE"
+chown -R devgitstats:devgitstats "$APP_DIR"
+chmod 600 "$APP_DIR/tls/key.pem" 2>/dev/null || true
 
 cat > /etc/systemd/system/devgit-stats.service <<UNIT
 [Unit]
@@ -59,6 +83,7 @@ ExecStart=$(command -v node) $APP_DIR/server.js
 User=devgitstats
 Restart=always
 RestartSec=3
+AmbientCapabilities=
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -69,34 +94,36 @@ ReadWritePaths=$APP_DIR/data
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now devgit-stats >/dev/null
+systemctl enable devgit-stats >/dev/null 2>&1
 systemctl restart devgit-stats
 
-echo "==> HTTPS (Caddy)"
-if ! command -v caddy >/dev/null; then
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
-  apt-get update -qq && apt-get install -y -qq caddy >/dev/null
+if [ "$MODE" = "standalone" ]; then
+  if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow "$PORT/tcp" >/dev/null; fi
+else
+  echo "==> HTTPS (Caddy)"
+  if ss -ltnH '( sport = :443 or sport = :80 )' | grep -qv caddy; then echo "Ports 80/443 déjà utilisés : relance sans DEVGIT_MODE (mode séparé)."; exit 1; fi
+  if ! command -v caddy >/dev/null; then
+    $APT install debian-keyring debian-archive-keyring apt-transport-https gnupg >/dev/null
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
+    $APT update && $APT install caddy >/dev/null
+  fi
+  mkdir -p /etc/caddy/conf.d
+  grep -q 'import conf.d/\*' /etc/caddy/Caddyfile 2>/dev/null || echo 'import conf.d/*' >> /etc/caddy/Caddyfile
+  printf '%s {\n  encode gzip\n  reverse_proxy 127.0.0.1:%s\n}\n' "$DOMAIN" "$PORT" > /etc/caddy/conf.d/devgit-stats.caddy
+  systemctl enable --now caddy >/dev/null 2>&1; systemctl restart caddy
 fi
-mkdir -p /etc/caddy/conf.d
-grep -q 'import conf.d/\*' /etc/caddy/Caddyfile 2>/dev/null || {
-  # Caddyfile par défaut remplacé seulement s'il n'a jamais été personnalisé.
-  if grep -q '^:80' /etc/caddy/Caddyfile 2>/dev/null; then echo 'import conf.d/*' > /etc/caddy/Caddyfile; else echo 'import conf.d/*' >> /etc/caddy/Caddyfile; fi
-}
-cat > /etc/caddy/conf.d/devgit-stats.caddy <<CADDY
-$DOMAIN {
-  encode gzip
-  reverse_proxy 127.0.0.1:$PORT
-}
-CADDY
-systemctl reload caddy || systemctl restart caddy
 
-if command -v ufw >/dev/null && ufw status | grep -q active; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
-
-sleep 4
+sleep 3
 echo
-if curl -fsS "https://$DOMAIN/health" >/dev/null 2>&1; then echo "✅ Serveur en ligne : https://$DOMAIN"; else echo "⚠️  Le certificat HTTPS peut prendre une minute. Vérifie : curl https://$DOMAIN/health"; fi
+CURL_OPTS="-fsS"; [ "$MODE" = "standalone" ] && CURL_OPTS="-fsSk"
+if curl $CURL_OPTS "$URL/health" >/dev/null 2>&1; then echo "✅ Serveur en ligne : $URL"; else echo "⚠️  Pas de réponse sur $URL/health — envoie : journalctl -u devgit-stats -n 30"; fi
 echo
-echo "Adresse du serveur : https://$DOMAIN"
+echo "Adresse du serveur : $URL"
+if [ "$MODE" = "standalone" ]; then
+  FP="$(openssl x509 -in "$APP_DIR/tls/cert.pem" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-F' 'a-f')"
+  echo "Empreinte          : $FP"
+  echo "(Adresse + empreinte sont publiques : envoie-les pour les intégrer au navigateur.)"
+fi
 echo "Jeton admin        : $TOKEN"
-echo "(Colle ce jeton dans le panneau admin %AdminDBG% → Serveur de statistiques.)"
+echo "(Le jeton est SECRET : colle-le seulement dans le panneau admin %AdminDBG%.)"

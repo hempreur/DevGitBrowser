@@ -25,6 +25,7 @@ const admin = require('./lib/admin');
 const weather = require('./lib/weather');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
+const STATS_PIN = String(require('./package.json').devgitStats?.pin || '');
 
 // Default chrome height; the interface reports its real height (favorites bar,
 // search bar, update banner) so web pages are never drawn over the controls.
@@ -2075,7 +2076,7 @@ else {
       if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
     }});
     startWeather();
-    telemetry=new Telemetry({url:STATS_URL,fetcher:webFetch,getSettings:()=>settings,version:app.getVersion(),
+    telemetry=new Telemetry({url:STATS_URL,pin:STATS_PIN,fetcher:webFetch,getSettings:()=>settings,version:app.getVersion(),
       country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},platform:process.platform,
       isActive:()=>Boolean(BrowserWindow.getFocusedWindow())});
     telemetry.start();

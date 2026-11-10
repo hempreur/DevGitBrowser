@@ -10,9 +10,10 @@ curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/
 curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats/install.sh | sudo bash -s -- stats.mondomaine.fr
 ```
 
-Le script installe Node.js 20, un service systemd `devgit-stats` et Caddy (HTTPS automatique). Sans domaine, il utilise un nom gratuit `devgit-<ip>.sslip.io`. Il affiche à la fin **l'adresse du serveur** et le **jeton admin**.
+Le script installe Node.js 20 et un service systemd `devgit-stats`. Par défaut, le serveur est **séparé** de tout le reste : il écoute seul en HTTPS sur le port **8443**, avec son propre certificat que le navigateur épingle par empreinte SHA-256. Il ne touche ni aux ports 80/443, ni à Docker, ni aux autres services. Sans domaine, il utilise un nom gratuit `devgit-<ip>.sslip.io`. À la fin, il affiche **l'adresse**, **l'empreinte** et le **jeton admin**.
 
-- L'adresse va dans `package.json` → `devgitStats.url`, puis on publie une version du navigateur.
+- L'adresse et l'empreinte vont dans `package.json` → `devgitStats.url` / `devgitStats.pin`, puis on publie une version du navigateur.
+- `DEVGIT_MODE=caddy` permet plutôt de passer par Caddy sur 80/443, uniquement si ces ports sont libres.
 - Le jeton se colle dans le panneau admin → « Utilisateurs dans le monde ».
 
 ## Données

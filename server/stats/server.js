@@ -4,6 +4,7 @@
 // Reçoit des mesures anonymes (aucune IP ni adresse de site n'est conservée)
 // et les sert, agrégées, au panneau admin protégé par un jeton.
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -129,7 +130,7 @@ function authorized(req) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
   const url = req.url.split('?')[0];
   try {
     if (req.method === 'GET' && url === '/health') return send(res, 200, {ok: true});
@@ -145,7 +146,11 @@ const server = http.createServer(async (req, res) => {
     }
     send(res, 404, {error: 'not found'});
   } catch { send(res, 400, {error: 'invalid'}); }
-});
+};
+// HTTPS direct (certificat épinglé par le navigateur) si TLS_CERT / TLS_KEY sont fournis,
+// sinon HTTP local derrière un proxy (Caddy…).
+const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync(process.env.TLS_CERT), key: fs.readFileSync(process.env.TLS_KEY)} : null;
+const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
-if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${HOST}:${PORT}`));
-module.exports = {server, ping, rate, stats, _db: () => db};
+if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
+module.exports = {server, handler, ping, rate, stats, _db: () => db};

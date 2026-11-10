@@ -33,3 +33,18 @@ test('client : rien envoyé sans accord, https obligatoire',async()=>{
   assert.equal(await t.ping(),true);assert.deepEqual(sent[0],['https://stats.test/v1/ping',{id:id(7),v:'1.8.0',cc:'FR',os:'win',min:12,pages:2}]);
   assert.equal(t.pages,0);assert.equal(t.minutes,0);
 });
+test('client : certificat auto-signé épinglé (bonne empreinte acceptée, mauvaise refusée)',async t=>{
+  const {execFileSync}=require('child_process');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pin-'));
+  execFileSync('openssl',['req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:prime256v1','-nodes','-days','2','-subj','/CN=stats.test','-addext','subjectAltName=DNS:stats.test,IP:127.0.0.1','-keyout',dir+'/k.pem','-out',dir+'/c.pem'],{stdio:'ignore'});
+  const fp=execFileSync('openssl',['x509','-in',dir+'/c.pem','-noout','-fingerprint','-sha256']).toString().split('=')[1].replace(/[:\s]/g,'').toLowerCase();
+  const https=require('https');const s=https.createServer({key:fs.readFileSync(dir+'/k.pem'),cert:fs.readFileSync(dir+'/c.pem')},srv.handler);
+  await new Promise(r=>s.listen(0,'127.0.0.1',r));t.after(()=>s.close());
+  const url='https://127.0.0.1:'+s.address().port;
+  const settings={telemetry:true,telemetryId:id(9)};
+  const good=new Telemetry({url,pin:fp,fetcher:null,getSettings:()=>settings,version:'1.8.0',country:()=>'PT',platform:'win32',isActive:()=>true});
+  assert.equal(await good.ping(),true,good.lastError);
+  const st=await good.adminStats('T'.repeat(40));assert.ok(st.totalUsers>=1);
+  await assert.rejects(good.adminStats('mauvais'),/refusé/);
+  const bad=new Telemetry({url,pin:'0'.repeat(64),fetcher:null,getSettings:()=>settings,version:'1.8.0',country:()=>'PT',platform:'win32',isActive:()=>true});
+  assert.equal(await bad.ping(),false);assert.match(bad.lastError,/empreinte/);
+});
