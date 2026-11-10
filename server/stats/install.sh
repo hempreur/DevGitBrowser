@@ -12,6 +12,8 @@ PORT=8787
 [ "$(id -u)" -eq 0 ] || { echo "Lance ce script avec sudo."; exit 1; }
 command -v apt-get >/dev/null || { echo "Ce script est prévu pour Debian / Ubuntu."; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
+# Attendre (jusqu’à 10 min) que les mises à jour automatiques libèrent apt.
+echo "APT::Get::Assume-Yes \"true\"; DPkg::Lock::Timeout \"600\";" > /etc/apt/apt.conf.d/99devgit-lock
 
 echo "==> Paquets de base"
 apt-get update -qq

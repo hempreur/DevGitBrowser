@@ -3,7 +3,7 @@
   "productName": "DevGitBrowser",
   "version": "1.8.0",
   "devgitStats": {
-    "url": ""
+    "url": "https://devgit-15-235-120-182.sslip.io"
   },
   "private": true,
   "description": "DevGitBrowser : navigateur Chromium pour Windows avec DevGitShield (anti-pub YouTube/Twitch), historique, favoris, onglets détachables, Picture-in-Picture, mises à jour automatiques, MatchPulse, IE11 et analyse réseau",
