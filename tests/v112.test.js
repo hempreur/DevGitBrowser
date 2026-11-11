@@ -27,7 +27,7 @@ test('Mica/Acrylic et aperçu des liens : réglages validés et câblés',()=>{
   assert.match(main,/setBackgroundMaterial\(m\)/);assert.match(css,/html\[data-material\] #chrome/);
   for(const id of ['window-material','link-preview','panel-trackers','trackers-list'])assert.match(html,new RegExp(`id="${id}"`));
   // jamais d'aperçu depuis un onglet privé / DGBx ; page aperçue muette, sans boîtes de dialogue
-  assert.match(main,/mode === 'off' \|\| t\.private \|\| t\.xTab/);assert.match(main,/setAudioMuted\(true\)/);assert.match(main,/disableDialogs: true/);
+  assert.match(main,/mode === 'off' \|\| remote\?\.disabled\('preview'\) \|\| t\.private \|\| t\.xTab/);assert.match(main,/setAudioMuted\(true\)/);assert.match(main,/disableDialogs: true/);
   assert.match(pre,/process\.isMainFrame/);assert.match(pre,/dgb-preview:hover/);
   const prev=read('ui/preview/index.html');assert.match(prev,/Content-Security-Policy/);assert.doesNotMatch(prev,/unsafe-inline/);
 });
