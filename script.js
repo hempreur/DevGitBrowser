@@ -61,4 +61,14 @@
   const btn = document.getElementById('ref-copy'), label = btn.querySelector('small');
   btn.addEventListener('click', () => navigator.clipboard?.writeText(code).then(() => { label.textContent = 'Copié ✓'; setTimeout(() => { label.textContent = 'Copier'; }, 1800); }, () => {}));
   try { sessionStorage.setItem('dgb-ref', code); } catch {}
+  // Validation automatique au premier lancement : l'adresse complète de cette page (avec le code)
+  // accompagne le téléchargement — Windows la note dans la « marque du web » de l'installateur —
+  // et le code est aussi copié au format reconnu par le navigateur.
+  const note = document.createElement('p');
+  note.className = 'ref-auto'; note.textContent = '✅ Le code sera validé automatiquement au premier lancement du navigateur.';
+  box.querySelector('div').append(note);
+  document.querySelectorAll('a[href*="github.com/hempreur/DevGitBrowser/releases"]').forEach(a => {
+    a.referrerPolicy = 'unsafe-url';
+    a.addEventListener('click', () => { navigator.clipboard?.writeText('DevGitBrowser ref:' + code).catch(() => {}); });
+  });
 })();

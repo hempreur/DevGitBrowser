@@ -334,3 +334,5 @@ details p{margin:0 0 18px;color:var(--muted)}
 .ref-gift{font-size:30px}.ref-invite>div{flex:1;min-width:220px}
 .ref-code{font:700 20px Consolas,'Cascadia Mono',monospace;letter-spacing:3px;color:#7df2b6;background:#070b1f;border:1px dashed #50d9fa;border-radius:10px;padding:8px 14px;cursor:pointer}
 .ref-code small{font:600 11px Inter,'Segoe UI',sans-serif;letter-spacing:0;color:#9fb0e0;margin-left:6px}
+
+.ref-auto{margin:6px 0 0;color:#7df2b6;font-size:13px;font-weight:600}
