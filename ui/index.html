@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <title>DevGitBrowser • CodexHempreur INC</title>
 <link rel="icon" type="image/png" href="../assets/icon.png">
-<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="themes.css"><script defer src="x-catalog.js"></script><script defer src="renderer.js"></script>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="themes.css"><script defer src="x-catalog.js"></script><script defer src="world-map.js"></script><script defer src="renderer.js"></script>
 </head>
 <body>
 <header id="chrome">
@@ -42,6 +42,8 @@
     </div>
   </div>
   <nav id="bookmarks-bar" class="bookmarks-bar" aria-label="Barre de favoris"></nav>
+  <div id="kill-banner" class="pw-banner kill-banner hidden" role="alert"><span class="pw-ico">⛔</span><span id="kill-text">Cette version de DevGitBrowser a été désactivée à cause d’un problème important. Installe la mise à jour.</span><button id="kill-update" class="primary small-btn" type="button">Mettre à jour</button></div>
+  <div id="remote-banner" class="pw-banner remote-banner hidden" role="status"><span class="pw-ico" id="remote-ico">📣</span><span id="remote-text"></span><button id="remote-link" class="outline small-btn hidden" type="button">En savoir plus</button><button id="remote-close" class="icon-btn" type="button" aria-label="Fermer le message">✕</button></div>
   <div id="tm-banner" class="pw-banner tm-banner hidden" role="dialog" aria-label="Statistiques anonymes"><span class="pw-ico">📊</span><span>Aider à améliorer DevGitBrowser ? Envoi de <b>statistiques anonymes</b> : version, pays de Windows, temps d’utilisation et nombre de pages. Jamais les sites visités, ni ton adresse IP. Modifiable dans Paramètres → Confidentialité.</span><button id="tm-yes" class="primary small-btn" type="button">Oui, j’aide</button><button id="tm-no" class="outline small-btn" type="button">Non merci</button></div>
   <div id="pw-banner" class="pw-banner hidden" role="dialog" aria-label="Enregistrer le mot de passe"><span class="pw-ico">🔑</span><span id="pw-text">Enregistrer le mot de passe ?</span><input id="pw-master" type="password" class="hidden" placeholder="Mot de passe maître" aria-label="Mot de passe maître" autocomplete="off"><button id="pw-save" class="primary small-btn" type="button">Enregistrer</button><button id="pw-never" class="outline small-btn" type="button">Jamais pour ce site</button><button id="pw-dismiss" class="outline small-btn" type="button" aria-label="Fermer">✕</button></div>
   <div id="update-banner" class="update-banner hidden" role="status"><span id="update-text">Mise à jour prête.</span><button id="update-restart" class="primary small-btn" type="button">Redémarrer et mettre à jour</button><button id="update-later" class="outline small-btn" type="button">Plus tard</button></div>
@@ -129,10 +131,26 @@
       <div class="section-card admin-server"><h3>🌍 Utilisateurs dans le monde</h3>
         <div id="admin-server-setup" class="hidden"><p class="muted" id="admin-server-hint"></p><form id="admin-token-form" class="inline-buttons"><input id="admin-token" class="compact-input wide" type="password" autocomplete="off" placeholder="Jeton affiché à la fin de l’installation du serveur" aria-label="Jeton du serveur"><button class="primary" type="submit">Enregistrer</button></form></div>
         <div id="admin-server-data" class="hidden"><div id="admin-server-kpis" class="admin-kpis"></div>
+          <div class="admin-map-wrap"><div class="admin-map-head"><h4>🗺 Carte du monde</h4><span id="admin-live" class="admin-live"><i></i> 0 en ligne</span><span class="muted small-note">● en ligne maintenant · ○ actifs sur 30 jours</span></div><svg id="admin-map" class="admin-map" viewBox="0 0 1000 500" role="img" aria-label="Carte des utilisateurs"></svg><div id="admin-live-list" class="admin-live-list"></div></div>
           <div class="admin-cols"><div><h4>Utilisateurs actifs par jour (30 j)</h4><div id="admin-daily" class="admin-daily"></div></div><div><h4>Classement par pays (30 j)</h4><ol id="admin-countries" class="admin-countries"></ol></div></div>
           <div class="admin-cols"><div><h4>Satisfaction</h4><div id="admin-rating" class="admin-rating"></div></div><div><h4>Versions utilisées</h4><div id="admin-uversions" class="admin-bars"></div></div></div>
           <button id="admin-token-change" class="link-btn" type="button">Changer le jeton du serveur</button></div>
       </div>
+      <div class="section-card admin-bugs"><div class="store-head"><h3>🐞 Rapports de bug</h3><select id="admin-bug-filter" class="compact-select" aria-label="Filtre"><option value="open">À traiter</option><option value="all">Tous</option><option value="fixed">Corrigés</option></select></div>
+        <div id="admin-bug-list" class="item-list"></div></div>
+      <div class="section-card admin-remote"><h3>📣 Messages ciblés et arrêt d’urgence</h3>
+        <p class="muted">Lus par tous les navigateurs toutes les 6 heures (et au démarrage). Versions : « * » (toutes), « 1.12.0 », « &lt;1.13.0 » ou « &gt;=1.10.0, &lt;1.12.0 ».</p>
+        <h4>Messages</h4><div id="admin-msg-list" class="item-list"></div>
+        <form id="admin-msg-form" class="admin-msg-form">
+          <textarea id="am-text" rows="2" maxlength="400" placeholder="Texte du message (400 caractères max.)"></textarea>
+          <div class="admin-msg-row"><select id="am-level" class="compact-select" aria-label="Type"><option value="info">📣 Info</option><option value="warning">⚠️ Alerte</option></select>
+            <input id="am-versions" class="compact-input" placeholder="Versions (*)" aria-label="Versions"><input id="am-countries" class="compact-input" placeholder="Pays : FR, BE… (vide = tous)" aria-label="Pays">
+            <input id="am-until" class="compact-input" type="date" aria-label="Jusqu’au"><input id="am-url" class="compact-input wide" placeholder="Lien https:// (facultatif)" aria-label="Lien"><button class="outline" type="submit">＋ Ajouter</button></div>
+        </form>
+        <h4>⛔ Arrêt d’urgence</h4>
+        <div class="admin-msg-row"><input id="ak-versions" class="compact-input" placeholder="Versions bloquées (vide = aucune)" aria-label="Versions bloquées"><input id="ak-message" class="compact-input wide" maxlength="300" placeholder="Raison affichée aux utilisateurs" aria-label="Raison"></div>
+        <p class="muted">Fonctions coupées pour tout le monde :</p><div id="ak-features" class="ak-features"></div>
+        <div class="form-buttons"><button id="admin-remote-save" class="primary" type="button">Publier les changements</button><span id="admin-remote-status" class="muted"></span></div></div>
       <div class="section-card admin-store"><div class="store-head"><h3>🧩 Boutique d’extensions</h3><div class="inline-buttons"><input id="admin-store-id" class="compact-input" type="text" maxlength="40" placeholder="Identifiant (facultatif)" aria-label="Identifiant de l’extension"><button id="admin-store-publish" class="primary" type="button">Publier une extension…</button></div></div>
         <p class="muted">Choisis le dossier d’une extension (avec son manifest.json). Pour la mettre à jour, augmente la version dans manifest.json et publie à nouveau : les navigateurs se mettent à jour tout seuls.</p>
         <div id="admin-store-list" class="extension-list"></div></div>
@@ -195,6 +213,17 @@
     ma-premiere-extension/
       manifest.json
       content.js</pre></div>
+  </div>
+</section>
+
+<section id="panel-trackers" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">DEVGITSHIELD · RAPPORT</span><h2>🕵 Qui me piste ?</h2><p id="trackers-sub">Les entreprises qui ont tenté de suivre ta navigation sur ce site, bloquées par DevGitShield.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="tracker-summary"><div><b id="trackers-companies">0</b><span>entreprises</span></div><div><b id="trackers-total">0</b><span>requêtes bloquées</span></div><div><b id="trackers-domains">0</b><span>domaines</span></div></div>
+    <div id="trackers-note" class="notice warning hidden"></div>
+    <div id="trackers-list" class="item-list"></div>
+    <div class="form-buttons"><button id="trackers-refresh" class="outline" type="button">↻ Actualiser</button></div>
+    <p class="muted small-note">Le rapport concerne la page affichée et repart de zéro à chaque nouvelle page. Base locale : rien n’est envoyé sur Internet.</p>
   </div>
 </section>
 
@@ -325,6 +354,7 @@
     <div class="welcome-step hidden" data-step="5"><span class="kicker">5 / 5</span><h2>Ton coffre à mots de passe</h2><p>Définis un mot de passe maître : il chiffrera tous les mots de passe que tu enregistres. Il n’est stocké nulle part — retiens-le bien.</p>
       <div class="two-fields"><div><label for="welcome-master">Mot de passe maître</label><input id="welcome-master" type="password" autocomplete="new-password"></div><div><label for="welcome-master2">Confirmation</label><input id="welcome-master2" type="password" autocomplete="new-password"></div></div>
       <div class="strength"><span id="welcome-strength-bar"></span></div><small id="welcome-strength" class="muted">Au moins 8 caractères (12 conseillés).</small>
+      <div class="welcome-ref"><label for="welcome-ref">Un ami t’a invité ? Son code de parrainage (facultatif)</label><input id="welcome-ref" class="compact-input" maxlength="9" autocomplete="off" spellcheck="false" placeholder="ABCD2345"></div>
       <p id="welcome-vault-done" class="muted hidden">✅ Ton coffre existe déjà : tu peux terminer.</p>
       <p class="muted">DevGitBrowser se met à jour tout seul : tu seras prévenu quand une nouvelle version est prête.</p></div>
     <div class="welcome-nav"><span id="welcome-dots" class="welcome-dots"></span><button id="welcome-skip" class="outline" type="button">Passer</button><button id="welcome-next" class="primary" type="button">Commencer</button></div>
@@ -347,6 +377,8 @@
     <div class="section-card">
       <h3>Apparence</h3><p class="muted">Choisis les couleurs de l’interface (également dans le menu ☰ → Thème).</p>
       <div id="settings-themes" class="theme-grid"></div>
+      <div class="setting-line" id="material-line"><div><strong>Effet de fenêtre Windows 11</strong><p>Mica laisse transparaître la couleur de ton fond d’écran dans la barre d’onglets ; Acrylic ajoute un flou dépoli. Windows 11 (22H2 ou plus récent).</p></div><select id="window-material" class="compact-select" aria-label="Effet de fenêtre"><option value="none">Aucun</option><option value="mica">Mica</option><option value="acrylic">Acrylic</option></select></div>
+      <div class="setting-line"><div><strong>Aperçu des liens</strong><p>Affiche la page d’un lien dans une petite fenêtre sans quitter la page en cours. Échap ou clic ailleurs pour fermer.</p></div><select id="link-preview" class="compact-select" aria-label="Aperçu des liens"><option value="shift">Maj + survol</option><option value="hover">Survol prolongé (1 s)</option><option value="off">Désactivé</option></select></div>
     </div>
     <div class="section-card" id="import-section">
       <h3>📥 Importer depuis un autre navigateur</h3><p class="muted">Favoris et historique de Chrome, Edge, Brave, Opera, Vivaldi ou Firefox. Si l’historique ne s’importe pas, ferme d’abord l’autre navigateur. Pour les mots de passe, utilise « Importer un CSV » dans le coffre.</p>
@@ -358,6 +390,11 @@
       <div class="setting-line"><div><strong>État</strong><p id="vpn-status">Déconnecté</p></div><div class="inline-buttons"><select id="vpn-country" class="compact-select" aria-label="Pays de sortie"></select><button id="vpn-toggle" class="primary" type="button">Connecter</button></div></div>
       <div class="setting-line"><div><strong>Connecter au démarrage</strong><p>Le VPN se lance automatiquement à l’ouverture du navigateur, avec le pays choisi.</p></div><label class="switch"><input type="checkbox" data-pref="vpnAtStartup"><span></span></label></div>
       <div class="progress hidden" id="vpn-progress"><span></span></div>
+    </div>
+    <div class="section-card" id="discord-section">
+      <h3>🎮 Discord</h3>
+      <div class="setting-line"><div><strong>Afficher DevGitBrowser sur mon profil Discord</strong><p id="discord-status">« Joue à DevGitBrowser » apparaît sur ton profil, avec un bouton pour le télécharger. Nécessite l’application Discord ouverte sur ce PC.</p></div><label class="switch"><input type="checkbox" data-pref="discordPresence"><span></span></label></div>
+      <div class="setting-line"><div><strong>Montrer le site que je visite</strong><p>Affiche le nom du site (ex. « Sur youtube.com »). Jamais pour les onglets privés.</p></div><label class="switch"><input type="checkbox" data-pref="discordShowSite"><span></span></label></div>
     </div>
     <div class="section-card">
       <h3>Confidentialité et sécurité</h3>
@@ -409,6 +446,20 @@
         <div class="form-buttons"><button id="about-check" type="button" class="primary">Rechercher des mises à jour</button><button id="about-install" type="button" class="primary hidden">Redémarrer et installer</button><button id="about-releases" type="button" class="outline">Notes de version</button></div></div>
     </div>
     <div class="section-card" id="rate-card"><h3>Ton avis compte</h3><p class="muted" id="rate-text">Note DevGitBrowser : ta note anonyme aide à savoir si le navigateur plaît.</p><div id="rate-stars" class="rate-stars" role="radiogroup" aria-label="Note de 1 à 5"></div></div>
+    <div class="section-card" id="ref-card"><h3>🎁 Parraine tes amis</h3>
+      <p class="muted">Partage ton lien : quand un ami installe DevGitBrowser et saisit ton code, tu gagnes des badges.</p>
+      <div class="ref-box"><code id="ref-code">········</code><input id="ref-link" class="compact-input wide" readonly aria-label="Lien de parrainage"><button id="ref-copy" class="primary" type="button">Copier le lien</button></div>
+      <div id="ref-status" class="ref-status"></div>
+      <div id="ref-badges" class="ref-badges"></div>
+      <form id="ref-claim-form" class="inline-buttons ref-claim"><label for="ref-claim">Un ami t’a invité ?</label><input id="ref-claim" class="compact-input" maxlength="9" placeholder="Code (8 caractères)" autocomplete="off" spellcheck="false"><button class="outline" type="submit">Valider</button></form>
+      <p id="ref-claimed" class="muted hidden"></p></div>
+    <div class="section-card" id="bug-card"><h3>🐞 Signaler un bug</h3>
+      <p class="muted">Ton rapport est envoyé directement au créateur. Rien n’est envoyé sans ton clic.</p>
+      <textarea id="bug-text" rows="4" maxlength="3000" placeholder="Que s’est-il passé ? Qu’est-ce que tu faisais juste avant ?"></textarea>
+      <div class="two-fields"><div><label for="bug-contact">Contact (facultatif : pseudo Discord, e-mail…)</label><input id="bug-contact" maxlength="120" autocomplete="off"></div></div>
+      <label class="check-line"><input type="checkbox" id="bug-log" checked> Joindre le journal technique (recommandé). Les adresses de sites, chemins de ton profil, e-mails et adresses IP sont masqués.</label>
+      <details id="bug-preview-box"><summary>Voir exactement ce qui sera envoyé</summary><pre id="bug-preview" class="bug-preview"></pre></details>
+      <div class="form-buttons"><button id="bug-send" class="primary" type="button">Envoyer le rapport</button></div></div>
     <div class="section-card"><h3>Informations techniques</h3><dl id="about-table" class="about-table"></dl>
       <div class="form-buttons"><button id="about-copy" type="button" class="outline">Copier les informations de diagnostic</button><button id="about-repo" type="button" class="outline">Dépôt GitHub</button></div></div>
     <div class="section-card"><h3>Crédits et licences</h3><p>Conçu et développé par <strong>CodexHempreur INC</strong>. Basé sur Electron et Chromium. DevGitShield utilise le moteur <em>@ghostery/adblocker</em> (MPL-2.0) et les listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles. MatchPulse utilise le flux sportif public ESPN (non officiel) et, en option, API-Football. Le VPN DevGit utilise le logiciel libre Tor (The Tor Project, licence BSD) ; la radio, l’annuaire libre radio-browser.info ; la protection anti-hameçonnage, les listes malware-filter (URLhaus / PhishTank / OpenPhish).</p><p class="signature-line">By CodexHempreur</p></div>

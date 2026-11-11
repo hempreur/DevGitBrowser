@@ -438,3 +438,52 @@ body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
 .vault-tools{margin:12px 0;align-items:center;flex-wrap:wrap}.vault-tools small{flex:1;min-width:200px}
 #gen-out{font-family:Consolas,'Cascadia Mono',monospace;letter-spacing:.5px}
 #profile-form{margin-top:14px}
+/* v1.12 — Qui me piste ? */
+.tracker-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.tracker-summary div{border:1px solid #33408a;border-radius:13px;padding:16px;background:#0e1640aa;display:flex;flex-direction:column;gap:4px}
+.tracker-summary b{font-size:30px;color:var(--mint)}.tracker-summary span{color:#9eafc2;font-size:12px}
+.tracker-row{gap:14px}.tracker-bar{flex:0 0 160px;height:7px;border-radius:5px;background:#2a3456;overflow:hidden}.tracker-bar i{display:block;height:100%;background:linear-gradient(90deg,#50d9fa,#b16cff)}
+.tracker-count{min-width:34px;text-align:right;color:var(--txt)}
+@media(max-width:760px){.tracker-bar{display:none}}
+/* v1.12 — Mica / Acrylic (Windows 11) : la barre laisse passer l'effet du système */
+html[data-material],html[data-material] body{background:transparent!important}
+html[data-material] #chrome{background:color-mix(in srgb,var(--t-chrome,#0c0d30) 58%,transparent)!important;box-shadow:none!important}
+html[data-material] .statusbar{background:color-mix(in srgb,var(--t-chrome,#060c24) 62%,transparent)!important}
+html[data-material] .tab{background:color-mix(in srgb,var(--t-chrome,#142035) 45%,transparent)}
+html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrome,#0c0d30) 42%,transparent)!important}
+.tracker-row{padding:12px 16px!important;margin-bottom:8px}
+/* v1.13 — messages distants, parrainage, rapport de bug */
+.kill-banner{background:linear-gradient(90deg,#4a0f1d,#5b1530)!important;border-top-color:#a33a55!important}
+.kill-banner span:not(.pw-ico),.remote-banner #remote-text{flex:1;min-width:0}
+.remote-banner.warning{background:linear-gradient(90deg,#4a3410,#4b2a12)!important;border-top-color:#a37a35!important}
+.remote-banner .icon-btn{background:none;border:0;color:#cdd8ff;font-size:15px;cursor:pointer}
+.ref-box{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.ref-box code{font:700 20px Consolas,'Cascadia Mono',monospace;letter-spacing:3px;color:var(--mint);padding:8px 14px;border:1px dashed #50d9fa;border-radius:10px}
+.ref-box input{flex:1;min-width:220px}
+.ref-status{margin:8px 0;color:#c9d6f5}.ref-badges{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.ref-badges span{border:1px solid #3a4689;border-radius:20px;padding:6px 12px;font-size:12px;opacity:.45}
+.ref-badges span.on{opacity:1;border-color:#e9c594;background:#2a2140;box-shadow:0 0 12px #e9c59433}
+.ref-claim{align-items:center;gap:10px}.ref-claim label{margin:0!important}
+#bug-card textarea{width:100%;padding:12px;border-radius:9px;border:1px solid #3a4e66;background:#0a1321;color:#eaf7ff;font:inherit;resize:vertical;margin-bottom:12px}
+.bug-preview{max-height:260px;overflow:auto;background:#070b1c;border:1px solid #2c3a6a;border-radius:9px;padding:12px;font:11px Consolas,monospace;white-space:pre-wrap;color:#b8c6e8}
+.welcome-ref{margin-top:16px}.welcome-ref label{display:block;margin-bottom:6px;color:#b7c6ea;font-size:12px}.welcome-ref input{width:220px;text-transform:uppercase}
+#ref-claim{text-transform:uppercase}
+/* v1.13 — admin : carte, bugs, messages */
+.admin-map-wrap{margin:18px 0;border:1px solid #2c3a6a;border-radius:14px;padding:14px;background:radial-gradient(ellipse at 50% 40%,#101a4a,#070b1f)}
+.admin-map-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}.admin-map-head h4{margin:0}
+.admin-live{display:inline-flex;align-items:center;gap:7px;font-weight:800;color:#ff6b8a}.admin-live i{width:9px;height:9px;border-radius:50%;background:#ff3d6a;box-shadow:0 0 10px #ff3d6a;animation:livepulse 1.6s infinite}
+.admin-map{width:100%;height:auto;display:block}
+.map-land{fill:#1a2660;stroke:#3a4ea8;stroke-width:.5}
+.map-month{fill:#50d9fa22;stroke:#50d9fa88;stroke-width:1}
+.map-dot{fill:#ff3d6a;stroke:#fff;stroke-width:1}
+.map-pulse{fill:#ff3d6a;opacity:.5;transform-box:fill-box;transform-origin:center;animation:mappulse 2s infinite}
+@keyframes mappulse{0%{transform:scale(1);opacity:.55}100%{transform:scale(3.2);opacity:0}}
+@keyframes livepulse{50%{opacity:.35}}
+.admin-live-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.admin-live-list span{border:1px solid #3a4689;border-radius:16px;padding:4px 10px;font-size:12px}
+.admin-bug{border:1px solid #33408a;border-radius:11px;padding:10px 14px;margin-bottom:8px;background:#0b1233}
+.admin-bug summary{display:flex;gap:12px;align-items:baseline;cursor:pointer;flex-wrap:wrap}.admin-bug summary em{color:#9fb0e0;font-style:normal;flex:1;min-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-bug.fixed{opacity:.65}.admin-bug-text{white-space:pre-wrap;line-height:1.6}
+.admin-msg-form textarea{width:100%;padding:10px;border-radius:9px;border:1px solid #3a4e66;background:#0a1321;color:#eaf7ff;font:inherit;margin:8px 0}
+.admin-msg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.admin-msg-row .compact-input{min-width:120px}.admin-msg-row .wide{flex:1;min-width:220px}
+.ak-features{display:flex;gap:16px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.map-pulse,.admin-live i{animation:none}}
