@@ -14,20 +14,17 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Installer Electron castLabs (Widevine)
         shell: pwsh
-        run: |
-          node node_modules/electron/install.js
-          if (!(Test-Path node_modules/electron/dist/electron.exe)) { throw 'Binaires castLabs absents.' }
-      - name: Une variante par fusible
+        run: node node_modules/electron/install.js
+      - name: Lecteur renommé
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force probe | Out-Null
-          foreach ($v in 'RunAsNode','EnableCookieEncryption','EnableNodeOptionsEnvironmentVariable','EnableNodeCliInspectArguments','OnlyLoadAppFromAsar') {
-            robocopy node_modules/electron/dist "probe/$v" /E /NFL /NDL /NJH /NJS /NP | Out-Null
-            $val = if ($v -eq 'EnableCookieEncryption' -or $v -eq 'OnlyLoadAppFromAsar') { 'true' } else { 'false' }
-            node -e "const f=require('@electron/fuses');f.flipFuses('probe/$v/electron.exe',{version:f.FuseVersion.V1,[f.FuseV1Options.$v]:$val}).then(()=>console.log('fusible $v = $val'))"
-          }
+          robocopy node_modules/electron/dist probe/media /E /NFL /NDL /NJH /NJS /NP | Out-Null
+          Rename-Item probe/media/electron.exe DevGitMedia.exe
+          npm install --no-save --no-audit --no-fund rcedit@4
+          node -e "(require('rcedit').rcedit||require('rcedit'))('probe/media/DevGitMedia.exe',{icon:'assets/icon.ico','version-string':{ProductName:'DevGitBrowser Media',FileDescription:'Lecteur protégé DevGit'}}).then(()=>console.log('icone OK'))"
           $global:LASTEXITCODE = 0
-      - name: Signer chaque variante
+      - name: Signer et lister
         shell: pwsh
         env:
           EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
@@ -36,9 +33,10 @@ jobs:
         run: |
           python -m pip install --upgrade --quiet castlabs-evs
           python -m castlabs_evs.account refresh
-          foreach ($v in 'RunAsNode','EnableCookieEncryption','EnableNodeOptionsEnvironmentVariable','EnableNodeCliInspectArguments','OnlyLoadAppFromAsar') {
-            Write-Host "===== FUSIBLE $v ====="
-            python -m castlabs_evs.vmp sign-pkg "probe/$v"
-            Write-Host "===== RESULTAT $v : $LASTEXITCODE ====="
-          }
+          python -m castlabs_evs.vmp --help
+          python -m castlabs_evs.vmp sign-pkg probe/media
+          Write-Host "===== RESULTAT : $LASTEXITCODE ====="
+          python -m castlabs_evs.vmp verify-pkg probe/media
+          Write-Host "===== VERIFY : $LASTEXITCODE ====="
+          Get-ChildItem probe/media -Filter *.sig | ForEach-Object { Write-Host "SIG: $($_.Name) $($_.Length)" }
           exit 0

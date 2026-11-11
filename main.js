@@ -1,5 +1,11 @@
 'use strict';
 
+// Lecteur protégé (DevGitMedia.exe) : même code d'application, mode dédié au streaming.
+{
+  const media = require('./lib/media-player');
+  if (media.isMediaExecutable(process.execPath) || process.argv.includes('--devgit-media')) { media.run(); return; }
+}
+
 const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer, screen, shell, clipboard, powerMonitor, webContents: allWebContents } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -24,6 +30,7 @@ const logger = require('./lib/logger');
 const admin = require('./lib/admin');
 const weather = require('./lib/weather');
 const store = require('./lib/store');
+const mediaPlayer = require('./lib/media-player');
 const {VideoLocal, validateRequest: validateVideoRequest, isYoutubeWatchUrl} = require('./lib/video-local');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
@@ -72,7 +79,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -106,7 +113,7 @@ function loadSettings() {
     if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','mediaPlayer']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -223,7 +230,7 @@ function publicState(s) {
     preferences: { httpsOnly:settings.httpsOnly, gpc:settings.gpc, webrtcProtection:settings.webrtcProtection, restoreSession:settings.restoreSession,
       showBookmarksBar:settings.showBookmarksBar, recordHistory:settings.recordHistory, clearHistoryOnExit:settings.clearHistoryOnExit,
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
-      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock },
+      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer },
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
     telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
@@ -413,6 +420,7 @@ function attachPageHandlers(t) {
     if (handleInternalLink(t, url)) { event.preventDefault(); return; }
     const dangerous = settings.phishingProtection && phishing ? phishing.match(url) : '';
     if (dangerous) { event.preventDefault(); showPhishingWarning(t, url, dangerous); return; }
+    if (!isRedirect && sendToMediaPlayer(t, url)) { event.preventDefault(); return; }
     if (!isWebUrl(url)) {
       if (String(url).startsWith('data:') && !isRedirect) return; // pages d'erreur internes
       event.preventDefault(); return;
@@ -542,6 +550,7 @@ function navigateTab(t,text) {
   stopEmbeddedLegacy(t,false);
   t.forceModern=false; t.loadError=''; t.httpsUpgradedFrom=''; t.httpsAllowedHttp=''; t.upgradeHits=null; t.sleeping=false; t.loginForm=false;
   if (settings.httpsOnly) { const upgraded=httpsUpgrade(url); if (upgraded) { t.httpsUpgradedFrom=url; url=upgraded; } }
+  if (sendToMediaPlayer(t, url)) { if (!t.view.webContents.getURL()) { sendState(s); } return; }
   t.url=url; t.title=(new URL(url)).hostname; t.legacy={likely:false,hints:[]}; t.favicon='';
   const dangerous = settings.phishingProtection && phishing ? phishing.match(url) : '';
   if (dangerous) { if (s.activeId===t.id) showView(s,t); showPhishingWarning(t, url, dangerous); return; }
@@ -574,6 +583,14 @@ function exitXmode(s) {
   for (const t of [...s.tabs.values()]) if (t.xTab) closeTab(s, t.id);
   if (s.activeId === null && !s.win.isDestroyed()) { try { newTab(s); } catch {} }
   broadcast();
+}
+// ---- Lecteur protégé : Netflix & co s'ouvrent dans DevGitMedia.exe (signé VMP).
+function sendToMediaPlayer(t, url) {
+  if (!settings.mediaPlayer || t?.private || !mediaPlayer.isStreamingEntry(url)) return false;
+  if (!mediaPlayer.openInMediaPlayer(url)) return false;
+  notice(t.owner, 'Ouvert dans le lecteur protégé DevGit (vidéos Netflix, Disney+, Prime Video…).');
+  logger.info('Lecteur protégé', new URL(url).hostname);
+  return true;
 }
 // ---- Widevine (vidéos protégées)
 let widevineStatus = {available: false, state: 'absent'};
