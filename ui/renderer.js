@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin','trackers'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -45,8 +45,10 @@ async function showPanel(name){
   if(panel==='library')loadLibrary();
   if(panel==='about')loadAbout();
   if(panel==='extensions')loadStore(false);
-  if(panel==='passwords')loadVault();
+  if(panel==='passwords'){loadVault();if($('profiles-card').open)loadProfiles();}
+  if(panel==='settings')renderImportSources('settings-import');
   if(panel==='tasks')startPerf();else stopPerf();
+  if(panel==='trackers')loadTrackers();
   if(panel && current)render(current);
 }
 function openLibrary(view){libraryView=view;return showPanel('library');}
@@ -424,6 +426,7 @@ function renderUpdate(u){
   $('about-install').classList.toggle('hidden',u.status!=='downloaded');
 }
 async function loadAbout(){
+  loadReferral();
   const info=await run(()=>api.about());if(!info)return;
   $('about-version').textContent='v'+info.version;
   const rows=[['Version',info.version+(info.packaged?'':' (développement)')],['Éditeur',info.author],['Chromium',info.chrome],['Electron',info.electron],['Vidéos protégées (Widevine)',info.widevine?.available?(info.widevine.state+(info.widevine.version?' · '+info.widevine.version:'')+(info.widevine.error?' · '+info.widevine.error:'')):'module absent'],['Node.js',info.node],['V8',info.v8],
@@ -608,6 +611,12 @@ function showStrength(input,bar,label){const n=strength(input.value);bar.style.w
 function updateExtras(state){
   updateClockWeather(state);updateTelemetry(state);
   applyTheme(state.theme);
+  {const m=state.materialSupported&&state.preferences?.windowMaterial!=='none'?state.preferences?.windowMaterial||'':'';
+   if((document.documentElement.dataset.material||'')!==m){if(m)document.documentElement.dataset.material=m;else delete document.documentElement.dataset.material;}
+   $('material-line').classList.toggle('hidden',!state.materialSupported);
+   if(document.activeElement!==$('window-material'))$('window-material').value=state.preferences?.windowMaterial||'none';
+   if(state.discord)$('discord-status').textContent='« Joue à DevGitBrowser » apparaît sur ton profil, avec un bouton pour le télécharger. Nécessite l’application Discord ouverte sur ce PC.'+(state.discord.presence?(state.discord.connected?' · ✅ Connecté à Discord':' · En attente de Discord…'):'');
+   if(document.activeElement!==$('link-preview'))$('link-preview').value=state.preferences?.linkPreview||'shift';}
   applyXmode(state);
   // VPN
   const vpn=state.vpn||{};
@@ -698,7 +707,7 @@ async function loadVault(){
     const open=elem('button','item-open');open.type='button';
     const text=elem('span','item-text');
     const f=flags.get(e.id)||{};
-    text.append(elem('strong','',hostOf(e.origin)),elem('small','',(e.username||'(sans identifiant)')+(f.reused?' · ⚠ réutilisé':'')+(f.weak?' · ⚠ faible':'')+(e.note?' · '+e.note:'')));
+    text.append(elem('strong','',hostOf(e.origin)),elem('small','',(e.username||'(sans identifiant)')+(breaches?.[e.id]>0?` · 🚨 fuité (${breaches[e.id]} fois)`:'')+(f.reused?' · ⚠ réutilisé':'')+(f.weak?' · ⚠ faible':'')+(e.note?' · '+e.note:'')));
     open.append(letterIcon(e.origin,e.origin),text);
     open.addEventListener('click',()=>run(async()=>{await showPanel('');return api.openLink(e.origin,'tab');}));
     const pass=elem('code','secret','••••••••');
@@ -771,26 +780,147 @@ function startPerf(){refreshPerf();if(!perfTimerId)perfTimerId=setInterval(refre
 function stopPerf(){if(perfTimerId){clearInterval(perfTimerId);perfTimerId=null;}}
 $('gaming-toggle').addEventListener('change',()=>run(()=>api.gaming($('gaming-toggle').checked),$('gaming-toggle').checked?'🎮 Mode gaming activé.':'Mode gaming désactivé.').then(refreshPerf));
 $('perf-sleep-all').addEventListener('click',async()=>{const n=await run(()=>api.sleepAll());if(n!==null)notify(`${n} onglet(s) mis en veille.`);refreshPerf();});
+// ---------------------------------------------------------------- Messages distants / arrêt d'urgence (v1.13)
+let remoteShown='';
+function renderRemote(state){
+  const r=state.remote||{};
+  $('kill-banner').classList.toggle('hidden',!r.blocked);
+  if(r.blocked){const why=(r.killMessage||'Cette version de DevGitBrowser a été désactivée à cause d’un problème important').trim();$('kill-text').textContent=why+(/[.!?…]$/.test(why)?' ':'. ')+'Installe la mise à jour pour continuer en toute sécurité.';}
+  const m=(r.messages||[])[0];
+  const box=$('remote-banner');box.classList.toggle('hidden',!m||Boolean(state.xmode));
+  if(!m)return;
+  box.classList.toggle('warning',m.level==='warning');$('remote-ico').textContent=m.level==='warning'?'⚠️':'📣';
+  $('remote-text').textContent=m.text;$('remote-link').classList.toggle('hidden',!m.url);
+  remoteShown=m.id;box.dataset.url=m.url||'';
+}
+$('remote-close').addEventListener('click',()=>{if(remoteShown)run(()=>api.remoteDismiss(remoteShown));});
+$('remote-link').addEventListener('click',()=>{const u=$('remote-banner').dataset.url;if(u)run(()=>api.newTab(u));});
+$('kill-update').addEventListener('click',()=>showPanel('about').then(()=>$('about-check').click()));
+// ---------------------------------------------------------------- Parrainage
+async function loadReferral(){
+  const r=await run(()=>api.refInfo());if(!r)return;
+  $('ref-code').textContent=r.code;$('ref-link').value=r.link;
+  if(r.count==null)$('ref-status').textContent='Compteur indisponible pour le moment (serveur injoignable).';
+  else $('ref-status').textContent=`${r.count} ami(s) parrainé(s)`+(r.badge?` · ${r.badge.icon} ${r.badge.name}`:'')+(r.next?` · encore ${r.next.min-r.count} pour ${r.next.icon} ${r.next.name}`:'');
+  $('ref-badges').replaceChildren(...[...r.badges].reverse().map(b=>elem('span',r.count!=null&&r.count>=b.min?'on':'',`${b.icon} ${b.name} · ${b.min}+`)));
+  $('ref-claim-form').classList.toggle('hidden',Boolean(r.referredBy));
+  $('ref-claimed').classList.toggle('hidden',!r.referredBy);$('ref-claimed').textContent=r.referredBy?`Parrainé par le code ${r.referredBy}. Merci !`:'';
+}
+$('ref-copy').addEventListener('click',()=>navigator.clipboard.writeText($('ref-link').value).then(()=>notify('Lien de parrainage copié.'),()=>notify('Copie impossible.',true)));
+$('ref-claim-form').addEventListener('submit',async ev=>{ev.preventDefault();if(await run(()=>api.refClaim($('ref-claim').value),'Merci ! Ton parrain a été enregistré.'))loadReferral();});
+// ---------------------------------------------------------------- Rapport de bug
+async function previewBug(){
+  const p=await run(()=>api.bugPreview());if(!p)return;
+  const head=`DevGitBrowser ${p.info.version} · Electron ${p.info.electron} · ${p.info.os}`;
+  $('bug-preview').textContent=`Description : ${$('bug-text').value.trim()||'(à remplir)'}\nContact : ${$('bug-contact').value.trim()||'(aucun)'}\n${head}\n`+($('bug-log').checked?'\n--- Journal ---\n'+(p.log||'(vide)'):'\n(journal non joint)');
+}
+$('bug-preview-box').addEventListener('toggle',()=>{if($('bug-preview-box').open)previewBug();});
+for(const id of ['bug-log','bug-text','bug-contact'])$(id).addEventListener('change',()=>{if($('bug-preview-box').open)previewBug();});
+$('bug-send').addEventListener('click',async()=>{
+  const btn=$('bug-send');btn.disabled=true;btn.textContent='Envoi…';
+  const id=await run(()=>api.bugSend({text:$('bug-text').value,contact:$('bug-contact').value,withLog:$('bug-log').checked}));
+  btn.disabled=false;btn.textContent='Envoyer le rapport';
+  if(id!==null){$('bug-text').value='';notify('Merci ! Rapport envoyé'+(id?` (n° ${id.slice(0,6)})`:'')+'.');}
+});
+// ---------------------------------------------------------------- Qui me piste ?
+const TRACKER_ICONS={ads:'📢',analytics:'📊',social:'👥',fingerprint:'🧬',session:'🎥',cdn:'📦',other:'👁'};
+async function loadTrackers(){
+  const r=await run(()=>api.trackersReport());if(!r)return;
+  $('trackers-sub').textContent=r.host?`Sur ${r.host} : les entreprises qui ont tenté de suivre ta navigation, bloquées par DevGitShield.`:'Ouvre un site pour voir qui tente de te pister.';
+  $('trackers-companies').textContent=r.companies||0;$('trackers-total').textContent=r.total||0;
+  $('trackers-domains').textContent=r.rows.reduce((n,x)=>n+x.domains.length,0);
+  const note=$('trackers-note');
+  const msg=!r.enabled?'DevGitShield est désactivé : les pisteurs ne sont ni bloqués ni comptés.':r.paused?'DevGitShield est en pause sur ce site : les pisteurs passent et ne sont pas comptés.':'';
+  note.textContent=msg;note.classList.toggle('hidden',!msg);
+  const list=$('trackers-list');
+  if(!r.rows.length){list.replaceChildren(elem('div','empty-list',r.host&&!msg?'✅ Aucun pisteur détecté sur cette page.':'Rien à afficher.'));return;}
+  const max=Math.max(...r.rows.map(x=>x.count));
+  list.replaceChildren(...r.rows.map(x=>{
+    const row=elem('div','item-row tracker-row');const text=elem('span','item-text');
+    text.append(elem('strong','',`${TRACKER_ICONS[x.category]||'👁'} ${x.company}`),elem('small','',`${x.label} · ${x.domains.join(', ')}`));
+    const bar=elem('span','tracker-bar');const fill=elem('i');fill.style.width=Math.max(6,Math.round(x.count/max*100))+'%';bar.append(fill);
+    row.append(text,bar,elem('b','tracker-count',String(x.count)));return row;
+  }));
+}
+$('trackers-refresh').addEventListener('click',loadTrackers);
+$('window-material').addEventListener('change',()=>run(()=>api.preference('windowMaterial',$('window-material').value),'Effet de fenêtre appliqué.'));
+$('link-preview').addEventListener('change',()=>run(()=>api.preference('linkPreview',$('link-preview').value),'Aperçu des liens mis à jour.'));
+// ---------------------------------------------------------------- Import depuis un autre navigateur
+const BROWSER_ICONS={'Google Chrome':'🟡','Microsoft Edge':'🔷','Brave':'🦁','Vivaldi':'🔴','Opera':'⭕','Opera GX':'🎮','Mozilla Firefox':'🦊'};
+let importSourcesCache=null;
+async function renderImportSources(hostId){
+  const host=$(hostId);if(!host)return;
+  if(!importSourcesCache){host.replaceChildren(elem('div','empty-list','Recherche des navigateurs installés…'));importSourcesCache=await run(()=>api.importSources())||[];}
+  if(!importSourcesCache.length){host.replaceChildren(elem('div','empty-list','Aucun autre navigateur détecté sur ce PC.'));return;}
+  host.replaceChildren(...importSourcesCache.map(src=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',`${BROWSER_ICONS[src.browser]||'🌐'} ${src.browser}`),elem('small','',src.profile||'Profil par défaut'));
+    const go=elem('button','outline small-btn','Importer');go.type='button';
+    go.addEventListener('click',async()=>{
+      go.disabled=true;go.textContent='Import…';
+      const r=await run(()=>api.importRun(src.id,{bookmarks:true,history:true}));
+      if(r){go.textContent='✓ Importé';notify(`${src.browser} : ${r.bookmarks} favori(s) et ${r.history} page(s) d’historique importés.`+(r.history?'':' (Si l’historique manque, ferme ce navigateur puis réessaie.)'));}
+      else{go.disabled=false;go.textContent='Réessayer';}
+    });
+    row.append(text,go);return row;
+  }));
+}
 // ---------------------------------------------------------------- Bienvenue (première installation)
+const WELCOME_LAST=5;
 let welcomeStep=0;
 function startWelcome(){
   welcomeStep=0;showPanel('welcome');
-  const engine=$('welcome-engine');
-  if(!engine.options.length)for(const e of current?.searchEngines||[]){const o=elem('option','',e.name);o.value=e.id;engine.append(o);}
-  engine.value=current?.preferences?.searchEngine||'duckduckgo';
+  const p=current?.preferences||{};
+  $('welcome-adblock').checked=current?.adblock?.enabled!==false;
+  $('welcome-annoyances').checked=Boolean(p.shieldAnnoyances);
+  $('welcome-boost').checked=Boolean(p.shieldBoost);
+  $('welcome-vpn').checked=Boolean(p.vpnAtStartup);
+  const sel=$('welcome-vpn-country');
+  if(!sel.options.length)for(const c of current?.vpn?.countries||[]){const o=elem('option','',c.name);o.value=c.code;sel.append(o);}
+  sel.value=p.vpnCountry||'';
+  if(current?.vpn&&current.vpn.available===false){$('welcome-vpn').disabled=true;$('welcome-vpn-note').textContent='Composant VPN absent de cette installation.';}
   showWelcomeStep();
+}
+function renderWelcomeEngines(){
+  const host=$('welcome-engines');const active=current?.preferences?.searchEngine||'duckduckgo';
+  host.replaceChildren(...(current?.searchEngines||[]).map(e=>{
+    const b=elem('button','theme-card'+(e.id===active?' active':''));b.type='button';b.append(elem('b','',e.name));
+    b.addEventListener('click',async()=>{if(await run(()=>api.preference('searchEngine',e.id))===null)return;for(const x of host.children)x.classList.toggle('active',x===b);});
+    return b;
+  }));
 }
 function showWelcomeStep(){
   for(const el of document.querySelectorAll('.welcome-step'))el.classList.toggle('hidden',Number(el.dataset.step)!==welcomeStep);
-  $('welcome-dots').replaceChildren(...[0,1,2,3].map(i=>elem('i',i===welcomeStep?'on':'')));
-  $('welcome-next').textContent=welcomeStep===0?'Commencer':welcomeStep===3?'Terminer':'Continuer';
-  $('welcome-skip').textContent=welcomeStep===2?'Plus tard':'Passer';
+  $('welcome-dots').replaceChildren(...Array.from({length:WELCOME_LAST+1},(_,i)=>elem('i',i===welcomeStep?'on':'')));
+  $('welcome-next').textContent=welcomeStep===0?'Commencer':welcomeStep===WELCOME_LAST?'Terminer':'Continuer';
+  $('welcome-skip').textContent=welcomeStep===0?'Passer':'Plus tard';
   if(welcomeStep===1)renderThemes('welcome-themes',current?.theme);
-  if(welcomeStep===2&&current?.passwords?.exists){welcomeStep=3;showWelcomeStep();}
+  if(welcomeStep===2)renderWelcomeEngines();
+  if(welcomeStep===4)renderImportSources('welcome-import');
+  if(welcomeStep===WELCOME_LAST){
+    const exists=Boolean(current?.passwords?.exists);
+    $('welcome-vault-done').classList.toggle('hidden',!exists);
+    for(const id of ['welcome-master','welcome-master2'])$(id).disabled=exists;
+  }
 }
-async function finishWelcome(){await run(()=>api.preference('searchEngine',$('welcome-engine').value));await run(()=>api.welcomed());await showPanel('');notify('Bienvenue dans DevGitBrowser ! Bonne navigation.');}
+async function applyWelcomeProtection(){
+  const p=current?.preferences||{};
+  const ad=$('welcome-adblock').checked;
+  if(ad!==(current?.adblock?.enabled!==false))await run(()=>api.adblockToggle(ad));
+  for(const [key,id] of [['shieldAnnoyances','welcome-annoyances'],['shieldBoost','welcome-boost'],['vpnAtStartup','welcome-vpn']]){
+    const v=$(id).checked;if(v!==Boolean(p[key]))await run(()=>api.preference(key,v));
+  }
+  const country=$('welcome-vpn-country').value;
+  if(country!==(p.vpnCountry||''))await run(()=>api.preference('vpnCountry',country));
+}
+async function finishWelcome(){
+  const ref=$('welcome-ref').value.trim();if(ref)await run(()=>api.refClaim(ref),'Merci ! Ton parrain a été enregistré.');
+  await run(()=>api.welcomed());await showPanel('');
+  notify('Bienvenue dans DevGitBrowser ! Bonne navigation.'+($('welcome-vpn').checked?' Le VPN se connectera au prochain démarrage.':''));
+}
 $('welcome-next').addEventListener('click',async()=>{
-  if(welcomeStep===2){
+  if(welcomeStep===3)await applyWelcomeProtection();
+  if(welcomeStep===WELCOME_LAST&&!current?.passwords?.exists){
     const a=$('welcome-master').value,b=$('welcome-master2').value;
     if(a||b){
       if(a!==b){notify('Les deux mots de passe ne correspondent pas.',true);return;}
@@ -798,11 +928,78 @@ $('welcome-next').addEventListener('click',async()=>{
       $('welcome-master').value='';$('welcome-master2').value='';
     }
   }
-  if(welcomeStep>=3){finishWelcome();return;}
+  if(welcomeStep>=WELCOME_LAST){finishWelcome();return;}
   welcomeStep++;showWelcomeStep();
 });
-$('welcome-skip').addEventListener('click',()=>{if(welcomeStep===2){welcomeStep=3;showWelcomeStep();}else finishWelcome();});
+$('welcome-skip').addEventListener('click',async()=>{
+  if(welcomeStep===0||welcomeStep===WELCOME_LAST){finishWelcome();return;}
+  if(welcomeStep===3)await applyWelcomeProtection();
+  welcomeStep++;showWelcomeStep();
+});
 $('welcome-master').addEventListener('input',()=>showStrength($('welcome-master'),$('welcome-strength-bar'),$('welcome-strength')));
+
+// ---------------------------------------------------------------- Coffre : fuites, import CSV, générateur, coordonnées
+let breaches=null;
+$('vault-breach').addEventListener('click',async()=>{
+  const btn=$('vault-breach');btn.disabled=true;$('vault-breach-status').textContent='Vérification auprès de Have I Been Pwned…';
+  const r=await run(()=>api.pwBreach());btn.disabled=false;
+  if(!r){$('vault-breach-status').textContent='';return;}
+  breaches=r;const hits=Object.values(r).filter(n=>n>0).length;
+  $('vault-breach-status').textContent=hits?`⚠ ${hits} mot(s) de passe trouvé(s) dans des fuites de données : change-les.`:'✅ Aucun mot de passe trouvé dans les fuites connues.';
+  loadVault();
+});
+async function loadExportHelp(){
+  const list=$('vault-export-help');if(list.childElementCount)return;
+  const srcs=importSourcesCache||await run(()=>api.importSources())||[];importSourcesCache=srcs;
+  const seen=new Set();const items=[];
+  for(const s of srcs){if(seen.has(s.browser)||!s.help)continue;seen.add(s.browser);const li=elem('li');li.append(elem('b','',s.browser+' : '),document.createTextNode(s.help));items.push(li);}
+  if(!items.length)items.push(elem('li','','Chrome : chrome://password-manager/settings · Edge : edge://wallet/passwords · Firefox : about:logins → ⋯ → Exporter'));
+  list.replaceChildren(...items);
+}
+$('vault-import').addEventListener('click',()=>{const d=$('vault-import-card');d.open=true;loadExportHelp();d.scrollIntoView({behavior:'smooth'});});
+$('vault-import-card').addEventListener('toggle',()=>{if($('vault-import-card').open)loadExportHelp();});
+$('vault-import-go').addEventListener('click',async()=>{
+  const r=await run(()=>api.pwImportCsv($('vault-import-remove').checked));
+  if(!r)return;
+  notify(`Import terminé : ${r.added} ajouté(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s).`+(r.removed?' Fichier CSV supprimé.':r.removed===false?' ⚠ Le CSV n’a pas pu être supprimé : efface-le toi-même.':''));
+  $('vault-import-card').open=false;loadVault();
+});
+async function generateInto(){
+  const v=await run(()=>api.pwGenerate(Number($('gen-len').value),{digits:$('gen-digits').checked,symbols:$('gen-symbols').checked}));
+  if(v)$('gen-out').value=v;
+}
+$('gen-len').addEventListener('input',()=>{$('gen-len-value').textContent=$('gen-len').value;generateInto();});
+for(const id of ['gen-digits','gen-symbols','gen-new'])$(id).addEventListener(id==='gen-new'?'click':'change',generateInto);
+$('gen-copy').addEventListener('click',()=>{if($('gen-out').value)navigator.clipboard.writeText($('gen-out').value).then(()=>notify('Mot de passe copié.'),()=>notify('Copie impossible.',true));});
+const PF=['label','givenName','familyName','email','tel','organization','street','street2','postalCode','city','country'];
+async function loadProfiles(){
+  if(!current?.passwords?.unlocked)return;
+  const list=await run(()=>api.pwProfiles());if(!list)return;
+  const host=$('profile-list');
+  if(!list.length){host.replaceChildren(elem('div','empty-list','Aucun profil. Ajoute tes coordonnées pour remplir les formulaires en un clic.'));return;}
+  host.replaceChildren(...list.map(p=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',p.label||[p.givenName,p.familyName].filter(Boolean).join(' ')||p.email||'Profil'),elem('small','',[p.email,p.city].filter(Boolean).join(' · ')));
+    const edit=elem('button','outline small-btn','Modifier');edit.type='button';edit.addEventListener('click',()=>openProfile(p));
+    const del=elem('button','icon-btn','✕');del.type='button';del.title='Supprimer';
+    del.addEventListener('click',async()=>{if(await run(()=>api.pwProfileDelete(p.id),'Profil supprimé.'))loadProfiles();});
+    row.append(text,edit,del);return row;
+  }));
+}
+function openProfile(p){
+  $('pf-id').value=p?.id||'';for(const k of PF)$('pf-'+k).value=p?.[k]||'';
+  $('profile-form').classList.remove('hidden');$('profile-add').classList.add('hidden');$('pf-label').focus();
+}
+function closeProfile(){$('profile-form').classList.add('hidden');$('profile-add').classList.remove('hidden');}
+$('profile-add').addEventListener('click',()=>openProfile(null));
+$('pf-cancel').addEventListener('click',closeProfile);
+$('profile-form').addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const data={};for(const k of PF)data[k]=$('pf-'+k).value.trim();if($('pf-id').value)data.id=$('pf-id').value;
+  const ok=await run(()=>api.pwProfileSave(data),'Coordonnées enregistrées dans le coffre.');
+  if(ok){closeProfile();loadProfiles();}
+});
+$('profiles-card').addEventListener('toggle',()=>{if($('profiles-card').open)loadProfiles();});
 
 // ======================================================================== Mode DGBx
 let xRendered=false;
@@ -971,7 +1168,9 @@ function renderServer(res){
     kpi('Actifs aujourd’hui',nf.format(srv.active.today),`${nf.format(srv.active.week)} sur 7 j · ${nf.format(srv.active.month)} sur 30 j`),
     kpi('Utilisateurs au total',nf.format(srv.totalUsers),`+${nf.format(srv.newUsers30)} nouveaux sur 30 j`),
     kpi('Heures passées',nf.format(srv.hours.month)+' h',`${nf.format(srv.hours.today)} h aujourd’hui (30 derniers jours)`),
-    kpi('Trafic généré',nf.format(srv.pages.month),`pages ouvertes sur 30 j · ${nf.format(srv.pages.today)} aujourd’hui`));
+    kpi('Trafic généré',nf.format(srv.pages.month),`pages ouvertes sur 30 j · ${nf.format(srv.pages.today)} aujourd’hui`),
+    kpi('Parrainages',nf.format(srv.referrals?.total||0),srv.referrals?.top?.length?'Meilleur code : '+srv.referrals.top[0][0]+' ('+srv.referrals.top[0][1]+')':'Aucun pour l’instant'),
+    kpi('Rapports de bug',nf.format(srv.bugs||0),'Reçus depuis le navigateur'));
   const byDay=new Map(srv.daily.map(d=>[d.day,d]));
   const days=[...Array(30)].map((_,i)=>{const k=new Date(Date.now()-(29-i)*86400000).toISOString().slice(0,10);return byDay.get(k)||{day:k,users:0,hours:0,pages:0};});
   const maxDay=Math.max(1,...days.map(d=>d.users));
@@ -982,12 +1181,86 @@ function renderServer(res){
   $('admin-rating').replaceChildren(head,...bars([5,4,3,2,1].map(n=>[n+' ★',r.distribution[n-1]]),maxR,v=>nf.format(v)));
   $('admin-uversions').replaceChildren(...bars(srv.versions.map(([v,n])=>['v'+v,n]),Math.max(1,...srv.versions.map(v=>v[1])),v=>nf.format(v)+' util.'));
 }
+
+// ---- Carte du monde (v1.13)
+const SVGNS='http://www.w3.org/2000/svg';
+const svgEl=(tag,attrs)=>{const el=document.createElementNS(SVGNS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));return el;};
+function renderMap(srv){
+  const map=$('admin-map'),W=window.DGB_WORLD;if(!W)return;
+  const live=srv.live?.countries||{},month=Object.fromEntries(srv.countries||[]);
+  const total=srv.live?.total||0;
+  $('admin-live').replaceChildren(elem('i'),document.createTextNode(` ${nf.format(total)} en ligne maintenant`));
+  const nodes=[svgEl('path',{d:W.d,class:'map-land'})];
+  const maxM=Math.max(1,...Object.values(month)),maxL=Math.max(1,...Object.values(live));
+  for(const [cc,n] of Object.entries(month)){const p=W.points[cc];if(!p)continue;const c=svgEl('circle',{cx:p[0],cy:p[1],r:(3+Math.sqrt(n/maxM)*14).toFixed(1),class:'map-month'});const t=svgEl('title',{});t.textContent=`${countryName(cc)} : ${n} actif(s) sur 30 jours`;c.append(t);nodes.push(c);}
+  for(const [cc,n] of Object.entries(live)){const p=W.points[cc];if(!p)continue;const r=(3+Math.sqrt(n/maxL)*9).toFixed(1);
+    const g=svgEl('g',{class:'map-live'});g.append(svgEl('circle',{cx:p[0],cy:p[1],r,class:'map-pulse'}),svgEl('circle',{cx:p[0],cy:p[1],r,class:'map-dot'}));
+    const t=svgEl('title',{});t.textContent=`${countryName(cc)} : ${n} en ligne`;g.append(t);nodes.push(g);}
+  map.replaceChildren(...nodes);
+  const top=Object.entries(live).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  $('admin-live-list').replaceChildren(...(top.length?top.map(([cc,n])=>elem('span','',`${FLAG(cc)} ${countryName(cc)} · ${nf.format(n)}`)):[elem('span','muted','Personne en ligne en ce moment (statistiques activées uniquement).')]));
+}
+// ---- Rapports de bug
+let adminBugs=[];
+const BUG_STATUS={new:'🆕 Nouveau',seen:'👀 Vu',fixed:'✅ Corrigé'};
+async function loadAdminBugs(){adminBugs=await run(()=>api.adminRemote('bugs'))||[];renderAdminBugs();}
+function renderAdminBugs(){
+  const f=$('admin-bug-filter').value;
+  const list=adminBugs.filter(b=>f==='all'||(f==='fixed'?b.status==='fixed':b.status!=='fixed'));
+  if(!list.length){$('admin-bug-list').replaceChildren(elem('div','empty-list','Aucun rapport ici.'));return;}
+  $('admin-bug-list').replaceChildren(...list.map(b=>{
+    const box=elem('details','admin-bug '+b.status);const sum=elem('summary');
+    sum.append(elem('b','',BUG_STATUS[b.status]||b.status),elem('span','',new Date(b.at).toLocaleString('fr-FR')+` · v${b.v} · ${FLAG(b.cc)} ${b.os}`),elem('em','',b.text.slice(0,90)));
+    box.append(sum,elem('p','admin-bug-text',b.text));
+    if(b.contact)box.append(elem('p','muted','Contact : '+b.contact));
+    if(b.log)box.append(elem('pre','bug-preview',b.log));
+    const actions=elem('div','form-buttons');
+    for(const [st,label] of [['seen','Marquer vu'],['fixed','Marquer corrigé'],['new','Remettre à traiter']])if(b.status!==st){const btn=elem('button','outline small-btn',label);btn.type='button';btn.addEventListener('click',async()=>{if(await run(()=>api.adminRemote('bug-status',b.id,st))){b.status=st;renderAdminBugs();}});actions.append(btn);}
+    const del=elem('button','outline small-btn danger','Supprimer');del.type='button';del.addEventListener('click',async()=>{if(await run(()=>api.adminRemote('bug-delete',b.id))!==null){adminBugs=adminBugs.filter(x=>x!==b);renderAdminBugs();}});
+    actions.append(del);box.append(actions);return box;
+  }));
+}
+$('admin-bug-filter').addEventListener('change',renderAdminBugs);
+// ---- Messages ciblés et arrêt d'urgence
+const KILL_FEATURES={store:'Boutique',preview:'Aperçu des liens',media:'Lecteur protégé',vpn:'VPN',import:'Import',telemetry:'Statistiques'};
+let adminConfig=null;
+async function loadAdminConfig(){
+  adminConfig=await run(()=>api.adminRemote('config'));if(!adminConfig)return;
+  $('ak-versions').value=adminConfig.kill?.versions||'';$('ak-message').value=adminConfig.kill?.message||'';
+  $('ak-features').replaceChildren(...Object.entries(KILL_FEATURES).map(([id,label])=>{const l=elem('label','check-line');const c=elem('input');c.type='checkbox';c.value=id;c.checked=(adminConfig.kill?.features||[]).includes(id);l.append(c,document.createTextNode(' '+label));return l;}));
+  renderAdminMessages();$('admin-remote-status').textContent='';
+}
+function renderAdminMessages(){
+  const msgs=adminConfig?.messages||[];
+  if(!msgs.length){$('admin-msg-list').replaceChildren(elem('div','empty-list','Aucun message actif.'));return;}
+  $('admin-msg-list').replaceChildren(...msgs.map((m,i)=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',(m.level==='warning'?'⚠️ ':'📣 ')+m.text),elem('small','',`versions ${m.versions}`+(m.countries?.length?` · pays ${m.countries.join(', ')}`:' · tous pays')+(m.until?` · jusqu’au ${m.until}`:'')+(m.url?' · '+m.url:'')));
+    const del=elem('button','icon-btn','✕');del.type='button';del.title='Retirer';del.addEventListener('click',()=>{adminConfig.messages.splice(i,1);renderAdminMessages();$('admin-remote-status').textContent='Modifications non publiées.';});
+    row.append(text,del);return row;
+  }));
+}
+$('admin-msg-form').addEventListener('submit',e=>{
+  e.preventDefault();if(!adminConfig)return;
+  const text=$('am-text').value.trim();if(!text){notify('Écris le texte du message.',true);return;}
+  adminConfig.messages=[...(adminConfig.messages||[]),{text,level:$('am-level').value,versions:$('am-versions').value.trim()||'*',countries:$('am-countries').value,until:$('am-until').value,url:$('am-url').value.trim()}];
+  for(const id of ['am-text','am-versions','am-countries','am-until','am-url'])$(id).value='';
+  renderAdminMessages();$('admin-remote-status').textContent='Modifications non publiées.';
+});
+$('admin-remote-save').addEventListener('click',async()=>{
+  if(!adminConfig)return;
+  const body={messages:adminConfig.messages||[],kill:{versions:$('ak-versions').value.trim(),message:$('ak-message').value.trim(),features:[...$('ak-features').querySelectorAll('input:checked')].map(c=>c.value)}};
+  if((body.kill.versions||body.kill.features.length)&&!confirm('Activer l’arrêt d’urgence pour '+(body.kill.versions||'aucune version')+(body.kill.features.length?' et couper : '+body.kill.features.map(f=>KILL_FEATURES[f]).join(', '):'')+' ?'))return;
+  const r=await run(()=>api.adminRemote('config-save',body),'Configuration publiée : les navigateurs la reçoivent dans les 6 heures (immédiatement ici).');
+  if(r){adminConfig=r;renderAdminMessages();$('admin-remote-status').textContent='✅ Publié';}
+});
 async function loadAdminStats(){
   $('admin-updated').textContent='Chargement…';
   const res=await run(()=>api.adminStats());
   if(!res){$('admin-updated').textContent='Statistiques indisponibles.';return;}
   $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date());
   renderServer(res);
+  if(res.server){renderMap(res.server);loadAdminBugs();loadAdminConfig();}
   loadAdminStore();
   const st=res.github;
   if(!st){$('admin-kpis').replaceChildren(elem('p','muted','GitHub : '+res.githubError));$('admin-versions').replaceChildren();$('admin-community').replaceChildren();return;}
@@ -1009,6 +1282,7 @@ $('admin-token-change').addEventListener('click',()=>{$('admin-server-data').cla
 // ======================================================================== Statistiques anonymes et note
 function updateTelemetry(state){
   const tm=state.telemetry||{};
+  renderRemote(state);
   $('tm-banner').classList.toggle('hidden',!(tm.available&&!tm.asked&&state.welcomed&&!state.xmode));
   $('telemetry-line').classList.toggle('hidden',!tm.available);
   $('rate-card').classList.toggle('hidden',!tm.available);

@@ -1,3 +1,73 @@
+## 1.13.0 — Communauté : rapport de bug, parrainage, Discord, admin en direct
+
+### 🐞 Signaler un bug en un clic
+- À propos → « Signaler un bug » : description, contact facultatif, et **journal technique joint seulement si la case est cochée**.
+- Avant l'envoi, « Voir exactement ce qui sera envoyé ». Le journal est anonymisé : chemins du profil Windows, adresses complètes des sites (seule l'origine reste), e-mails et adresses IP sont masqués.
+- Les rapports arrivent sur le serveur DevGit et dans le panneau admin, maximum 5 par heure et par connexion.
+
+### 🎁 Parrainage et badges
+- Chaque navigateur a un **code de parrainage** (8 caractères) et un lien à partager (À propos → « Parraine tes amis »).
+- Le filleul saisit le code à la fin de l'assistant de bienvenue, ou plus tard dans À propos. Un seul parrain par PC, impossible de se parrainer soi-même.
+- Badges : 🥉 Bronze (1), 🥈 Argent (3), 🥇 Or (10), 💎 Légende (25).
+
+### 🎮 Discord Rich Presence (facultatif)
+- Paramètres → Discord : « Joue à DevGitBrowser » sur ton profil Discord, avec un bouton « Télécharger DevGitBrowser ».
+- Option séparée pour afficher le site visité ; jamais pour les onglets privés ou DGBx.
+- Fonctionne avec l'application Discord ouverte sur le PC, par son canal local : rien ne passe par Internet.
+
+### 📣 Messages et arrêt d'urgence
+- Le navigateur lit la configuration DevGit au démarrage puis toutes les 6 heures. Il n'envoie que sa version et le pays de Windows, sans identifiant.
+- **Messages ciblés** par version, pays et date de fin, avec un lien facultatif. Ils s'affichent dans un bandeau qu'on peut fermer.
+- **Arrêt d'urgence** : une version boguée affiche un bandeau qui invite à mettre à jour et lance la recherche de mise à jour. Certaines fonctions peuvent aussi être coupées temporairement (boutique, aperçu des liens, lecteur protégé, VPN, import, statistiques).
+- Sans réponse du serveur, rien n'est bloqué.
+
+### 🛠 Panneau admin
+- **Carte du monde** : utilisateurs en ligne maintenant (points animés) et actifs sur 30 jours.
+- **Rapports de bug** : à traiter, vus, corrigés ; journal consultable ; suppression.
+- **Messages et arrêt d'urgence** modifiables et publiés depuis le panneau.
+- Nouveaux indicateurs : parrainages et rapports reçus.
+
+### Serveur
+- `server/stats/server.js` : nouvelles routes `/v1/config`, `/v1/bug`, `/v1/referral/*` et `/v1/admin/*`.
+- **Mettre à jour le serveur** en relançant la commande d'installation. Le jeton, le certificat et les données sont conservés.
+
+## 1.12.0 — Mica/Acrylic, aperçu des liens, « Qui me piste ? »
+
+### 🕵 Qui me piste ?
+- Nouveau rapport par site (menu 🛡 → « Qui me piste sur ce site ? ») : les **entreprises** qui ont tenté de suivre ta navigation sur la page affichée (Google, Meta, Amazon, Microsoft, TikTok, Criteo, Taboola, Hotjar…), avec leur rôle (publicité, mesure d'audience, réseau social, empreinte, enregistrement de session) et le nombre de requêtes bloquées.
+- Base locale d'environ 60 acteurs ; les domaines inconnus restent listés. Rien n'est envoyé sur Internet.
+- Le rapport repart de zéro à chaque nouvelle page. Il prévient quand DevGitShield est désactivé ou en pause sur le site.
+
+### 👁 Aperçu des liens
+- **Maj + survol** d'un lien (réglage par défaut) : la page s'ouvre dans une petite fenêtre au-dessus de la page en cours, avec « Ouvrir dans un onglet » et ✕.
+- Autre mode : **survol prolongé** (1 seconde), ou désactivé (Paramètres → Apparence).
+- L'aperçu se ferme quand la souris quitte le lien et l'aperçu, ainsi qu'avec Échap, un clic, le défilement ou un changement d'onglet.
+- La page aperçue est muette, sans boîtes de dialogue, protégée par DevGitShield. Ses pop-ups s'ouvrent dans un vrai onglet. Jamais d'aperçu depuis un onglet privé ou DGBx.
+
+### 🪟 Effet de fenêtre Windows 11
+- **Mica** (la couleur du fond d'écran transparaît dans la barre d'onglets) ou **Acrylic** (flou dépoli) : Paramètres → Apparence → « Effet de fenêtre ».
+- Proposé uniquement sous Windows 11 22H2 ou plus récent ; compatible avec tous les thèmes.
+
+## 1.11.0 — Bienvenue : assistant de premier lancement, import, coffre enrichi
+
+### Assistant de premier lancement (5 étapes)
+- **Thème**, **moteur de recherche**, **protection** (DevGitShield, nuisances, mode renforcé YouTube/Twitch, VPN au démarrage avec choix du pays), **import** depuis l'ancien navigateur, **coffre à mots de passe**.
+- Chaque étape peut être passée (« Plus tard ») ; tout reste modifiable dans les Paramètres.
+- Nouveau réglage : Paramètres → VPN → « Connecter au démarrage ».
+- Les réglages « nuisances » et « mode renforcé » s'appliquent désormais immédiatement depuis les Paramètres.
+
+### Import depuis Chrome, Edge, Brave, Vivaldi, Opera, Opera GX et Firefox
+- Détection automatique des navigateurs et de leurs profils (avec leur nom).
+- Import des **favoris** et de l'**historique** (sans doublon), lus sur une copie : rien n'est modifié dans l'autre navigateur et rien n'est envoyé sur Internet.
+- Si l'historique ne s'importe pas, fermer l'autre navigateur puis réessayer.
+- Disponible dans l'assistant et dans Paramètres → « Importer depuis un autre navigateur ».
+- **Mots de passe** : via l'export CSV officiel de chaque navigateur (instructions affichées), puis coffre → « Importer un CSV ». Les identifiants existants sont mis à jour, jamais dupliqués. Option (cochée par défaut) pour **supprimer le fichier CSV** après l'import, car il contient les mots de passe en clair.
+
+### Coffre à mots de passe
+- **Vérifier les fuites** : chaque mot de passe est comparé à la base Have I Been Pwned par k-anonymat. Seuls les 5 premiers caractères de son empreinte SHA-1 sont envoyés ; le mot de passe ne quitte jamais le PC. Les mots de passe trouvés portent un badge 🚨.
+- **Générateur** : longueur de 12 à 64, chiffres et symboles au choix, bouton Copier.
+- **Mes coordonnées** : fiches (nom, e-mail, téléphone, société, adresse) **chiffrées dans le coffre**. Clic droit dans un champ d'un formulaire HTTPS → « Remplir mes coordonnées ». Jamais dans les onglets privés, ni sur les champs mot de passe, cachés ou déjà remplis.
+
 ## 1.10.0 — Netflix (Widevine), DevGitShield sans casse, onglets privés sous VPN, nouveaux thèmes
 
 ### Vidéos protégées (Netflix, Prime Video, Disney+, Canal+…)

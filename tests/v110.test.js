@@ -76,5 +76,5 @@ test('lecteur protégé : séparé, limité au streaming, navigateur toujours ve
   const main=read('main.js');
   assert.match(main,/^'use strict';\s*\/\/[^\n]*\n\{\s*const media = require\('\.\/lib\/media-player'\);/);
   assert.match(main,/if \(!isRedirect && sendToMediaPlayer\(t, url\)\)/);
-  assert.match(main,/settings\.mediaPlayer \|\| t\?\.private/);
+  assert.match(main,/settings\.mediaPlayer \|\| remote\?\.disabled\('media'\) \|\| t\?\.private/);
 });

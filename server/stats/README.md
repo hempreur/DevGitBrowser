@@ -24,5 +24,11 @@ Commandes utiles : `systemctl status devgit-stats` · `journalctl -u devgit-stat
 ## Boutique d'extensions (DevGit Store)
 Les extensions publiées depuis le panneau admin sont stockées dans `/opt/devgit-stats/data/store/`. Le catalogue public se trouve à `GET /v1/store/catalog`. La publication et le retrait demandent le jeton admin.
 
+## Configuration distante, bugs et parrainage (v1.13)
+- `GET /v1/config?v=1.13.0&cc=FR` : messages ciblés et arrêt d'urgence (public, rien n'est enregistré).
+- `POST /v1/bug` : rapports de bug (5 par heure et par IP, 500 conservés) dans `data/bugs.json`.
+- `POST /v1/referral/claim` et `GET /v1/referral/CODE` : parrainages (un par installation).
+- `/v1/admin/config`, `/v1/admin/bugs` : réservés au jeton admin, utilisés par le panneau admin.
+
 ## Mettre à jour le serveur
 Relancer la commande d'installation. Le jeton, le certificat (donc l'empreinte) et les données sont conservés.

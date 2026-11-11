@@ -20,8 +20,9 @@ const FILE = path.join(DATA_DIR, 'stats.json');
 
 // L'identifiant envoyé par le navigateur est re-haché avec un secret du serveur :
 // impossible de relier les données à une installation sans ce secret.
-let db = {secret: crypto.randomBytes(32).toString('hex'), days: {}, users: {}, ratings: {}};
+let db = {secret: crypto.randomBytes(32).toString('hex'), days: {}, users: {}, ratings: {}, referrals: {}};
 try { db = {...db, ...JSON.parse(fs.readFileSync(FILE, 'utf8'))}; } catch {}
+db.referrals ||= {};
 let dirty = false;
 function save() {
   if (!dirty) return; dirty = false;
@@ -65,7 +66,8 @@ function ping(body) {
   const u = anon(id), k = today(), d = day(k);
   const cc = clean.cc(body.cc), v = clean.ver(body.v), os = clean.os(body.os);
   if (!db.users[u]) { db.users[u] = {first: k}; d.newUsers++; }
-  const user = db.users[u]; user.last = k; user.cc = cc; user.v = v;
+  const user = db.users[u]; user.last = k; user.cc = cc; user.v = v; user.at = Date.now();
+  if (typeof body.rc === 'string' && REF_CODE.test(body.rc)) user.rc = body.rc;
   if (!d.users[u]) {
     d.users[u] = 1;
     d.countries[cc] = (d.countries[cc] || 0) + 1;
@@ -97,6 +99,11 @@ function stats() {
   const dist = [1, 2, 3, 4, 5].map(n => ratings.filter(r => r.stars === n).length);
   const d30 = lastN(30);
   const t = db.days[today()];
+  // En ligne maintenant : ping reçu dans les 35 dernières minutes (un ping toutes les 30 min).
+  const liveSince = Date.now() - 35 * 60_000, live = {};
+  for (const u of Object.values(db.users)) if ((u.at || 0) >= liveSince) live[u.cc] = (live[u.cc] || 0) + 1;
+  const refs = {};
+  for (const r of Object.values(db.referrals)) refs[r.code] = (refs[r.code] || 0) + 1;
   return {
     generatedAt: new Date().toISOString(),
     active: {today: t ? Object.keys(t.users).length : 0, week: unique(lastN(7)), month: unique(d30)},
@@ -108,6 +115,9 @@ function stats() {
     versions: Object.entries(versions).sort((a, b) => b[1] - a[1]).slice(0, 10),
     os: merge(d30, 'os'),
     rating: {count: ratings.length, average: ratings.length ? Math.round(ratings.reduce((n, r) => n + r.stars, 0) / ratings.length * 10) / 10 : 0, distribution: dist},
+    live: {total: Object.values(live).reduce((a, b) => a + b, 0), countries: live},
+    referrals: {total: Object.keys(db.referrals).length, top: Object.entries(refs).sort((a, b) => b[1] - a[1]).slice(0, 10)},
+    bugs: bugs.length,
     daily: keys.slice(-30).map(k => ({day: k, users: Object.keys(db.days[k].users).length, hours: Math.round(db.days[k].minutes / 6) / 10, pages: db.days[k].pages})),
   };
 }
@@ -159,6 +169,95 @@ function publish(bundle) {
 }
 function publicCatalog() { return {extensions: Object.values(catalog.extensions).sort((a, b) => a.name.localeCompare(b.name))}; }
 
+
+// ------------------------------------------------- Configuration distante (v1.13)
+// Arrêt d'urgence par version et messages ciblés, lus par tous les navigateurs
+// (seule la version est envoyée ; rien n'est enregistré).
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const FEATURES = ['store', 'preview', 'media', 'vpn', 'import', 'telemetry'];
+const VERSION_SPEC = /^(\*|(?:(?:<=|>=|<|>|=)?\d{1,3}\.\d{1,3}\.\d{1,3})(?:\s*,\s*(?:<=|>=|<|>|=)?\d{1,3}\.\d{1,3}\.\d{1,3})*)$/;
+let config = {kill: {versions: '', message: '', features: []}, messages: []};
+try { config = {...config, ...JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'))}; } catch {}
+const saveConfig = () => { const tmp = CONFIG_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(config, null, 1)); fs.renameSync(tmp, CONFIG_FILE); };
+function cmpVersion(a, b) {
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0) ? -1 : 1;
+  return 0;
+}
+// « * », « 1.12.0 », « <1.13.0 », « >=1.10.0, <1.12.0 » (toutes les conditions).
+function versionMatches(spec, v) {
+  spec = String(spec || '').trim();
+  if (!spec) return false;
+  if (spec === '*') return true;
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v)) return false;
+  return spec.split(',').every(part => {
+    const m = part.trim().match(/^(<=|>=|<|>|=)?(\d{1,3}\.\d{1,3}\.\d{1,3})$/); if (!m) return false;
+    const c = cmpVersion(v, m[2]);
+    return {'<': c < 0, '<=': c <= 0, '>': c > 0, '>=': c >= 0, '=': c === 0, undefined: c === 0}[m[1]];
+  });
+}
+function cleanConfig(input) {
+  const kill = input?.kill || {};
+  const versions = text(kill.versions, 120);
+  if (versions && !VERSION_SPEC.test(versions)) throw new Error('versions invalides (ex. « <1.13.0 » ou « 1.12.0, 1.12.1 »)');
+  const messages = (Array.isArray(input?.messages) ? input.messages : []).slice(0, 20).map(m => {
+    const spec = text(m.versions, 120) || '*';
+    if (!VERSION_SPEC.test(spec)) throw new Error('versions invalides pour un message');
+    const url = text(m.url, 300);
+    if (url && !/^https:\/\/[^\s]+$/.test(url)) throw new Error('le lien d’un message doit commencer par https://');
+    const countries = (Array.isArray(m.countries) ? m.countries : String(m.countries || '').split(','))
+      .map(c => String(c).trim().toUpperCase()).filter(c => /^[A-Z]{2}$/.test(c)).slice(0, 50);
+    const until = /^\d{4}-\d{2}-\d{2}$/.test(String(m.until || '')) ? String(m.until) : '';
+    const msg = text(m.text, 400);
+    if (!msg) throw new Error('message vide');
+    return {id: /^[a-z0-9-]{4,40}$/.test(String(m.id || '')) ? String(m.id) : crypto.randomBytes(6).toString('hex'),
+      text: msg, level: m.level === 'warning' ? 'warning' : 'info', versions: spec, countries, until, url};
+  });
+  return {kill: {versions, message: text(kill.message, 300), features: (Array.isArray(kill.features) ? kill.features : []).filter(f => FEATURES.includes(f))}, messages};
+}
+function publicConfig(v, cc) {
+  v = clean.ver(v); cc = clean.cc(cc);
+  const t = today();
+  return {
+    kill: {blocked: versionMatches(config.kill.versions, v), message: config.kill.message, features: config.kill.features},
+    messages: config.messages.filter(m => versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)) && (!m.until || m.until >= t))
+      .map(({id, text: body, level, url}) => ({id, text: body, level, url}))
+  };
+}
+
+// ------------------------------------------------- Rapports de bug (v1.13, avec accord)
+const BUGS_FILE = path.join(DATA_DIR, 'bugs.json');
+let bugs = [];
+try { bugs = JSON.parse(fs.readFileSync(BUGS_FILE, 'utf8')); } catch {}
+const saveBugs = () => { const tmp = BUGS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(bugs)); fs.renameSync(tmp, BUGS_FILE); };
+function addBug(body) {
+  const description = String(body?.text || '').replace(/\u0000/g, '').trim().slice(0, 3000);
+  if (description.length < 5) return null;
+  const bug = {id: crypto.randomBytes(8).toString('hex'), at: new Date().toISOString(), v: clean.ver(body.v), os: clean.os(body.os), cc: clean.cc(body.cc),
+    text: description, contact: text(body.contact, 120), log: String(body.log || '').replace(/\u0000/g, '').slice(-60_000), status: 'new'};
+  bugs.unshift(bug); bugs = bugs.slice(0, 500); saveBugs();
+  return bug.id;
+}
+
+// ------------------------------------------------- Parrainage (v1.13)
+const REF_CODE = /^[A-Z2-9]{8}$/;
+function claimReferral(body) {
+  const id = clean.id(body?.id), code = String(body?.code || '').toUpperCase();
+  if (!id || !REF_CODE.test(code)) return 'invalid';
+  const u = anon(id);
+  if (db.referrals[u]) return 'already';
+  if (db.users[u]?.rc === code) return 'self';
+  db.referrals[u] = {code, at: today()}; dirty = true; return 'ok';
+}
+const referralCount = code => Object.values(db.referrals).filter(r => r.code === code).length;
+const bugLimiter = new Map();
+function limitedBug(ip) {
+  const now = Date.now(), h = bugLimiter.get(ip) || {n: 0, t: now};
+  if (now - h.t > 3_600_000) { h.n = 0; h.t = now; }
+  h.n++; bugLimiter.set(ip, h); if (bugLimiter.size > 20_000) bugLimiter.clear();
+  return h.n > 5;
+}
+
 const handler = async (req, res) => {
   const url = req.url.split('?')[0];
   try {
@@ -187,6 +286,36 @@ const handler = async (req, res) => {
       try { fs.rmSync(path.join(PKG_DIR, m[1] + '.json'), {force: true}); } catch {}
       return send(res, 204);
     }
+    const ipOf = () => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (req.method === 'GET' && url === '/v1/config') {
+      const q = new URLSearchParams(req.url.split('?')[1] || '');
+      return send(res, 200, publicConfig(q.get('v'), q.get('cc')));
+    }
+    if (req.method === 'POST' && url === '/v1/bug') {
+      if (limitedBug(ipOf())) return send(res, 429, {error: 'trop de rapports, réessaie plus tard'});
+      let body; try { body = await readBody(req, 80 * 1024); } catch { return send(res, 413, {error: 'rapport trop gros'}); }
+      const id = addBug(body); return id ? send(res, 200, {id}) : send(res, 400, {error: 'description trop courte'});
+    }
+    if (req.method === 'POST' && url === '/v1/referral/claim') {
+      if (limited(ipOf())) return send(res, 429, {error: 'rate'});
+      const r = claimReferral(await readBody(req));
+      return r === 'ok' ? send(res, 204) : send(res, r === 'invalid' ? 400 : 409, {error: r});
+    }
+    if (req.method === 'GET' && (m = url.match(/^\/v1\/referral\/([A-Z2-9]{8})$/))) return send(res, 200, {count: referralCount(m[1])});
+    if (url.startsWith('/v1/admin/')) {
+      if (!authorized(req)) return send(res, 401, {error: 'unauthorized'});
+      if (req.method === 'GET' && url === '/v1/admin/config') return send(res, 200, config);
+      if (req.method === 'PUT' && url === '/v1/admin/config') {
+        try { config = cleanConfig(await readBody(req, 64 * 1024)); saveConfig(); return send(res, 200, config); } catch (e) { return send(res, 400, {error: e.message}); }
+      }
+      if (req.method === 'GET' && url === '/v1/admin/bugs') return send(res, 200, {bugs});
+      if ((m = url.match(/^\/v1\/admin\/bugs\/([a-f0-9]{16})$/))) {
+        const bug = bugs.find(b => b.id === m[1]); if (!bug) return send(res, 404, {error: 'not found'});
+        if (req.method === 'DELETE') { bugs = bugs.filter(b => b !== bug); saveBugs(); return send(res, 204); }
+        if (req.method === 'PATCH') { const b = await readBody(req); if (['new', 'seen', 'fixed'].includes(b.status)) bug.status = b.status; saveBugs(); return send(res, 200, bug); }
+      }
+      return send(res, 404, {error: 'not found'});
+    }
     if (req.method === 'GET' && url === '/health') return send(res, 200, {ok: true});
     if (req.method === 'POST' && (url === '/v1/ping' || url === '/v1/rate')) {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -207,4 +336,4 @@ const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync
 const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
 if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, _db: () => db};
+module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanConfig, publicConfig, addBug, claimReferral, _db: () => db, _setConfig: c => { config = c; }};
