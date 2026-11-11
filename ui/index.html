@@ -14,6 +14,7 @@
     <div id="tabs" class="tabs" role="tablist" aria-label="Onglets"></div>
     <button class="tab-add" id="add-tab" title="Nouvel onglet (Ctrl+T)" aria-label="Nouvel onglet"><svg class="ico " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     <div class="tab-drop-space" id="tab-drop-space"></div>
+    <button id="trophy-btn" class="trophy-btn" type="button" title="Succès et parrainage" aria-label="Succès et parrainage"><span class="trophy-ico" aria-hidden="true">🏆</span><span id="trophy-badge" class="trophy-badge hidden">0</span></button>
     <div id="clock-weather" class="clock-weather" title="Heure locale · météo (ville dans Paramètres → Général)"><span id="weather-pill" class="weather-pill hidden"><i id="weather-icon"></i><b id="weather-temp"></b><em id="weather-place"></em></span><span id="clock" class="clock">--:--</span></div>
   </div>
   <div class="nav-row">
@@ -213,6 +214,28 @@
     ma-premiere-extension/
       manifest.json
       content.js</pre></div>
+  </div>
+</section>
+
+<section id="panel-achievements" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">SUCCÈS • PARRAINAGE</span><h2>🏆 Mes succès</h2><p>Débloque des succès en utilisant DevGitBrowser. Tout est calculé sur ton ordinateur : rien n’est envoyé.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="ach-hero">
+      <div class="ach-rank-medal" id="ach-rank-icon">🌱</div>
+      <div class="ach-rank-info"><span class="kicker">RANG</span><strong id="ach-rank-name">Novice</strong>
+        <div class="ach-rank-bar"><i id="ach-rank-fill"></i></div><small id="ach-rank-next"></small></div>
+      <div class="ach-totals"><b id="ach-count">0 / 0</b><span>succès débloqués</span><b id="ach-points">0</b><span>points</span></div>
+    </div>
+    <div id="ach-stats" class="ach-stats"></div>
+    <div class="section-card invite-card" id="invite-card">
+      <h3>📣 Invite tes amis</h3>
+      <p class="muted">Partage DevGitBrowser : chaque ami qui l’installe avec ton code fait progresser tes succès de parrainage.</p>
+      <div class="ref-box"><code id="inv-code">········</code><input id="inv-link" class="compact-input wide" readonly aria-label="Lien de parrainage" data-no-i18n></div>
+      <div class="share-grid"><button type="button" class="share-btn" data-share="link"><span aria-hidden="true">🔗</span>Copier le lien</button><button type="button" class="share-btn" data-share="message"><span aria-hidden="true">💬</span>Copier le message</button><button type="button" class="share-btn" data-share="whatsapp"><span aria-hidden="true">🟢</span>WhatsApp</button><button type="button" class="share-btn" data-share="discord"><span aria-hidden="true">🎮</span>Discord</button><button type="button" class="share-btn" data-share="telegram"><span aria-hidden="true">✈️</span>Telegram</button><button type="button" class="share-btn" data-share="x"><span aria-hidden="true">✖️</span>X (Twitter)</button><button type="button" class="share-btn" data-share="facebook"><span aria-hidden="true">📘</span>Facebook</button><button type="button" class="share-btn" data-share="reddit"><span aria-hidden="true">👽</span>Reddit</button><button type="button" class="share-btn" data-share="email"><span aria-hidden="true">✉️</span>E-mail</button></div>
+      <div id="inv-status" class="ref-status"></div>
+    </div>
+    <div id="ach-filters" class="ach-filters" role="tablist"></div>
+    <div id="ach-grid" class="ach-grid"></div>
   </div>
 </section>
 
@@ -454,7 +477,8 @@
       <div id="ref-status" class="ref-status"></div>
       <div id="ref-badges" class="ref-badges"></div>
       <form id="ref-claim-form" class="inline-buttons ref-claim"><label for="ref-claim">Un ami t’a invité ?</label><input id="ref-claim" class="compact-input" maxlength="9" placeholder="Code (8 caractères)" autocomplete="off" spellcheck="false"><button class="outline" type="submit">Valider</button></form>
-      <p id="ref-claimed" class="muted hidden"></p></div>
+      <p id="ref-claimed" class="muted hidden"></p>
+      <div class="form-buttons"><button id="ref-invite-open" class="outline" type="button">📣 Inviter des amis · 🏆 Mes succès</button></div></div>
     <div class="section-card" id="bug-card"><h3>🐞 Signaler un bug</h3>
       <p class="muted">Ton rapport est envoyé directement au créateur. Rien n’est envoyé sans ton clic.</p>
       <textarea id="bug-text" rows="4" maxlength="3000" placeholder="Que s’est-il passé ? Qu’est-ce que tu faisais juste avant ?"></textarea>

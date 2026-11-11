@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin','trackers'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin','trackers','achievements'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -49,6 +49,7 @@ async function showPanel(name){
   if(panel==='settings')renderImportSources('settings-import');
   if(panel==='tasks')startPerf();else stopPerf();
   if(panel==='trackers')loadTrackers();
+  if(panel==='achievements')loadAchievements();
   if(panel && current)render(current);
 }
 function openLibrary(view){libraryView=view;return showPanel('library');}
@@ -735,7 +736,7 @@ function openVaultForm(entry=null){
 }
 $('vault-add').addEventListener('click',()=>openVaultForm());
 $('vf-cancel').addEventListener('click',()=>{$('vault-form').classList.add('hidden');$('vf-pass').value='';});
-$('vf-gen').addEventListener('click',async()=>{const v=await run(()=>api.pwGenerate(20));if(v)$('vf-pass').value=v;});
+$('vf-gen').addEventListener('click',async()=>{const v=await run(()=>api.pwGenerate(20));if(v){$('vf-pass').value=v;api.achEvent('generated').catch(()=>{});}});
 $('vault-form').addEventListener('submit',async ev=>{
   ev.preventDefault();
   const data={origin:$('vf-origin').value.trim(),username:$('vf-user').value,password:$('vf-pass').value,note:$('vf-note').value};
@@ -823,6 +824,47 @@ $('bug-send').addEventListener('click',async()=>{
   btn.disabled=false;btn.textContent='Envoyer le rapport';
   if(id!==null){$('bug-text').value='';notify('Merci ! Rapport envoyé'+(id?` (n° ${id.slice(0,6)})`:'')+'.');}
 });
+// ---------------------------------------------------------------- Succès et invitations (v1.15)
+const TIER_NAMES={bronze:'Bronze',silver:'Argent',gold:'Or',platinum:'Platine'};
+let achFilter='all',achData=null;
+const fmtMin=m=>m>=60?`${Math.floor(m/60)} h${m%60?' '+String(m%60).padStart(2,'0'):''}`:`${m} min`;
+const fmtNum=n=>Number(n||0).toLocaleString(uiLocale());
+async function loadAchievements(){
+  const d=await run(()=>api.achSummary());if(!d)return;achData=d;
+  const r=d.rank;$('ach-rank-icon').textContent=r.icon;$('ach-rank-name').textContent=r.fr;
+  const span=r.next?r.next.min-r.min:1;$('ach-rank-fill').style.width=(r.next?Math.min(100,Math.round((r.points-r.min)/span*100)):100)+'%';
+  $('ach-rank-next').textContent=r.next?`Encore ${r.next.min-r.points} points pour ${r.next.icon} ${r.next.fr}`:'Rang maximal atteint !';
+  $('ach-count').textContent=`${d.unlocked} / ${d.total}`;$('ach-points').textContent=fmtNum(r.points);
+  $('ach-stats').replaceChildren(...[['⏳',fmtMin(d.stats.minutes),'sur le navigateur'],['📄',fmtNum(d.stats.pages),'pages visitées'],['🛡️',fmtNum(d.stats.ads),'pubs et pisteurs bloqués'],['🔥',`${d.streak} j`,'série en cours'],['📅',fmtNum(d.stats.days),'jours d’utilisation']].map(([i,v,l])=>{const c=elem('div','ach-stat');c.append(elem('span','',i),elem('b','',v),elem('small','',l));return c;}));
+  $('ach-filters').replaceChildren(...[{id:'all',icon:'✨',fr:'Tous'},{id:'unlocked',icon:'✅',fr:'Débloqués'},...d.categories].map(c=>{
+    const b=elem('button','ach-filter'+(achFilter===c.id?' on':''),`${c.icon} ${c.fr}`);b.type='button';b.addEventListener('click',()=>{achFilter=c.id;loadAchievements();});return b;}));
+  const list=d.list.filter(a=>achFilter==='all'||(achFilter==='unlocked'?a.unlockedAt:a.category===achFilter))
+    .sort((a,b)=>(Boolean(b.unlockedAt)-Boolean(a.unlockedAt))||(b.value/b.target-a.value/a.target));
+  $('ach-grid').replaceChildren(...(list.length?list.map(a=>{
+    const card=elem('div',`ach-card tier-${a.tier}${a.unlockedAt?' done':' locked'}${a.unseen?' fresh':''}${a.secret?' secret':''}`);card.dataset.new=(window.DGBT||String)('NOUVEAU');
+    const medal=elem('div','ach-medal');medal.append(elem('span','',a.icon));
+    const body=elem('div','ach-body');body.append(elem('strong','',a.name),elem('p','',a.desc));
+    const bar=elem('div','ach-bar');const fill=elem('i');fill.style.width=Math.round(a.value/a.target*100)+'%';bar.append(fill);
+    const meta=elem('div','ach-meta');
+    meta.append(elem('span','ach-tier',`${TIER_NAMES[a.tier]} · ${a.points} pts`),elem('span','',a.unlockedAt?'✅ '+new Date(a.unlockedAt).toLocaleDateString(uiLocale()):(a.minutes?`${fmtMin(a.value)} / ${fmtMin(a.target)}`:`${fmtNum(a.value)} / ${fmtNum(a.target)}`)));
+    body.append(bar,meta);card.append(medal,body);return card;
+  }):[elem('div','empty-list','Aucun succès ici pour le moment.')]));
+  loadInvite();
+  if(d.unseen)setTimeout(()=>run(()=>api.achSeen()),1500);
+}
+async function loadInvite(){
+  const r=await run(()=>api.refInfo());if(!r)return;
+  $('inv-code').textContent=r.code;$('inv-link').value=r.link;
+  $('inv-status').textContent=r.count==null?'Compteur de filleuls indisponible pour le moment.':`${r.count} ami(s) parrainé(s)`+(r.badge?` · ${r.badge.icon} ${r.badge.name}`:'')+(r.next?` · encore ${r.next.min-r.count} pour ${r.next.icon} ${r.next.name}`:'');
+}
+for(const b of document.querySelectorAll('.share-btn'))b.addEventListener('click',async()=>{const msg=await run(()=>api.refShare(b.dataset.share));if(msg)notify(msg);});
+$('trophy-btn').addEventListener('click',()=>showPanel(panel==='achievements'?'':'achievements'));
+$('ref-invite-open').addEventListener('click',()=>showPanel('achievements').then(()=>$('invite-card').scrollIntoView({behavior:'smooth'})));
+function renderTrophy(state){
+  const a=state.achievements;$('trophy-btn').classList.toggle('hidden',!a);if(!a)return;
+  $('trophy-badge').textContent=String(a.unseen);$('trophy-badge').classList.toggle('hidden',!a.unseen);
+  $('trophy-btn').classList.toggle('glow',a.unseen>0);$('trophy-btn').title=`Succès et parrainage · ${a.unlocked} / ${a.total}`;
+}
 // ---------------------------------------------------------------- Qui me piste ?
 const TRACKER_ICONS={ads:'📢',analytics:'📊',social:'👥',fingerprint:'🧬',session:'🎥',cdn:'📦',other:'👁'};
 async function loadTrackers(){
@@ -972,7 +1014,7 @@ async function generateInto(){
 }
 $('gen-len').addEventListener('input',()=>{$('gen-len-value').textContent=$('gen-len').value;generateInto();});
 for(const id of ['gen-digits','gen-symbols','gen-new'])$(id).addEventListener(id==='gen-new'?'click':'change',generateInto);
-$('gen-copy').addEventListener('click',()=>{if($('gen-out').value)navigator.clipboard.writeText($('gen-out').value).then(()=>notify('Mot de passe copié.'),()=>notify('Copie impossible.',true));});
+$('gen-copy').addEventListener('click',()=>{if($('gen-out').value){api.achEvent('generated').catch(()=>{});}if($('gen-out').value)navigator.clipboard.writeText($('gen-out').value).then(()=>notify('Mot de passe copié.'),()=>notify('Copie impossible.',true));});
 const PF=['label','givenName','familyName','email','tel','organization','street','street2','postalCode','city','country'];
 async function loadProfiles(){
   if(!current?.passwords?.unlocked)return;
@@ -1285,7 +1327,7 @@ $('admin-token-change').addEventListener('click',()=>{$('admin-server-data').cla
 // ======================================================================== Statistiques anonymes et note
 function updateTelemetry(state){
   const tm=state.telemetry||{};
-  renderRemote(state);
+  renderRemote(state);renderTrophy(state);
   $('tm-banner').classList.toggle('hidden',!(tm.available&&!tm.asked&&state.welcomed&&!state.xmode));
   $('telemetry-line').classList.toggle('hidden',!tm.available);
   $('rate-card').classList.toggle('hidden',!tm.available);

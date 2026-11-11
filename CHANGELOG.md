@@ -1,3 +1,23 @@
+## 1.15.0 — 🏆 Succès et invitations
+
+### 🏆 Succès
+- Nouveau bouton **trophée** en haut à droite, à côté de la météo et de l'heure. Une pastille rouge compte les succès pas encore vus.
+- **46 succès**, chacun avec son icône, en 6 catégories :
+  - **Temps** : 10 min jusqu'à 500 h, jours d'utilisation, séries de jours d'affilée, oiseau de nuit, lève-tôt.
+  - **Protection** : 100 à 100 000 pubs bloquées, temps sous VPN, onglets privés, « Qui me piste ? ».
+  - **Exploration** : pages visitées, favoris, thèmes, radio, Picture-in-Picture, aperçus de liens, onglets ouverts, mode gaming, langues, extensions, import.
+  - **Sécurité** : coffre, identifiants, vérification des fuites, générateur, coordonnées.
+  - **Communauté** : invitations, filleuls, note, rapport de bug, Discord.
+  - **Secret** : temps passé dans le mode DGBx.
+- 4 paliers (🥉 bronze, 🥈 argent, 🥇 or, 💎 platine), des points et un **rang** : Novice → Explorateur → Aventurier → Expert → Maître DevGit → Légende.
+- Une notification « 🏆 Succès débloqué » s'affiche à chaque nouveau succès.
+- Tout est calculé **sur l'ordinateur** ; rien n'est envoyé.
+- Les succès du **mode DGBx** sont secrets : ils n'apparaissent, et ne sont annoncés, que depuis le mode DGBx. Le panneau ne trahit donc jamais l'existence du mode.
+
+### 📣 Inviter depuis le navigateur
+- Dans le panneau des succès (et depuis À propos), on peut partager son lien de parrainage en un clic : copier le lien, copier un message prêt à envoyer, WhatsApp, Discord, Telegram, X, Facebook, Reddit ou e-mail.
+- Le message est rédigé dans la langue de l'interface. Chaque partage fait progresser les succès « Ambassadeur » et « Porte-voix ».
+
 ## 1.14.0 — DevGitBrowser in English · interface en anglais
 
 ### 🌐 Langue de l'interface

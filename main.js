@@ -27,7 +27,7 @@ const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile
 const i18nCore = require('./ui/i18n.js');
 const LANGUAGES = ['auto','fr','en'];
 let i18nDict = null, i18nLang = 'fr', i18nTr = i18nCore.createTranslator({});
-function loadI18nDict() { if (!i18nDict) { try { i18nDict = JSON.parse(fs.readFileSync(path.join(__dirname,'i18n','en.json'),'utf8')); } catch { i18nDict = {}; } } return i18nDict; }
+function loadI18nDict() { if (!i18nDict) { try { i18nDict = JSON.parse(fs.readFileSync(path.join(__dirname,'i18n','en.json'),'utf8')); } catch { i18nDict = {}; } i18nDict = {...require('./lib/achievements').i18nPairs(), ...i18nDict}; } return i18nDict; }
 function effectiveLang() {
   const pref = settings?.language || 'auto';
   if (pref === 'fr' || pref === 'en') return pref;
@@ -90,6 +90,64 @@ const { PasswordVault, generatePassword } = require('./lib/vault');
 const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
 const remoteLib = require('./lib/remote');
+const achLib = require('./lib/achievements');
+let achievements = null, achTimer = null, achLastAds = 0;
+// Succès (v1.15) : un compteur local, débloqué au fil de l'utilisation.
+const ach = (fn, ...args) => { try { return achievements ? achievements[fn](...args) : []; } catch { return []; } };
+const inDgbx = () => [...windows.values()].some(w => w.xmode);
+function onAchievementsUnlocked(list) {
+  for (const a of list) {
+    if (a.secret && !inDgbx()) continue; // succès secrets : annoncés seulement dans le mode DGBx
+    // Après le message de l'action en cours (« Lien copié »…), pour ne pas être recouvert.
+    setTimeout(() => { const s = focusedState() || windows.values().next().value; if (s) notice(s, `🏆 Succès débloqué : ${a.icon} ${a.name}`); }, 1400);
+    logger.info('Succès débloqué', a.id);
+  }
+  broadcast();
+}
+async function refreshReferralCount() {
+  if (!telemetry?.available || !remoteLib.validRefCode(settings.refCode)) return;
+  try { const r = await telemetry.api('/v1/referral/' + settings.refCode, {timeout: 10_000}); if (Number.isFinite(r?.count)) ach('atLeast', 'referrals', r.count); } catch {}
+}
+// Invitation : message prêt à partager, dans la langue de l'interface.
+function inviteMessage() {
+  if (!settings.refCode) { settings.refCode = remoteLib.newRefCode(); saveSettings(); }
+  const link = 'https://hempreur.github.io/DevGitBrowser/?ref=' + settings.refCode;
+  const text = i18nLang === 'en'
+    ? `I recommend DevGitBrowser, a free browser with an ad blocker, a VPN and a password vault. Install it with my link: ${link} (code ${settings.refCode})`
+    : `Je te conseille DevGitBrowser, un navigateur gratuit avec bloqueur de pubs, VPN et coffre à mots de passe. Installe-le avec mon lien : ${link} (code ${settings.refCode})`;
+  return {link, text, code: settings.refCode};
+}
+const SHARE_TARGETS = {
+  whatsapp: m => 'https://wa.me/?text=' + encodeURIComponent(m.text),
+  telegram: m => 'https://t.me/share/url?url=' + encodeURIComponent(m.link) + '&text=' + encodeURIComponent(m.text.replace(m.link, '').trim()),
+  x: m => 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(m.text),
+  facebook: m => 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(m.link),
+  reddit: m => 'https://www.reddit.com/submit?url=' + encodeURIComponent(m.link) + '&title=' + encodeURIComponent('DevGitBrowser'),
+  email: m => 'mailto:?subject=' + encodeURIComponent('DevGitBrowser') + '&body=' + encodeURIComponent(m.text)
+};
+function shareInvite(s, channel) {
+  const m = inviteMessage();
+  if (channel === 'link') { clipboard.writeText(m.link); ach('bump', 'invites'); return 'Lien de parrainage copié.'; }
+  if (channel === 'message' || channel === 'discord') { clipboard.writeText(m.text); ach('bump', 'invites'); return channel === 'discord' ? 'Message copié : colle-le dans Discord (Ctrl+V).' : 'Message d’invitation copié.'; }
+  const build = SHARE_TARGETS[channel]; if (!build) throw new Error('Choix invalide.');
+  const url = build(m);
+  if (channel === 'email') shell.openExternal(url).catch(() => {});
+  else newTab(s, url);
+  ach('bump', 'invites');
+  return '';
+}
+function achievementsMinute() {
+  if (!achievements) return;
+  const focused = BrowserWindow.getFocusedWindow();
+  const s = focused ? [...windows.values()].find(w => w.win === focused) : null;
+  const radioOn = Boolean(radioNow) && radioWin && !radioWin.isDestroyed();
+  if (adBlocker) { const total = adBlocker.totalBlocked || 0; if (total > achLastAds) ach('bump', 'ads', total - achLastAds); achLastAds = total; }
+  if (s || (focused && radioWin && focused === radioWin) || radioOn) {
+    const t = s ? activeTab(s) : null;
+    ach('tickMinute', {vpn: vpnGlobal && tor?.state?.status === 'on', radio: radioOn, gaming: Boolean(settings.gamingMode), dgbx: Boolean(s?.xmode || t?.xTab)});
+  }
+  ach('flush');
+}
 const {DiscordPresence} = require('./lib/discord');
 const DISCORD_APP_ID = '1570094942779473930';
 let remote = null, discord = null;
@@ -323,6 +381,7 @@ function publicState(s) {
       shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry,
       windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview, language:settings.language },
     lang: i18nLang,
+    achievements: achievements ? (() => { const sm = achievements.summary({includeSecret: Boolean(s.xmode)}); return {unseen: sm.unseen, unlocked: sm.unlocked, total: sm.total, rank: sm.rank.icon}; })() : null,
     materialSupported: materialSupported(),
     remote: remote ? {blocked: remote.state.kill.blocked, killMessage: remote.state.kill.message,
       disabled: remote.state.kill.features.map(f => remoteLib.FEATURES[f]),
@@ -491,7 +550,7 @@ function attachPageHandlers(t) {
     if (isWebUrl(url)) { t.loadError=''; t.favicon=''; t.upgradeHits=null; if (/^https:/i.test(url)) t.httpsUpgradedFrom=''; }
     update(); applySiteZoom(t);
     if (isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && !t.private && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
-    if (isWebUrl(url) && !t.owner.xmode && !t.xTab && !t.private) telemetry?.countPage();
+    if (isWebUrl(url) && !t.owner.xmode && !t.xTab && !t.private) { telemetry?.countPage(); ach('bump','pages'); }
   });
   wc.on('did-finish-load',async()=>{
     if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
@@ -590,6 +649,7 @@ function newTab(s, url = '', options = {}) {
   if (s.tabs.size >= MAX_TABS) throw new Error(`Maximum de ${MAX_TABS} onglets par fenêtre.`);
   const t = { id:++nextTabId, owner:s, view:null, xTab:Boolean(s.xmode), private:Boolean(options.private), url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false,favicon:'',audible:false,loadError:'',httpsUpgradedFrom:'' };
   createTabView(t);
+  { let n = 0; for (const w of windows.values()) n += w.tabs.size; ach('atLeast','maxTabs',n+1); }
   if (Number.isInteger(options.index)) insertInMap(s.tabs, t.id, t, options.index); else s.tabs.set(t.id, t);
   if (options.lazy && isWebUrl(url)) {
     // Onglet restauré en veille : chargé seulement quand on l'affiche.
@@ -829,6 +889,7 @@ function openLinkPreview(s, t, url, rect) {
   vwc.loadURL(url).catch(() => {});
   win.showInactive();
   preview = {s, t, win, view, url, linkRect: place.link, graceAt: 0, poll: null};
+  ach('bump','previews');
   // Fermeture quand la souris quitte à la fois le lien et l'aperçu (délai de grâce).
   preview.poll = setInterval(() => {
     const p = preview; if (!p || p.win.isDestroyed()) { closeLinkPreview(); return; }
@@ -1028,9 +1089,11 @@ function setPreference(key, value) {
   if (key==='secureDns' || key==='dnsProvider') applySecureDns();
   if (key==='phishingProtection' && phishing) { phishing.enabled=value; if (value) phishing.load(); }
   if (key==='theme' && radioWin && !radioWin.isDestroyed()) radioWin.webContents.send('dgb-radio:theme', value);
+  if (key==='theme') ach('addDistinct','themes',value);
+  if (key==='discordPresence' && value) ach('atLeast','discord',1);
   if (key==='autoUpdate' && updater) updater.setAuto(value);
   if (key==='windowMaterial') for (const w of windows.values()) applyMaterial(w.win);
-  if (key==='language') { settings.language=value; applyLanguage(); broadcastLanguage(); updateDiscord(); }
+  if (key==='language') { settings.language=value; applyLanguage(); broadcastLanguage(); updateDiscord(); ach('addDistinct','languages',i18nLang); }
   if (key==='discordPresence' || key==='discordShowSite') { settings[key]=value; updateDiscord(); }
   if (key==='linkPreview' && value==='off') closeLinkPreview();
   if (key==='shieldAnnoyances') adBlocker?.setAnnoyances(value).catch(()=>{});
@@ -1042,6 +1105,7 @@ function toggleBookmark(s) {
   const t = activeTab(s);
   if (!t?.url || !browsing) { notice(s,'Ouvre une page web pour l’ajouter aux favoris.',true); return false; }
   const added = browsing.toggleBookmark(t.url, t.title);
+  if (added) ach('bump','bookmarks');
   notice(s, added ? '★ Ajouté aux favoris.' : 'Favori retiré.');
   broadcast();
   return added;
@@ -1067,7 +1131,7 @@ async function togglePictureInPicture(s) {
   for (const frame of frames) {
     try {
       const result = await frame.executeJavaScript(PIP_SOURCE, true);
-      if (result === 'ok') return 'Vidéo en Picture-in-Picture. Elle reste visible au-dessus de tes fenêtres.';
+      if (result === 'ok') { ach('bump','pip'); return 'Vidéo en Picture-in-Picture. Elle reste visible au-dessus de tes fenêtres.'; }
       if (result === 'exit') return 'Picture-in-Picture fermé.';
       if (String(result).startsWith('error:')) lastError = String(result).slice(6);
     } catch (e) { lastError = e.message || String(e); }
@@ -1087,7 +1151,7 @@ function pageContextMenu(t, p) {
     items.push({label:'Ouvrir le lien dans un nouvel onglet', click:()=>{ try{newTab(s,link,{background:true});}catch(e){notice(s,e.message,true);} }});
     items.push({label:'Ouvrir le lien dans une nouvelle fenêtre', click:()=>createWindow({tabs:[link]})});
     items.push({label:'Copier l’adresse du lien', click:()=>clipboard.writeText(link)});
-    items.push({label:'Ajouter le lien aux favoris', click:()=>{ try{browsing.addBookmark(link, p.linkText||'');broadcast();notice(s,'★ Lien ajouté aux favoris.');}catch(e){notice(s,e.message,true);} }});
+    items.push({label:'Ajouter le lien aux favoris', click:()=>{ try{browsing.addBookmark(link, p.linkText||'');ach('bump','bookmarks');broadcast();notice(s,'★ Lien ajouté aux favoris.');}catch(e){notice(s,e.message,true);} }});
     items.push({type:'separator'});
   }
   if (p.mediaType==='image' && isWebUrl(p.srcURL)) {
@@ -1590,7 +1654,7 @@ async function installStoreExtension(id, {silent = false} = {}) {
   const isNew = !settings.store[id];
   settings.store[id] = {version: String(bundle.manifest.version), sha256: entry.sha256}; saveSettings();
   if (isNew && telemetry.enabled) telemetry.api('/v1/store/installed', {method: 'POST', body: {id}}).catch(() => {});
-  if (!silent) logger.info('Store : extension installée', id, bundle.manifest.version);
+  if (!silent) { logger.info('Store : extension installée', id, bundle.manifest.version); ach('bump','extensions'); }
   broadcast(); return {id, name: bundle.manifest.name, version: String(bundle.manifest.version)};
 }
 function uninstallStoreExtension(id) {
@@ -2058,6 +2122,7 @@ async function cleanupPrivateSession() {
   broadcast();
 }
 async function openPrivateTab(s, url = '') {
+  ach('bump','privateTabs');
   if (!tor?.state.available) { notice(s, 'Navigation privée indisponible : composant VPN (Tor) absent.', true); return null; }
   const id = newTab(s, '', {private: true});
   const t = s.tabs.get(id);
@@ -2389,7 +2454,7 @@ function registerIpc(){
     'telemetry:consent':(_s,yes)=>{setTelemetry(yes===true);return settings.telemetry;},
     'telemetry:rate':async(_s,stars)=>{
       const n=Number(stars); if(!telemetry)throw new Error('Notation indisponible.');
-      await telemetry.rate(n); settings.rating=n; saveSettings(); broadcast(); return n;
+      await telemetry.rate(n); settings.rating=n; saveSettings(); ach('atLeast','rated',1); broadcast(); return n;
     },
     'xmode:reset-code':(s,code,next)=>{
       if(!s.xmode)throw new Error('Ouvre d’abord le mode DGBx.');
@@ -2414,17 +2479,17 @@ function registerIpc(){
       throw new Error('Action inconnue.');
     },
     // ---- Mots de passe
-    'pw:create':async(_s,master)=>{const st=await vault.create(String(master||''));broadcast();return st;},
+    'pw:create':async(_s,master)=>{const st=await vault.create(String(master||''));ach('atLeast','vaultCreated',1);broadcast();return st;},
     'pw:unlock':async(_s,master)=>{const st=await vault.unlock(String(master||''));broadcast();return st;},
     'pw:lock':()=>{vault.lock();broadcast();},
-    'pw:list':(_s,q)=>({entries:vault.list(String(q||'').slice(0,100)),audit:vault.audit()}),
+    'pw:list':(_s,q)=>{const entries=vault.list(String(q||'').slice(0,100));if(!q)ach('atLeast','passwords',entries.length);return {entries,audit:vault.audit()};},
     'pw:reveal':(_s,id)=>vault.reveal(String(id||'')),
     'pw:copy':(_s,id,field='password')=>{const e=vault.entries?.find(x=>x.id===id);if(!vault.isUnlocked()||!e)throw new Error('Identifiant introuvable.');copySecret(field==='username'?e.username:e.password);return true;},
     'pw:save':(_s,data)=>{const r=vault.save({origin:String(data?.origin||''),username:String(data?.username||''),password:String(data?.password||''),note:String(data?.note||'')});broadcast();return r;},
     'pw:update':(_s,id,data)=>{vault.update(String(id||''),{username:data?.username,password:data?.password,note:data?.note});broadcast();},
     'pw:delete':(_s,id)=>{vault.remove(String(id||''));broadcast();},
     'pw:generate':(_s,len,opts)=>generatePassword(Number(len)||20,{symbols:opts?.symbols!==false,digits:opts?.digits!==false}),
-    'pw:breach':async()=>{const r=await vault.breachCheck(webFetch);broadcast();return r;},
+    'pw:breach':async()=>{const r=await vault.breachCheck(webFetch);ach('bump','breachChecks');broadcast();return r;},
     'pw:import-csv':async(s,removeAfter)=>{
       if(!vault.isUnlocked())throw new Error('Déverrouille d’abord le coffre.');
       const pick=await dialog.showOpenDialog(s.win,{title:'Fichier CSV exporté depuis ton ancien navigateur',properties:['openFile'],filters:[{name:'Mots de passe (CSV)',extensions:['csv']}]});
@@ -2433,10 +2498,10 @@ function registerIpc(){
       const result=vault.importCsv(fs.readFileSync(file,'utf8'));
       // Le CSV contient les mots de passe en clair : suppression sur demande de l'utilisateur.
       if(removeAfter===true){try{fs.rmSync(file,{force:true});result.removed=true;}catch{result.removed=false;}}
-      logger.info('Import CSV mots de passe',result.added,result.updated,result.skipped);broadcast();return result;
+      logger.info('Import CSV mots de passe',result.added,result.updated,result.skipped);if(result.added||result.updated)ach('bump','imports');broadcast();return result;
     },
     'pw:profiles':()=>vault.listProfiles(),
-    'pw:profile-save':(_s,data)=>vault.saveProfile(data&&typeof data==='object'?data:{}),
+    'pw:profile-save':(_s,data)=>{const list=vault.saveProfile(data&&typeof data==='object'?data:{});ach('atLeast','profiles',list.length);return list;},
     'pw:profile-delete':(_s,id)=>{vault.removeProfile(String(id||''));return vault.listProfiles();},
     'remote:dismiss':(_s,id)=>{const v=String(id||'');if(!/^[a-z0-9-]{4,40}$/.test(v))return;if(!settings.dismissedMessages.includes(v)){settings.dismissedMessages=[...settings.dismissedMessages,v].slice(-50);saveSettings();}broadcast();},
     'bug:preview':()=>{
@@ -2450,12 +2515,13 @@ function registerIpc(){
       const cc=(()=>{try{return app.getLocaleCountryCode();}catch{return '';}})();
       const header=`DevGitBrowser ${app.getVersion()} · Electron ${process.versions.electron} · ${process.platform} ${os.release()} · ${os.arch()}\n`;
       const r=await telemetry.api('/v1/bug',{method:'POST',body:{text,contact:String(data?.contact||'').slice(0,120),v:app.getVersion(),os:telemetryLib.osName(process.platform),cc:/^[A-Z]{2}$/.test(cc)?cc:'ZZ',log:log?header+log:header},timeout:30_000});
-      logger.info('Rapport de bug envoyé',r?.id);return r?.id||'';
+      logger.info('Rapport de bug envoyé',r?.id);ach('bump','bugs');return r?.id||'';
     },
     'ref:info':async()=>{
       if(!settings.refCode){settings.refCode=remoteLib.newRefCode();saveSettings();}
       const code=settings.refCode;let count=null;
       if(telemetry?.available)try{count=(await telemetry.api('/v1/referral/'+code,{timeout:10_000}))?.count??null;}catch{}
+      if(Number.isFinite(count))ach('atLeast','referrals',count);
       return {code,link:'https://hempreur.github.io/DevGitBrowser/?ref='+code,count,badge:count==null?null:remoteLib.badgeFor(count),next:count==null?null:remoteLib.nextBadge(count),referredBy:settings.referredBy,badges:remoteLib.BADGES};
     },
     'ref:claim':async(_s,raw)=>{
@@ -2469,7 +2535,12 @@ function registerIpc(){
       catch(e){if(/already/.test(e.message))throw new Error('Un parrain a déjà été enregistré pour ce PC.');if(/self/.test(e.message))throw new Error('C’est ton propre code !');throw e;}
       settings.referredBy=code;saveSettings();broadcast();return true;
     },
+    'ach:summary':s=>achievements?achievements.summary({includeSecret:Boolean(s.xmode)}):null,
+    'ach:seen':s=>{ach('markSeen',Boolean(s.xmode));ach('flush');broadcast();return true;},
+    'ach:event':(_s,name)=>{if(['generated'].includes(name))ach('bump',name);return true;},
+    'ref:share':(s,channel)=>shareInvite(s,String(channel||'')),
     'trackers:report':s=>{
+      ach('bump','trackerReports');
       const t=activeTab(s);const wc=t?.view?.webContents;
       if(!t?.url||!wc||wc.isDestroyed())return {host:'',rows:[],total:0,enabled:Boolean(adBlocker?.enabled),paused:false};
       const counts=adBlocker?adBlocker.trackersFor(wc.id):new Map();
@@ -2484,7 +2555,7 @@ function registerIpc(){
       if(remote?.disabled('import'))throw new Error('L’import est temporairement désactivé (maintenance).');
       const src=importer.detectSources().find(x=>x.id===String(id||''));if(!src)throw new Error('Navigateur introuvable.');
       const r=importer.importFrom(src,browsing,{bookmarks:opts?.bookmarks!==false,history:opts?.history!==false});browsing.flush?.();broadcast();
-      logger.info('Import',src.browser,r.bookmarks,r.history);return r;
+      logger.info('Import',src.browser,r.bookmarks,r.history);if(r.bookmarks||r.history)ach('bump','imports');return r;
     },
     'pw:change-master':async(_s,oldMaster,newMaster)=>{const st=await vault.changeMaster(String(oldMaster||''),String(newMaster||''));broadcast();return st;},
     'pw:menu':s=>passwordMenu(s),
@@ -2637,6 +2708,11 @@ else {
       if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
     }});
     startWeather();
+    achievements=new achLib.Achievements({read:()=>readJson('achievements.json'),write:data=>writeAtomic(userDataFile('achievements.json'),JSON.stringify(data)),onUnlock:onAchievementsUnlocked});
+    achLastAds=adBlocker?.totalBlocked||0;
+    ach('addDistinct','themes',settings.theme);ach('addDistinct','languages',i18nLang);if(settings.discordPresence)ach('atLeast','discord',1);if(vault?.exists?.())ach('atLeast','vaultCreated',1);
+    achTimer=setInterval(achievementsMinute,60_000);achTimer.unref?.();
+    setTimeout(refreshReferralCount,60_000).unref?.();setInterval(refreshReferralCount,6*3_600_000).unref?.();
     // Module DRM Widevine (Electron castLabs) : installé et mis à jour en arrière-plan
     // par le Component Updater, sans retarder l'ouverture du navigateur.
     initWidevine();
@@ -2667,6 +2743,7 @@ else {
     try{discord?.stop();}catch{}remote?.stop();
     if(adBlockTimer)clearInterval(adBlockTimer);if(syncTimer)clearInterval(syncTimer);updater?.stop();
     if(perfTimer)clearInterval(perfTimer);
+    if(achTimer)clearInterval(achTimer);ach('flush');
     closeLinkPreview();
     tor?.stop(false).catch(()=>{});vault?.lock();
     for(const inspector of networkWindows.values())inspector.monitor.stop();

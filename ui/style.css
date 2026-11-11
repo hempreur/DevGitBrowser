@@ -489,3 +489,43 @@ html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrom
 @media (prefers-reduced-motion:reduce){.map-pulse,.admin-live i{animation:none}}
 /* v1.14 — langue */
 .welcome-lang{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:6px}.welcome-lang label{color:#b7c6ea;font-size:12px;margin:0}
+/* v1.15 — succès */
+.trophy-btn{position:relative;flex-shrink:0;width:36px;height:34px;border-radius:10px;border:1px solid #3a3796;background:linear-gradient(160deg,#1b1650,#100c33);cursor:pointer;display:grid;place-items:center;margin-right:6px;transition:transform .15s,border-color .15s}
+.trophy-btn:hover{transform:translateY(-1px);border-color:#e9c594}
+.trophy-ico{font-size:17px;filter:drop-shadow(0 0 6px #ffcc4d88)}
+.trophy-btn.glow{border-color:#e9c594;box-shadow:0 0 12px #e9c59466;animation:trophyglow 2.2s ease-in-out infinite}
+@keyframes trophyglow{50%{box-shadow:0 0 20px #ffcc4daa}}
+.trophy-badge{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ff3d6a;color:#fff;font:800 10px/17px Inter,'Segoe UI',sans-serif;text-align:center;box-shadow:0 0 0 2px #0b0f2a}
+.ach-hero{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:22px 24px;border:1px solid #4a3f96;border-radius:18px;background:radial-gradient(ellipse at 15% 30%,#3a2a7a,transparent 60%),linear-gradient(120deg,#151a4a,#1d0f3d);margin-bottom:14px}
+.ach-rank-medal{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:42px;background:radial-gradient(circle at 35% 30%,#fff6d8,#e9c594 45%,#8a5a1c);box-shadow:0 0 0 4px #2a1f55,0 0 0 6px #e9c59488,0 10px 30px #0008}
+.ach-rank-info{flex:1;min-width:220px}.ach-rank-info strong{display:block;font-size:26px;margin:4px 0 10px}
+.ach-rank-bar{height:9px;border-radius:6px;background:#241e55;overflow:hidden}.ach-rank-bar i{display:block;height:100%;background:linear-gradient(90deg,#50d9fa,#b16cff,#ffcc4d);border-radius:6px;transition:width .6s}
+.ach-rank-info small{display:block;margin-top:7px;color:#b7c6ea}
+.ach-totals{display:grid;grid-template-columns:auto auto;gap:2px 10px;align-items:baseline}.ach-totals b{font-size:24px;color:#ffcc4d;text-align:right}.ach-totals span{color:#b7c6ea;font-size:12px}
+.ach-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.ach-stat{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;padding:12px 14px;border:1px solid #2c3a6a;border-radius:12px;background:#0d1236}
+.ach-stat span{grid-row:1/3;font-size:22px;align-self:center}.ach-stat b{font-size:17px}.ach-stat small{color:#9fb0e0;font-size:11px}
+.invite-card .share-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:6px}
+.share-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid #3a4689;background:#121a48;color:#eaf2ff;font:600 13px Inter,'Segoe UI',sans-serif;cursor:pointer;transition:border-color .15s,transform .15s}
+.share-btn:hover{border-color:#50d9fa;transform:translateY(-1px)}.share-btn span{font-size:16px}
+.ach-filters{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 12px}
+.ach-filter{padding:8px 14px;border-radius:20px;border:1px solid #33408a;background:#0e1640;color:#cdd8ff;cursor:pointer;font:600 12px Inter,'Segoe UI',sans-serif}
+.ach-filter.on{background:linear-gradient(90deg,#2b5cff,#a03ef0);border-color:transparent;color:#fff}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.ach-card{display:flex;gap:14px;padding:14px;border-radius:14px;border:1px solid #2c3a6a;background:#0c1234;position:relative;transition:transform .15s}
+.ach-card.done{background:linear-gradient(140deg,#151c4d,#0d1236)}.ach-card:hover{transform:translateY(-2px)}
+.ach-card.fresh::after{content:attr(data-new);position:absolute;top:10px;right:12px;font:800 9px Inter,sans-serif;letter-spacing:1px;color:#0b0f2a;background:#ffcc4d;border-radius:6px;padding:2px 6px}
+.ach-medal{flex:0 0 58px;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:28px;position:relative}
+.ach-medal span{filter:drop-shadow(0 2px 3px #0007)}
+.tier-bronze .ach-medal{background:radial-gradient(circle at 35% 30%,#ffd9b0,#cd7f32 50%,#6b3b12);box-shadow:0 0 0 3px #3a2416,0 0 0 4px #cd7f3299}
+.tier-silver .ach-medal{background:radial-gradient(circle at 35% 30%,#ffffff,#c0c7d6 50%,#5d6577);box-shadow:0 0 0 3px #262c3c,0 0 0 4px #c0c7d699}
+.tier-gold .ach-medal{background:radial-gradient(circle at 35% 30%,#fff6d0,#f5c542 50%,#8a6110);box-shadow:0 0 0 3px #3b2c0d,0 0 0 4px #f5c54299,0 0 14px #f5c54255}
+.tier-platinum .ach-medal{background:radial-gradient(circle at 35% 30%,#ffffff,#9ff0ff 45%,#6b5cff 80%,#2a1f7a);box-shadow:0 0 0 3px #1c1650,0 0 0 4px #9ff0ffaa,0 0 18px #9ff0ff66}
+.ach-card.locked .ach-medal{filter:grayscale(1) brightness(.55);opacity:.8}.ach-card.locked .ach-body strong{color:#aeb8d8}
+.ach-card.secret.done{border-color:#a03ef066}
+.ach-body{flex:1;min-width:0}.ach-body strong{display:block;font-size:15px}.ach-body p{margin:3px 0 9px;color:#9fb0e0;font-size:12px;line-height:1.45}
+.ach-bar{height:6px;border-radius:4px;background:#1f2757;overflow:hidden}.ach-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#50d9fa,#b16cff)}
+.ach-card.done .ach-bar i{background:linear-gradient(90deg,#7df2b6,#50d9fa)}
+.ach-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#9fb0e0}.ach-tier{text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+.tier-bronze .ach-tier{color:#e0a26a}.tier-silver .ach-tier{color:#d6dbe6}.tier-gold .ach-tier{color:#f5c542}.tier-platinum .ach-tier{color:#9ff0ff}
+@media (prefers-reduced-motion:reduce){.trophy-btn.glow{animation:none}}
