@@ -26,6 +26,10 @@ const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile
 const { PasswordVault, generatePassword } = require('./lib/vault');
 const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
+const remoteLib = require('./lib/remote');
+const {DiscordPresence} = require('./lib/discord');
+const DISCORD_APP_ID = '1570094942779473930';
+let remote = null, discord = null;
 const WINDOW_MATERIALS = ['none','mica','acrylic'];
 const LINK_PREVIEW_MODES = ['off','shift','hover'];
 // Mica / Acrylic : Windows 11 22H2 (build 22621) ou plus récent.
@@ -48,6 +52,7 @@ const store = require('./lib/store');
 const mediaPlayer = require('./lib/media-player');
 const {VideoLocal, validateRequest: validateVideoRequest, isYoutubeWatchUrl} = require('./lib/video-local');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
+const telemetryLib = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
 const STATS_PIN = String(require('./package.json').devgitStats?.pin || '');
 
@@ -94,7 +99,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, refCode:'', referredBy:'', dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -117,6 +122,9 @@ function loadSettings() {
     if (VPN_COUNTRIES.some(c=>c.code===raw.vpnCountry)) p.vpnCountry=raw.vpnCountry;
     if (WINDOW_MATERIALS.includes(raw.windowMaterial)) p.windowMaterial=raw.windowMaterial;
     if (LINK_PREVIEW_MODES.includes(raw.linkPreview)) p.linkPreview=raw.linkPreview;
+    if (remoteLib.validRefCode(raw.refCode)) p.refCode=raw.refCode;
+    if (remoteLib.validRefCode(raw.referredBy)) p.referredBy=raw.referredBy;
+    if (Array.isArray(raw.dismissedMessages)) p.dismissedMessages=raw.dismissedMessages.filter(x=>typeof x==='string'&&/^[a-z0-9-]{4,40}$/.test(x)).slice(-50);
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
@@ -130,7 +138,7 @@ function loadSettings() {
     if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','vpnAtStartup','mediaPlayer']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','vpnAtStartup','discordPresence','discordShowSite','mediaPlayer']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -251,6 +259,10 @@ function publicState(s) {
       shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry,
       windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview },
     materialSupported: materialSupported(),
+    remote: remote ? {blocked: remote.state.kill.blocked, killMessage: remote.state.kill.message,
+      disabled: remote.state.kill.features.map(f => remoteLib.FEATURES[f]),
+      messages: remote.state.messages.filter(m => !settings.dismissedMessages.includes(m.id))} : {blocked:false, killMessage:'', disabled:[], messages:[]},
+    discord: {presence: settings.discordPresence, showSite: settings.discordShowSite, connected: Boolean(discord?.connected)},
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
     telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
@@ -284,7 +296,21 @@ function sendState(s) {
   }
   scheduleSessionSave();
 }
-function broadcast() { for (const s of windows.values()) sendState(s); }
+function broadcast() { for (const s of windows.values()) sendState(s); updateDiscord(); }
+// ---- Discord Rich Presence (v1.13) : opt-in ; le site n'est affiché que si l'utilisateur l'a choisi,
+// jamais pour un onglet privé ou DGBx.
+let discordStart = Date.now();
+function updateDiscord() {
+  if (!discord) return;
+  if (!settings.discordPresence) { discord.stop(); return; }
+  const s = focusedState(); const t = s ? activeTab(s) : null;
+  let details = 'Navigue avec DevGitBrowser', state = 'Navigateur indépendant';
+  if (s?.xmode || t?.xTab || t?.private) state = 'Navigation privée';
+  else if (settings.discordShowSite && t?.url) { try { const h = new URL(t.url).hostname.replace(/^www\./, ''); if (h) state = 'Sur ' + h.slice(0, 60); } catch {} }
+  discord.setActivity({details, state, timestamps: {start: discordStart},
+    assets: {large_image: 'logo', large_text: 'DevGitBrowser ' + app.getVersion()},
+    buttons: [{label: 'Télécharger DevGitBrowser', url: 'https://hempreur.github.io/DevGitBrowser/'}]});
+}
 function notice(s, message, bad=false) {
   if (s && !s.win.isDestroyed() && !s.win.webContents.isDestroyed()) s.win.webContents.send('dgb:notice', {message:String(message).slice(0,300), bad:Boolean(bad)});
 }
@@ -606,7 +632,7 @@ function exitXmode(s) {
 }
 // ---- Lecteur protégé : Netflix & co s'ouvrent dans DevGitMedia.exe (signé VMP).
 function sendToMediaPlayer(t, url) {
-  if (!settings.mediaPlayer || t?.private || !mediaPlayer.isStreamingEntry(url)) return false;
+  if (!settings.mediaPlayer || remote?.disabled('media') || t?.private || !mediaPlayer.isStreamingEntry(url)) return false;
   if (!mediaPlayer.openInMediaPlayer(url)) return false;
   notice(t.owner, 'Ouvert dans le lecteur protégé DevGit (vidéos Netflix, Disney+, Prime Video…).');
   logger.info('Lecteur protégé', new URL(url).hostname);
@@ -751,7 +777,7 @@ function openLinkPreview(s, t, url, rect) {
 }
 function onPreviewHover(t, data) {
   const s = t.owner, mode = settings.linkPreview;
-  if (mode === 'off' || t.private || t.xTab || s.xmode || s.panelOpen || activeTab(s) !== t) return;
+  if (mode === 'off' || remote?.disabled('preview') || t.private || t.xTab || s.xmode || s.panelOpen || activeTab(s) !== t) return;
   const type = String(data?.type || '');
   if (type === 'close') { closeLinkPreview(); return; }
   if (type === 'leave') { if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; } return; }
@@ -922,7 +948,7 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
-  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store'].includes(key)) throw new Error('Réglage protégé.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store','refCode','referredBy','dismissedMessages'].includes(key)) throw new Error('Réglage protégé.');
   if (key==='telemetry') { setTelemetry(value); return; }
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
@@ -938,6 +964,7 @@ function setPreference(key, value) {
   if (key==='theme' && radioWin && !radioWin.isDestroyed()) radioWin.webContents.send('dgb-radio:theme', value);
   if (key==='autoUpdate' && updater) updater.setAuto(value);
   if (key==='windowMaterial') for (const w of windows.values()) applyMaterial(w.win);
+  if (key==='discordPresence' || key==='discordShowSite') { settings[key]=value; updateDiscord(); }
   if (key==='linkPreview' && value==='off') closeLinkPreview();
   if (key==='shieldAnnoyances') adBlocker?.setAnnoyances(value).catch(()=>{});
   if (key==='shieldBoost') adBlocker?.setBoost(value);
@@ -1468,6 +1495,7 @@ const storeFolder = () => path.join(app.getPath('userData'), 'store-extensions')
 let storeCatalog = null, storeCatalogAt = 0, storeTimer = null;
 const RESERVED_STORE_IDS = new Set(['matchpulse', ...BUILTIN_KEYS.map(k => store.slug(k))]);
 async function fetchStoreCatalog(force) {
+  if (remote?.disabled('store')) throw new Error('La boutique est temporairement fermée (maintenance).');
   if (!telemetry?.available) throw new Error('Aucun serveur DevGit configuré dans cette version.');
   if (!force && storeCatalog && Date.now() - storeCatalogAt < 5 * 60_000) return storeCatalog;
   const data = await telemetry.api('/v1/store/catalog');
@@ -2002,6 +2030,7 @@ function vpnMenu(s) {
   ]);
 }
 function startVpn(s, country) {
+  if (remote?.disabled('vpn')) { notice(s, 'Le VPN est temporairement désactivé par DevGitBrowser (maintenance).', true); return; }
   vpnGlobal = true;
   notice(s, 'Connexion au VPN… (10 à 40 secondes)');
   tor.start(country).then(() => notice(s, `VPN connecté · sortie : ${VPN_COUNTRIES.find(c => c.code === country)?.name || 'automatique'}.`))
@@ -2246,6 +2275,18 @@ function registerIpc(){
       return {github:github.status==='fulfilled'?github.value:null, githubError:github.status==='rejected'?github.reason.message:'',
         server:server.status==='fulfilled'?server.value:null, serverError:server.status==='rejected'?server.reason.message:'', serverUrl:STATS_URL};
     },
+    'admin:remote':async(s,action,arg,arg2)=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      const token=readStatsToken();if(!token||!telemetry?.available)throw new Error('Enregistre d’abord le jeton du serveur.');
+      const call=(p,o={})=>telemetry.api(p,{...o,token,timeout:20_000,maxBytes:20*1024*1024});
+      if(action==='config')return call('/v1/admin/config');
+      if(action==='config-save'){const r=await call('/v1/admin/config',{method:'PUT',body:arg});remote?.refresh().then(()=>broadcast()).catch(()=>{});return r;}
+      if(action==='bugs')return (await call('/v1/admin/bugs'))?.bugs||[];
+      const id=String(arg||'');if(!/^[a-f0-9]{16}$/.test(id))throw new Error('Rapport inconnu.');
+      if(action==='bug-status'&&['new','seen','fixed'].includes(arg2))return call('/v1/admin/bugs/'+id,{method:'PATCH',body:{status:arg2}});
+      if(action==='bug-delete')return call('/v1/admin/bugs/'+id,{method:'DELETE'});
+      throw new Error('Action inconnue.');
+    },
     'admin:set-token':(s,value)=>{
       if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
       const v=String(value||'').trim(); if(v && !/^[A-Za-z0-9]{24,128}$/.test(v))throw new Error('Jeton invalide.');
@@ -2330,6 +2371,37 @@ function registerIpc(){
     'pw:profiles':()=>vault.listProfiles(),
     'pw:profile-save':(_s,data)=>vault.saveProfile(data&&typeof data==='object'?data:{}),
     'pw:profile-delete':(_s,id)=>{vault.removeProfile(String(id||''));return vault.listProfiles();},
+    'remote:dismiss':(_s,id)=>{const v=String(id||'');if(!/^[a-z0-9-]{4,40}$/.test(v))return;if(!settings.dismissedMessages.includes(v)){settings.dismissedMessages=[...settings.dismissedMessages,v].slice(-50);saveSettings();}broadcast();},
+    'bug:preview':()=>{
+      let log='';try{log=fs.readFileSync(logger.path(),'utf8');}catch{}
+      return {log:remoteLib.sanitizeLog(logger.redact(log)),info:{version:app.getVersion(),os:`${process.platform} ${os.release()}`,electron:process.versions.electron}};
+    },
+    'bug:send':async(_s,data)=>{
+      if(!telemetry?.available)throw new Error('Aucun serveur DevGit configuré dans cette version.');
+      const text=String(data?.text||'').trim().slice(0,3000);if(text.length<5)throw new Error('Décris le problème en quelques mots.');
+      let log='';if(data?.withLog===true){try{log=fs.readFileSync(logger.path(),'utf8');}catch{}log=remoteLib.sanitizeLog(logger.redact(log));}
+      const cc=(()=>{try{return app.getLocaleCountryCode();}catch{return '';}})();
+      const header=`DevGitBrowser ${app.getVersion()} · Electron ${process.versions.electron} · ${process.platform} ${os.release()} · ${os.arch()}\n`;
+      const r=await telemetry.api('/v1/bug',{method:'POST',body:{text,contact:String(data?.contact||'').slice(0,120),v:app.getVersion(),os:telemetryLib.osName(process.platform),cc:/^[A-Z]{2}$/.test(cc)?cc:'ZZ',log:log?header+log:header},timeout:30_000});
+      logger.info('Rapport de bug envoyé',r?.id);return r?.id||'';
+    },
+    'ref:info':async()=>{
+      if(!settings.refCode){settings.refCode=remoteLib.newRefCode();saveSettings();}
+      const code=settings.refCode;let count=null;
+      if(telemetry?.available)try{count=(await telemetry.api('/v1/referral/'+code,{timeout:10_000}))?.count??null;}catch{}
+      return {code,link:'https://hempreur.github.io/DevGitBrowser/?ref='+code,count,badge:count==null?null:remoteLib.badgeFor(count),next:count==null?null:remoteLib.nextBadge(count),referredBy:settings.referredBy,badges:remoteLib.BADGES};
+    },
+    'ref:claim':async(_s,raw)=>{
+      const code=String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+      if(!remoteLib.validRefCode(code))throw new Error('Code de parrainage invalide (8 caractères).');
+      if(settings.referredBy)throw new Error('Tu as déjà indiqué un parrain.');
+      if(code===settings.refCode)throw new Error('C’est ton propre code !');
+      if(!telemetry?.available)throw new Error('Aucun serveur DevGit configuré dans cette version.');
+      if(!telemetryLib.validId(settings.telemetryId)){settings.telemetryId=telemetryLib.newId();}
+      try{await telemetry.api('/v1/referral/claim',{method:'POST',body:{code,id:settings.telemetryId},timeout:15_000});}
+      catch(e){if(/already/.test(e.message))throw new Error('Un parrain a déjà été enregistré pour ce PC.');if(/self/.test(e.message))throw new Error('C’est ton propre code !');throw e;}
+      settings.referredBy=code;saveSettings();broadcast();return true;
+    },
     'trackers:report':s=>{
       const t=activeTab(s);const wc=t?.view?.webContents;
       if(!t?.url||!wc||wc.isDestroyed())return {host:'',rows:[],total:0,enabled:Boolean(adBlocker?.enabled),paused:false};
@@ -2342,6 +2414,7 @@ function registerIpc(){
     },
     'import:sources':()=>process.platform==='win32'?importer.detectSources().map(({id,kind,browser,profile})=>({id,kind,browser,profile,help:importer.PASSWORD_EXPORT_HELP[browser]||''})):[],
     'import:run':(_s,id,opts)=>{
+      if(remote?.disabled('import'))throw new Error('L’import est temporairement désactivé (maintenance).');
       const src=importer.detectSources().find(x=>x.id===String(id||''));if(!src)throw new Error('Navigateur introuvable.');
       const r=importer.importFrom(src,browsing,{bookmarks:opts?.bookmarks!==false,history:opts?.history!==false});browsing.flush?.();broadcast();
       logger.info('Import',src.browser,r.bookmarks,r.history);return r;
@@ -2498,10 +2571,15 @@ else {
     // Module DRM Widevine (Electron castLabs) : installé et mis à jour en arrière-plan
     // par le Component Updater, sans retarder l'ouverture du navigateur.
     initWidevine();
-    telemetry=new Telemetry({url:STATS_URL,pin:STATS_PIN,fetcher:webFetch,getSettings:()=>settings,version:app.getVersion(),
+    telemetry=new Telemetry({url:STATS_URL,pin:STATS_PIN,fetcher:webFetch,getSettings:()=>remote?.disabled('telemetry')?{...settings,telemetry:false}:settings,version:app.getVersion(),
       country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},platform:process.platform,
       isActive:()=>Boolean(BrowserWindow.getFocusedWindow())});
     telemetry.start();
+    remote=new remoteLib.RemoteConfig({telemetry,version:app.getVersion(),country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},
+      onChange:st=>{ if(st.kill.blocked){logger.warn('Version désactivée à distance');updater?.check?.().catch(()=>{});} if(st.kill.features.includes('preview'))closeLinkPreview(); broadcast(); }});
+    remote.start();
+    discord=new DiscordPresence({clientId:DISCORD_APP_ID,onError:e=>logger.warn('Discord',e.message)});
+    updateDiscord();
     token=restoreToken();
     // Built-in extensions work for every Windows profile, with or without GitHub.
     await loadBundledExtensions();
@@ -2517,6 +2595,7 @@ else {
   app.on('before-quit',()=>{
     if(!quitting && windows.size)saveSessionNow();
     quitting=true;
+    try{discord?.stop();}catch{}remote?.stop();
     if(adBlockTimer)clearInterval(adBlockTimer);if(syncTimer)clearInterval(syncTimer);updater?.stop();
     if(perfTimer)clearInterval(perfTimer);
     closeLinkPreview();

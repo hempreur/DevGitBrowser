@@ -1,3 +1,36 @@
+## 1.13.0 — Communauté : rapport de bug, parrainage, Discord, admin en direct
+
+### 🐞 Signaler un bug en un clic
+- À propos → « Signaler un bug » : description, contact facultatif, et **journal technique joint seulement si la case est cochée**.
+- Avant l'envoi, « Voir exactement ce qui sera envoyé ». Le journal est anonymisé : chemins du profil Windows, adresses complètes des sites (seule l'origine reste), e-mails et adresses IP sont masqués.
+- Les rapports arrivent sur le serveur DevGit et dans le panneau admin, maximum 5 par heure et par connexion.
+
+### 🎁 Parrainage et badges
+- Chaque navigateur a un **code de parrainage** (8 caractères) et un lien à partager (À propos → « Parraine tes amis »).
+- Le filleul saisit le code à la fin de l'assistant de bienvenue, ou plus tard dans À propos. Un seul parrain par PC, impossible de se parrainer soi-même.
+- Badges : 🥉 Bronze (1), 🥈 Argent (3), 🥇 Or (10), 💎 Légende (25).
+
+### 🎮 Discord Rich Presence (facultatif)
+- Paramètres → Discord : « Joue à DevGitBrowser » sur ton profil Discord, avec un bouton « Télécharger DevGitBrowser ».
+- Option séparée pour afficher le site visité ; jamais pour les onglets privés ou DGBx.
+- Fonctionne avec l'application Discord ouverte sur le PC, par son canal local : rien ne passe par Internet.
+
+### 📣 Messages et arrêt d'urgence
+- Le navigateur lit la configuration DevGit au démarrage puis toutes les 6 heures. Il n'envoie que sa version et le pays de Windows, sans identifiant.
+- **Messages ciblés** par version, pays et date de fin, avec un lien facultatif. Ils s'affichent dans un bandeau qu'on peut fermer.
+- **Arrêt d'urgence** : une version boguée affiche un bandeau qui invite à mettre à jour et lance la recherche de mise à jour. Certaines fonctions peuvent aussi être coupées temporairement (boutique, aperçu des liens, lecteur protégé, VPN, import, statistiques).
+- Sans réponse du serveur, rien n'est bloqué.
+
+### 🛠 Panneau admin
+- **Carte du monde** : utilisateurs en ligne maintenant (points animés) et actifs sur 30 jours.
+- **Rapports de bug** : à traiter, vus, corrigés ; journal consultable ; suppression.
+- **Messages et arrêt d'urgence** modifiables et publiés depuis le panneau.
+- Nouveaux indicateurs : parrainages et rapports reçus.
+
+### Serveur
+- `server/stats/server.js` : nouvelles routes `/v1/config`, `/v1/bug`, `/v1/referral/*` et `/v1/admin/*`.
+- **Mettre à jour le serveur** en relançant la commande d'installation. Le jeton, le certificat et les données sont conservés.
+
 ## 1.12.0 — Mica/Acrylic, aperçu des liens, « Qui me piste ? »
 
 ### 🕵 Qui me piste ?

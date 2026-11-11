@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   pwReveal:id=>invoke('pw:reveal',id),pwCopy:(id,field)=>invoke('pw:copy',id,field),pwSave:data=>invoke('pw:save',data),
   pwUpdate:(id,data)=>invoke('pw:update',id,data),pwDelete:id=>invoke('pw:delete',id),pwGenerate:(len,opts)=>invoke('pw:generate',len,opts),pwBreach:()=>invoke('pw:breach'),pwImportCsv:remove=>invoke('pw:import-csv',Boolean(remove)),
   pwProfiles:()=>invoke('pw:profiles'),pwProfileSave:d=>invoke('pw:profile-save',d),pwProfileDelete:id=>invoke('pw:profile-delete',id),
-  importSources:()=>invoke('import:sources'),trackersReport:()=>invoke('trackers:report'),importRun:(id,opts)=>invoke('import:run',id,opts),
+  importSources:()=>invoke('import:sources'),trackersReport:()=>invoke('trackers:report'),remoteDismiss:id=>invoke('remote:dismiss',id),bugPreview:()=>invoke('bug:preview'),bugSend:d=>invoke('bug:send',d),refInfo:()=>invoke('ref:info'),adminRemote:(a,x,y)=>invoke('admin:remote',a,x,y),refClaim:c=>invoke('ref:claim',c),importRun:(id,opts)=>invoke('import:run',id,opts),
   pwChangeMaster:(a,b)=>invoke('pw:change-master',a,b),pwMenu:()=>invoke('pw:menu'),pwFill:id=>invoke('pw:fill',id),pwOffer:(action,master)=>invoke('pw:offer',action,master),
   pwFillFirst:m=>invoke('pw:fill-first',m),
   radio:()=>invoke('radio:open'),vpnMenu:()=>invoke('vpn:menu'),vpnConnect:c=>invoke('vpn:connect',c),vpnDisconnect:()=>invoke('vpn:disconnect'),
