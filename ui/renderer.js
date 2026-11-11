@@ -229,7 +229,7 @@ function updateSecurity(state){
   const guard=state.adblock||{enabled:true,ready:false,quality:'initialisation'};
   $('adblock-enabled').checked=guard.enabled;
   $('adblock-refresh').disabled=Boolean(guard.updating);
-  const updated=guard.lastUpdated?' · listes du '+new Date(guard.lastUpdated).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'';
+  const updated=guard.lastUpdated?' · listes du '+new Date(guard.lastUpdated).toLocaleString(uiLocale(),{dateStyle:'short',timeStyle:'short'}):'';
   $('adblock-status').textContent=(guard.enabled?'Activé':'Désactivé')+' · '+String(guard.quality||'initialisation')+updated+(guard.updating?' · mise à jour…':'')+(guard.error?' · '+guard.error:'')+(guard.totalBlocked?` · ${guard.totalBlocked} requêtes bloquées depuis le démarrage`:'');
   const sh=state.shieldHere||{};
   $('adblock-site').disabled=!sh.host||!guard.enabled;
@@ -276,7 +276,7 @@ function updateGithub(state){
   $('extension-sync').disabled=!g.connected||!g.repo||g.syncing;
   if(g.repo && document.activeElement!==$('github-repo'))$('github-repo').value=g.repo;
   if(g.branch && document.activeElement!==$('github-branch'))$('github-branch').value=g.branch;
-  const label=g.syncing?'Synchronisation en cours…':g.lastError?`Dernière erreur : ${g.lastError}`:g.lastSync?`Dernière synchronisation : ${new Date(g.lastSync).toLocaleTimeString('fr-FR')}`:'';
+  const label=g.syncing?'Synchronisation en cours…':g.lastError?`Dernière erreur : ${g.lastError}`:g.lastSync?`Dernière synchronisation : ${new Date(g.lastSync).toLocaleTimeString(uiLocale())}`:'';
   if(label)$('git-connected').textContent+=' · '+label;
   const list=$('extension-list');list.replaceChildren();
   const exts=state.extensions||[];
@@ -328,7 +328,7 @@ function dayLabel(ts){
   const d=new Date(ts),today=new Date();today.setHours(0,0,0,0);
   const diff=Math.round((today-new Date(d).setHours(0,0,0,0))/86400000);
   if(diff===0)return 'Aujourd’hui';if(diff===1)return 'Hier';
-  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:d.getFullYear()===today.getFullYear()?undefined:'numeric'});
+  return d.toLocaleDateString(uiLocale(),{weekday:'long',day:'numeric',month:'long',year:d.getFullYear()===today.getFullYear()?undefined:'numeric'});
 }
 function linkRow(item,{meta='',onRemove=null,extra=[]}={}){
   const row=elem('div','item-row');
@@ -352,7 +352,7 @@ async function loadHistory(append=false){
   for(const entry of result.items){
     const day=dayLabel(entry.visitedAt);
     if(day!==lastDay){list.append(elem('h4','day-label',day));lastDay=day;}
-    const time=new Date(entry.visitedAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const time=new Date(entry.visitedAt).toLocaleTimeString(uiLocale(),{hour:'2-digit',minute:'2-digit'});
     list.append(linkRow(entry,{meta:time+(entry.visits>1?` · ${entry.visits} visites`:''),onRemove:()=>run(async()=>{await api.historyRemove(entry.url);loadHistory();})}));
   }
   list.dataset.lastDay=lastDay;
@@ -419,7 +419,7 @@ function renderUpdate(u){
   const labels={idle:'Recherche automatique activée.',checking:'Recherche de mises à jour…',downloading:`Téléchargement de la version ${u.version||''}… ${u.progress||0} %`,
     downloaded:`Version ${u.version} téléchargée : redémarre pour l’installer.`,none:'DevGitBrowser est à jour.',error:'Échec de la vérification : '+(u.error||'erreur inconnue'),
     disabled:u.error||'Mises à jour automatiques indisponibles dans cette version.'};
-  $('about-update').textContent=(labels[u.status]||'')+(u.lastCheck&&u.status==='none'?' · vérifié à '+new Date(u.lastCheck).toLocaleTimeString('fr-FR'):'');
+  $('about-update').textContent=(labels[u.status]||'')+(u.lastCheck&&u.status==='none'?' · vérifié à '+new Date(u.lastCheck).toLocaleTimeString(uiLocale()):'');
   $('about-progress').classList.toggle('hidden',u.status!=='downloading');
   $('about-progress').firstElementChild.style.width=(u.progress||0)+'%';
   $('about-check').disabled=['checking','downloading','disabled'].includes(u.status);
@@ -616,6 +616,7 @@ function updateExtras(state){
    $('material-line').classList.toggle('hidden',!state.materialSupported);
    if(document.activeElement!==$('window-material'))$('window-material').value=state.preferences?.windowMaterial||'none';
    if(state.discord)$('discord-status').textContent='« Joue à DevGitBrowser » apparaît sur ton profil, avec un bouton pour le télécharger. Nécessite l’application Discord ouverte sur ce PC.'+(state.discord.presence?(state.discord.connected?' · ✅ Connecté à Discord':' · En attente de Discord…'):'');
+   for(const id of ['language','welcome-language'])if(document.activeElement!==$(id))$(id).value=state.preferences?.language||'auto';
    if(document.activeElement!==$('link-preview'))$('link-preview').value=state.preferences?.linkPreview||'shift';}
   applyXmode(state);
   // VPN
@@ -654,12 +655,12 @@ function updateSecurityExtras(state){
     $('dns-provider').disabled=dns.mode==='off';
   }
   const ph=state.security?.phishing;
-  if(ph)$('phishing-status').textContent=`Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus · ${ph.domains.toLocaleString('fr-FR')} domaines${ph.updatedAt?' · listes du '+new Date(ph.updatedAt).toLocaleDateString('fr-FR'):''}${ph.error?' · '+ph.error:''}`;
+  if(ph)$('phishing-status').textContent=`Bloque l’ouverture des sites d’hameçonnage et de logiciels malveillants connus · ${ph.domains.toLocaleString(uiLocale())} domaines${ph.updatedAt?' · listes du '+new Date(ph.updatedAt).toLocaleDateString(uiLocale()):''}${ph.error?' · '+ph.error:''}`;
   const vpn=state.vpn||{};
   const sel=$('vpn-country');
   if(!sel.options.length)for(const c of vpn.countries||[]){const o=elem('option','',c.name);o.value=c.code;sel.append(o);}
   if(document.activeElement!==sel)sel.value=vpn.status==='on'||vpn.status==='starting'?vpn.country:(state.preferences?.vpnCountry??sel.value);
-  const labels={off:'Déconnecté : connexion directe.',starting:`Connexion en cours… ${vpn.progress||0} % ${vpn.step?'('+vpn.step+')':''}`,on:`Connecté depuis ${vpn.since?new Date(vpn.since).toLocaleTimeString('fr-FR'):'—'} · adresse IP masquée`,error:'Erreur : '+(vpn.error||'inconnue')};
+  const labels={off:'Déconnecté : connexion directe.',starting:`Connexion en cours… ${vpn.progress||0} % ${vpn.step?'('+vpn.step+')':''}`,on:`Connecté depuis ${vpn.since?new Date(vpn.since).toLocaleTimeString(uiLocale()):'—'} · adresse IP masquée`,error:'Erreur : '+(vpn.error||'inconnue')};
   $('vpn-status').textContent=vpn.available===false?'Composant VPN absent de cette installation (version de développement).':labels[vpn.status]||'—';
   $('vpn-toggle').textContent=vpn.status==='on'||vpn.status==='starting'?'Déconnecter':'Connecter';
   $('vpn-toggle').disabled=vpn.available===false;
@@ -755,7 +756,7 @@ $('vault-change').addEventListener('click',async()=>{const a=$('vault-old').valu
 let perfTimerId=null;
 async function refreshPerf(){
   const m=await api.perfMetrics().catch(()=>null);if(!m)return;
-  $('perf-mem').textContent=m.total.memory.toLocaleString('fr-FR')+' Mo';
+  $('perf-mem').textContent=m.total.memory.toLocaleString(uiLocale())+' Mo';
   $('perf-cpu').textContent=m.total.cpu+' %';
   $('perf-free').textContent=(m.total.systemFreeMB/1024).toFixed(1)+' / '+(m.total.systemTotalMB/1024).toFixed(1)+' Go';
   $('perf-sleeping').textContent=String(m.tabs.filter(t=>t.sleeping).length)+' / '+m.tabs.length;
@@ -843,6 +844,7 @@ async function loadTrackers(){
   }));
 }
 $('trackers-refresh').addEventListener('click',loadTrackers);
+for(const id of ['language','welcome-language'])$(id).addEventListener('change',()=>run(()=>api.preference('language',$(id).value)));
 $('window-material').addEventListener('change',()=>run(()=>api.preference('windowMaterial',$('window-material').value),'Effet de fenêtre appliqué.'));
 $('link-preview').addEventListener('change',()=>run(()=>api.preference('linkPreview',$('link-preview').value),'Aperçu des liens mis à jour.'));
 // ---------------------------------------------------------------- Import depuis un autre navigateur
@@ -1109,7 +1111,8 @@ const WEATHER_ICONS={
 function weatherSvg(kind){return `<svg viewBox="0 0 24 24" class="w-ico w-${kind}" aria-hidden="true">${WEATHER_ICONS[kind]||WEATHER_ICONS.cloud}</svg>`;}
 
 const clockFmt=new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'});
-const dateFmt=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const uiLocale=()=>current?.lang==='en'?'en-GB':'fr-FR';
+const dateFmt={format:d=>d.toLocaleDateString(uiLocale(),{weekday:'long',day:'numeric',month:'long',year:'numeric'})};
 function tickClock(){const now=new Date();$('clock').textContent=clockFmt.format(now);$('clock').title=dateFmt.format(now);}
 tickClock();setTimeout(()=>{tickClock();setInterval(tickClock,60_000);},(60-new Date().getSeconds())*1000+50);
 function updateClockWeather(state){
@@ -1130,7 +1133,7 @@ $('weather-form').addEventListener('submit',async e=>{
 $('clock-weather').addEventListener('click',()=>{if(!current?.weather?.city){showPanel('settings').then(()=>setTimeout(()=>$('weather-city').focus(),60));}else run(()=>api.weatherRefresh());});
 
 // ======================================================================== Panneau admin (%AdminDBG%)
-const nf=new Intl.NumberFormat('fr-FR');
+const nf=new Intl.NumberFormat(uiLocale());
 function openAdmin(){
   $('admin-lock').classList.remove('hidden');$('admin-dash').classList.add('hidden');
   $('admin-recover-form').classList.add('hidden');$('admin-newkey').classList.add('hidden');
@@ -1154,7 +1157,7 @@ $('admin-copy').addEventListener('click',()=>navigator.clipboard.writeText($('ad
 $('admin-refresh').addEventListener('click',loadAdminStats);
 function kpi(label,value,hint){const box=elem('div','admin-kpi');box.append(elem('span','',label),elem('strong','',value));if(hint)box.append(elem('small','',hint));return box;}
 const FLAG=cc=>/^[A-Z]{2}$/.test(cc)&&cc!=='ZZ'?String.fromCodePoint(...[...cc].map(c=>0x1F1E6+c.charCodeAt(0)-65)):'🏳️';
-const regionNames=(()=>{try{return new Intl.DisplayNames(['fr'],{type:'region'});}catch{return null;}})();
+const regionNames={of:cc=>{try{return new Intl.DisplayNames([current?.lang==='en'?'en':'fr'],{type:'region'}).of(cc);}catch{return cc;}}};
 const countryName=cc=>{if(cc==='ZZ')return 'Inconnu';try{return regionNames?.of(cc)||cc;}catch{return cc;}};
 function bars(list,max,label){return list.map(([name,value])=>{const row=elem('div','admin-bar');const track=elem('div','admin-bar-track');const fill=elem('div','admin-bar-fill');fill.style.width=Math.max(2,Math.round(value/Math.max(1,max)*100))+'%';track.append(fill);row.append(elem('b','',name),track,elem('span','',label(value)));return row;});}
 function renderServer(res){
@@ -1210,7 +1213,7 @@ function renderAdminBugs(){
   if(!list.length){$('admin-bug-list').replaceChildren(elem('div','empty-list','Aucun rapport ici.'));return;}
   $('admin-bug-list').replaceChildren(...list.map(b=>{
     const box=elem('details','admin-bug '+b.status);const sum=elem('summary');
-    sum.append(elem('b','',BUG_STATUS[b.status]||b.status),elem('span','',new Date(b.at).toLocaleString('fr-FR')+` · v${b.v} · ${FLAG(b.cc)} ${b.os}`),elem('em','',b.text.slice(0,90)));
+    sum.append(elem('b','',BUG_STATUS[b.status]||b.status),elem('span','',new Date(b.at).toLocaleString(uiLocale())+` · v${b.v} · ${FLAG(b.cc)} ${b.os}`),elem('em','',b.text.slice(0,90)));
     box.append(sum,elem('p','admin-bug-text',b.text));
     if(b.contact)box.append(elem('p','muted','Contact : '+b.contact));
     if(b.log)box.append(elem('pre','bug-preview',b.log));
@@ -1344,7 +1347,7 @@ async function loadAdminStore(){
   let list;try{list=await api.storeCatalog(true);}catch(e){box.replaceChildren(elem('div','empty-list','Catalogue indisponible.'));return;}
   if(!list.length){box.replaceChildren(elem('div','empty-list','Aucune extension publiée.'));return;}
   box.replaceChildren(...list.map(e=>{const row=elem('div','extension-row');const d=elem('div','ext-detail');
-    d.append(elem('strong','',`${e.name} · v${e.version}`),elem('small','',`${e.id} · ${fmtSize(e.size)} · ${e.installs} installation${e.installs>1?'s':''} · mise à jour ${new Date(e.updated).toLocaleDateString('fr-FR')}`));
+    d.append(elem('strong','',`${e.name} · v${e.version}`),elem('small','',`${e.id} · ${fmtSize(e.size)} · ${e.installs} installation${e.installs>1?'s':''} · mise à jour ${new Date(e.updated).toLocaleDateString(uiLocale())}`));
     const rm=elem('button','outline small-btn danger','Retirer');rm.type='button';
     rm.addEventListener('click',async()=>{if(!confirm(`Retirer « ${e.name} » de la boutique ? Les navigateurs qui l’ont déjà la gardent.`))return;if(await run(()=>api.storeUnpublish(e.id),'Extension retirée de la boutique.'))loadAdminStore();});
     row.append(elem('span','extension-ico','🧩'),d,rm);return row;}));
