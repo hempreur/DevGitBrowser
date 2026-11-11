@@ -1,3 +1,26 @@
+## 1.18.0 — Nouvel accueil, support en direct, panneau admin en temps réel
+
+### 🏠 Nouvelle page d'accueil
+- Mise en page plus sobre et plus professionnelle : recherche au centre, salutation et date du jour, protections actives, accès rapide à tes sites et raccourcis avec des icônes nettes.
+- Les couleurs suivent le thème choisi (Néon, Noir, Blanc, Nature, Sable, Océan, Velours).
+- **Partenaire BabelVisio** : une capture d'un salon BabelVisio (discussion, webcams, liste des utilisateurs), légèrement inclinée avec une ombre portée, présente le site ; un clic dessus ouvre BabelVisio.
+
+### 💬 Support en direct
+- Après un **🐞 Signaler un bug**, si l'équipe prend ton signalement en charge, une **fenêtre de discussion s'ouvre automatiquement** pour échanger avec toi en direct, avec une notification Windows quand une réponse arrive.
+- Seul ton navigateur peut écrire dans cette discussion : il garde une clé secrète, et le serveur n'en conserve que l'empreinte.
+
+### 🏅 Bouton des succès
+- Nouvelle icône, plus neutre, collée à l'heure et à la météo, à la même hauteur.
+
+### 🛠 Corrigé
+- Le changement du code d'accès d'un espace protégé utilisait une fenêtre système que le navigateur ne sait pas afficher : il se fait maintenant dans un petit formulaire.
+- Les fichiers sources du logo ne sont plus copiés dans l'installateur (environ 880 Ko de moins).
+- Nettoyage : les anciens styles de l'ancienne page d'accueil ont été retirés (environ 14 Ko de CSS inutilisé).
+
+### Serveur (mise à jour du VPS nécessaire)
+- Panneau admin en temps réel (`/v1/admin/watch`), suppression des messages envoyés (retirés aussi des navigateurs ouverts) et des rapports de bug, tchat de support.
+- Sécurité : l'adresse transmise par l'en-tête `X-Forwarded-For` n'est plus prise en compte sans proxy déclaré (`TRUST_PROXY=1`), ce qui empêchait de contourner les limites anti-abus.
+
 ## 1.17.0 — Messages en direct et arrêt d'urgence total, séparés
 
 ### 📣 Messages en direct

@@ -91,7 +91,7 @@ test('Discord : trames, nettoyage de l’activité, poignée de main avec un fau
 test('1.13 câblé : opt-in Discord, réglages protégés, admin, carte',()=>{
   const main=read('main.js'),html=read('ui/index.html'),js=read('ui/renderer.js'),map=read('ui/world-map.js');
   assert.match(main,/discordPresence:false/);assert.match(main,/DISCORD_APP_ID = '1570094942779473930'/);
-  assert.match(main,/'refCode','referredBy','refAutoChecked','restoreAfterUpdate','dismissedMessages'\]\.includes\(key\)/);
+  assert.match(main,/'refCode','referredBy','refAutoChecked','restoreAfterUpdate','dismissedMessages','supportChats'\]\.includes\(key\)/);
   assert.match(main,/if\(!s\.adminOpen\)throw new Error\('Panneau admin verrouillé\.'\);\s*const token=readStatsToken\(\);if\(!token\|\|!telemetry\?\.available\)/);
   assert.match(main,/data\?\.withLog===true/,'journal joint seulement si coché');
   assert.match(main,/remote\?\.disabled\('store'\)/);assert.match(main,/remote\?\.disabled\('vpn'\)/);assert.match(main,/remote\?\.disabled\('import'\)/);

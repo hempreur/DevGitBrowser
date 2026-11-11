@@ -76,13 +76,13 @@ function ping(body) {
   }
   d.minutes += clean.num(body.min, 120);
   d.pages += clean.num(body.pages, 5000);
-  dirty = true; return true;
+  dirty = true; bumpAdmin('stats'); return true;
 }
 function rate(body) {
   const id = clean.id(body.id), stars = Number(body.stars);
   if (!id || !Number.isInteger(stars) || stars < 1 || stars > 5) return false;
   db.ratings[anon(id)] = {stars, at: today(), v: clean.ver(body.v)};
-  dirty = true; return true;
+  dirty = true; bumpAdmin('stats'); return true;
 }
 
 function stats() {
@@ -228,6 +228,7 @@ function publicConfig(v, cc) {
 
 // ---- Messages en direct (connexions d'écoute)
 const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 let liveSeq = Date.now(); // croissant même après un redémarrage du serveur
 let liveItems = [];
 const waiters = new Set();
@@ -247,7 +248,8 @@ function messagesFor(after, v, cc) {
     .map(({id, text: body, level, url, at}) => ({id, text: body, level, url, at}));
 }
 function liveBody(w) {
-  return {cursor: liveSeq, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), lockdown: publicLockdown(w.v), features: config.features};
+  return {cursor: liveSeq, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), retracted: retractedSince(w.after),
+    lockdown: publicLockdown(w.v), features: config.features, support: supportFor(w.chats)};
 }
 function releaseWaiter(w, body) {
   if (!waiters.has(w)) return false;
@@ -261,17 +263,17 @@ function wakeWaiters({force = false} = {}) {
   for (const w of [...waiters]) {
     const body = liveBody(w);
     const lockChanged = body.lockdown.blocked !== w.lock;
-    if (force || lockChanged || body.messages.length) { if (body.messages.length) delivered++; releaseWaiter(w, body); }
+    if (force || lockChanged || body.messages.length || body.retracted.length || body.support.length) { if (body.messages.length) delivered++; releaseWaiter(w, body); }
   }
   return delivered;
 }
 function liveRequest(req, res, ip) {
   const q = new URLSearchParams(req.url.split('?')[1] || '');
   const w = {res, ip, after: /^\d{1,16}$/.test(q.get('after') || '') ? Number(q.get('after')) : -1,
-    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null};
+    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null, chats: parseChats(q.get('chat'))};
   const body = liveBody(w);
-  // Réponse immédiate : premier appel (curseur de départ), message en attente, ou verrou différent.
-  if (w.after < 0 || body.messages.length || body.lockdown.blocked !== w.lock) return send(res, 200, body);
+  // Réponse immédiate : premier appel (curseur de départ), message en attente, verrou différent ou nouvelle réponse du support.
+  if (w.after < 0 || body.messages.length || body.retracted.length || body.support.length || body.lockdown.blocked !== w.lock) return send(res, 200, body);
   let perIp = 0; for (const x of waiters) if (x.ip === ip) perIp++;
   if (waiters.size >= MAX_WAITERS || perIp >= MAX_WAITERS_PER_IP) return send(res, 200, body);
   waiters.add(w);
@@ -283,8 +285,42 @@ function postMessage(input) {
   liveItems = [...liveItems.filter(x => Date.now() - x.at < 24 * 3_600_000), m].slice(-100);
   const listening = waiters.size;
   m.delivered = wakeWaiters();
+  bumpAdmin('messages');
   return {id: m.id, delivered: m.delivered, listening};
 }
+// Suppression d'un message envoyé : il disparaît aussi des navigateurs ouverts qui l'affichent.
+let retracted = []; // [{id, at}]
+function retractedSince(after) { if (after < 0) return []; const now = Date.now(); return retracted.filter(r => r.seq > after && now - r.at < LIVE_TTL).map(r => r.id); }
+function deleteMessages(ids) {
+  const set = new Set(ids); const before = liveItems.length;
+  liveItems = liveItems.filter(m => !set.has(m.id));
+  const now = Date.now();
+  if (ids.length) { const seq = ++liveSeq; retracted = [...retracted.filter(r => now - r.at < LIVE_TTL), ...ids.map(id => ({id, seq, at: now}))].slice(-500); }
+  // Les navigateurs en écoute reçoivent tout de suite la liste des messages retirés.
+  wakeWaiters();
+  bumpAdmin('messages');
+  return before - liveItems.length;
+}
+// ---- Temps réel pour le panneau admin : chaque événement augmente « adminRev » et réveille les écoutes admin.
+let adminRev = Date.now(); const adminEvents = []; const adminWaiters = new Set();
+function bumpAdmin(kind) {
+  adminRev++; adminEvents.push({rev: adminRev, kind}); if (adminEvents.length > 200) adminEvents.splice(0, adminEvents.length - 200);
+  for (const w of [...adminWaiters]) releaseAdmin(w);
+}
+function adminWatchBody(after) { return {rev: adminRev, kinds: [...new Set(adminEvents.filter(e => e.rev > after).map(e => e.kind))], listening: waiters.size}; }
+function releaseAdmin(w) { if (!adminWaiters.delete(w)) return; clearTimeout(w.timer); try { send(w.res, 200, adminWatchBody(w.after)); } catch {} }
+function adminWatch(req, res) {
+  const q = new URLSearchParams(req.url.split('?')[1] || '');
+  const after = /^\d{1,16}$/.test(q.get('rev') || '') ? Number(q.get('rev')) : -1;
+  if (after < 0 || after < adminRev) return send(res, 200, adminWatchBody(after < 0 ? adminRev : after));
+  if (adminWaiters.size >= 50) return send(res, 200, adminWatchBody(after));
+  const w = {res, after, timer: null}; adminWaiters.add(w);
+  w.timer = setTimeout(() => releaseAdmin(w), LIVE_HOLD);
+  res.on('close', () => { adminWaiters.delete(w); clearTimeout(w.timer); });
+}
+// Nombre de navigateurs ouverts : signalé à l'admin quand il change (au plus toutes les 5 s).
+let lastListening = 0;
+setInterval(() => { if (waiters.size !== lastListening) { lastListening = waiters.size; bumpAdmin('listening'); } }, 5_000).unref();
 function adminConfig() {
   return {lockdown: config.lockdown, features: config.features, listening: waiters.size,
     recent: [...liveItems].reverse().slice(0, 30).map(({id, text: body, level, versions, countries, url, at, delivered}) => ({id, text: body, level, versions, countries, url, at, delivered}))};
@@ -300,8 +336,52 @@ function addBug(body) {
   if (description.length < 5) return null;
   const bug = {id: crypto.randomBytes(8).toString('hex'), at: new Date().toISOString(), v: clean.ver(body.v), os: clean.os(body.os), cc: clean.cc(body.cc),
     text: description, contact: text(body.contact, 120), log: String(body.log || '').replace(/\u0000/g, '').slice(-60_000), status: 'new'};
+  // Tchat de support (1.18+) : le navigateur garde une clé secrète ; seule son empreinte est stockée ici.
+  if (/^[a-f0-9]{64}$/.test(String(body.chatKey || ''))) bug.chatKeyHash = sha256(body.chatKey);
   bugs.unshift(bug); bugs = bugs.slice(0, 500); saveBugs();
+  bumpAdmin('bugs');
   return bug.id;
+}
+const sha256 = v => crypto.createHash('sha256').update(String(v)).digest('hex');
+
+// ------------------------------------------------- Tchat de support (v1.18)
+// L'admin « prend en charge » un signalement : une discussion s'ouvre avec le navigateur qui l'a envoyé.
+const CHAT_MAX = 300, CHAT_TEXT = 1000;
+function parseChats(raw) {
+  const out = [];
+  for (const part of String(raw || '').split(',').slice(0, 5)) {
+    const m = part.match(/^([a-f0-9]{64}):(\d{1,9})$/); if (m) out.push({hash: sha256(m[1]), seq: Number(m[2])});
+  }
+  return out;
+}
+function supportView(bug) {
+  return {bugId: bug.id, open: bug.chat.open === true, seq: bug.chat.seq, messages: bug.chat.messages.map(({from, text: t, at}) => ({from, text: t, at})),
+    subject: bug.text.slice(0, 140), openedAt: bug.chat.openedAt};
+}
+function supportFor(chats) {
+  const out = [];
+  for (const c of chats || []) {
+    const bug = bugs.find(b => b.chatKeyHash && b.chatKeyHash === c.hash);
+    if (bug?.chat && bug.chat.seq > c.seq) out.push(supportView(bug));
+  }
+  return out;
+}
+function chatChanged(bug) { bug.chat.seq++; saveBugs(); wakeWaiters(); bumpAdmin('support'); }
+function supportPost(bug, from, raw) {
+  const t = String(raw || '').replace(/\u0000/g, '').trim().slice(0, CHAT_TEXT);
+  if (!t) throw new Error('message vide');
+  if (!bug.chat || !bug.chat.open) throw new Error('discussion fermée');
+  bug.chat.messages.push({from, text: t, at: new Date().toISOString()});
+  if (bug.chat.messages.length > CHAT_MAX) bug.chat.messages.splice(0, bug.chat.messages.length - CHAT_MAX);
+  if (from === 'user') bug.chat.unread = (bug.chat.unread || 0) + 1;
+  chatChanged(bug);
+}
+const supportLimiter = new Map();
+function limitedSupport(key) {
+  const now = Date.now(), h = supportLimiter.get(key) || {n: 0, t: now};
+  if (now - h.t > 60_000) { h.n = 0; h.t = now; }
+  h.n++; supportLimiter.set(key, h); if (supportLimiter.size > 5000) supportLimiter.clear();
+  return h.n > 20;
 }
 
 // ------------------------------------------------- Parrainage (v1.13)
@@ -312,7 +392,7 @@ function claimReferral(body) {
   const u = anon(id);
   if (db.referrals[u]) return 'already';
   if (db.users[u]?.rc === code) return 'self';
-  db.referrals[u] = {code, at: today()}; dirty = true; return 'ok';
+  db.referrals[u] = {code, at: today()}; dirty = true; bumpAdmin('stats'); return 'ok';
 }
 const referralCount = code => Object.values(db.referrals).filter(r => r.code === code).length;
 const bugLimiter = new Map();
@@ -351,12 +431,20 @@ const handler = async (req, res) => {
       try { fs.rmSync(path.join(PKG_DIR, m[1] + '.json'), {force: true}); } catch {}
       return send(res, 204);
     }
-    const ipOf = () => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    // Le serveur est exposé directement (HTTPS 8443) : l'en-tête X-Forwarded-For n'est lu que derrière un proxy déclaré (TRUST_PROXY=1).
+    const ipOf = () => String((TRUST_PROXY && req.headers['x-forwarded-for']) || req.socket.remoteAddress || '').split(',')[0].trim();
     if (req.method === 'GET' && url === '/v1/config') {
       const q = new URLSearchParams(req.url.split('?')[1] || '');
       return send(res, 200, publicConfig(q.get('v'), q.get('cc')));
     }
     if (req.method === 'GET' && url === '/v1/live') return liveRequest(req, res, ipOf());
+    if (req.method === 'POST' && (m = url.match(/^\/v1\/support\/([a-f0-9]{16})\/messages$/))) {
+      const b = await readBody(req, 8 * 1024);
+      const bug = bugs.find(x => x.id === m[1]);
+      if (!bug || !bug.chatKeyHash || !/^[a-f0-9]{64}$/.test(String(b?.key || '')) || sha256(b.key) !== bug.chatKeyHash) return send(res, 403, {error: 'forbidden'});
+      if (limitedSupport(bug.id)) return send(res, 429, {error: 'trop de messages, patiente un peu'});
+      try { supportPost(bug, 'user', b.text); return send(res, 200, supportView(bug)); } catch (e) { return send(res, 409, {error: e.message}); }
+    }
     if (req.method === 'POST' && url === '/v1/bug') {
       if (limitedBug(ipOf())) return send(res, 429, {error: 'trop de rapports, réessaie plus tard'});
       let body; try { body = await readBody(req, 80 * 1024); } catch { return send(res, 413, {error: 'rapport trop gros'}); }
@@ -371,22 +459,56 @@ const handler = async (req, res) => {
     if (url.startsWith('/v1/admin/')) {
       if (!authorized(req)) return send(res, 401, {error: 'unauthorized'});
       if (req.method === 'GET' && url === '/v1/admin/config') return send(res, 200, adminConfig());
+      if (req.method === 'GET' && url === '/v1/admin/watch') return adminWatch(req, res);
+      if (req.method === 'DELETE' && url === '/v1/admin/messages') return send(res, 200, {deleted: deleteMessages(liveItems.map(x => x.id)), ...adminConfig()});
+      if (req.method === 'DELETE' && (m = url.match(/^\/v1\/admin\/messages\/(\d{1,16})$/))) return send(res, 200, {deleted: deleteMessages([Number(m[1])]), ...adminConfig()});
+      if (req.method === 'DELETE' && url === '/v1/admin/bugs') {
+        const q = new URLSearchParams(req.url.split('?')[1] || ''); const only = q.get('status');
+        const before = bugs.length; bugs = only === 'fixed' ? bugs.filter(b => b.status !== 'fixed') : []; saveBugs(); bumpAdmin('bugs');
+        return send(res, 200, {deleted: before - bugs.length});
+      }
+      if ((m = url.match(/^\/v1\/admin\/support\/([a-f0-9]{16})(?:\/(open|close|messages|read))?$/))) {
+        const bug = bugs.find(b => b.id === m[1]); if (!bug) return send(res, 404, {error: 'not found'});
+        const action = m[2] || '';
+        if (req.method === 'GET' && !action) return send(res, 200, {...supportView(bug.chat ? bug : {...bug, chat: {open: false, seq: 0, messages: []}}), canChat: Boolean(bug.chatKeyHash), contact: bug.contact, v: bug.v, os: bug.os, cc: bug.cc, at: bug.at, status: bug.status});
+        if (req.method !== 'POST') return send(res, 405, {error: 'method'});
+        if (action === 'open') {
+          if (!bug.chatKeyHash) return send(res, 409, {error: 'signalement envoyé par une version sans tchat (avant 1.18)'});
+          bug.chat = bug.chat || {messages: [], seq: 0};
+          bug.chat.open = true; bug.chat.openedAt = bug.chat.openedAt || new Date().toISOString(); bug.status = 'support';
+          const welcome = text((await readBody(req, 4096))?.welcome, CHAT_TEXT);
+          bug.chat.messages.push({from: 'system', text: 'open', at: new Date().toISOString()});
+          if (welcome) bug.chat.messages.push({from: 'admin', text: welcome, at: new Date().toISOString()});
+          chatChanged(bug); bumpAdmin('bugs');
+          return send(res, 200, supportView(bug));
+        }
+        if (action === 'close') {
+          if (!bug.chat) return send(res, 409, {error: 'aucune discussion'});
+          bug.chat.open = false; bug.chat.messages.push({from: 'system', text: 'close', at: new Date().toISOString()}); bug.status = 'fixed';
+          chatChanged(bug); bumpAdmin('bugs');
+          return send(res, 200, supportView(bug));
+        }
+        if (action === 'read') { if (bug.chat) { bug.chat.unread = 0; saveBugs(); bumpAdmin('bugs'); } return send(res, 204); }
+        if (action === 'messages') {
+          try { supportPost(bug, 'admin', (await readBody(req, 8 * 1024))?.text); return send(res, 200, supportView(bug)); } catch (e) { return send(res, 409, {error: e.message}); }
+        }
+      }
       if (req.method === 'PUT' && url === '/v1/admin/lockdown') {
-        try { config.lockdown = cleanLockdown(await readBody(req, 16 * 1024)); saveConfig(); wakeWaiters(); return send(res, 200, adminConfig()); } catch (e) { return send(res, 400, {error: e.message}); }
+        try { config.lockdown = cleanLockdown(await readBody(req, 16 * 1024)); saveConfig(); wakeWaiters(); bumpAdmin('config'); return send(res, 200, adminConfig()); } catch (e) { return send(res, 400, {error: e.message}); }
       }
       if (req.method === 'PUT' && url === '/v1/admin/features') {
         const b = await readBody(req, 16 * 1024);
-        config.features = (Array.isArray(b?.features) ? b.features : []).filter(f => FEATURES.includes(f)); saveConfig(); wakeWaiters({force: true});
+        config.features = (Array.isArray(b?.features) ? b.features : []).filter(f => FEATURES.includes(f)); saveConfig(); wakeWaiters({force: true}); bumpAdmin('config');
         return send(res, 200, adminConfig());
       }
       if (req.method === 'POST' && url === '/v1/admin/messages') {
         try { const r = postMessage(await readBody(req, 16 * 1024)); return send(res, 200, {...adminConfig(), ...r}); } catch (e) { return send(res, 400, {error: e.message}); }
       }
-      if (req.method === 'GET' && url === '/v1/admin/bugs') return send(res, 200, {bugs});
+      if (req.method === 'GET' && url === '/v1/admin/bugs') return send(res, 200, {bugs: bugs.map(({chatKeyHash, chat, ...b}) => ({...b, canChat: Boolean(chatKeyHash), chatOpen: chat?.open === true, unread: chat?.unread || 0, chatCount: chat ? chat.messages.filter(x => x.from !== 'system').length : 0}))});
       if ((m = url.match(/^\/v1\/admin\/bugs\/([a-f0-9]{16})$/))) {
         const bug = bugs.find(b => b.id === m[1]); if (!bug) return send(res, 404, {error: 'not found'});
-        if (req.method === 'DELETE') { bugs = bugs.filter(b => b !== bug); saveBugs(); return send(res, 204); }
-        if (req.method === 'PATCH') { const b = await readBody(req); if (['new', 'seen', 'fixed'].includes(b.status)) bug.status = b.status; saveBugs(); return send(res, 200, bug); }
+        if (req.method === 'DELETE') { bugs = bugs.filter(b => b !== bug); saveBugs(); bumpAdmin('bugs'); return send(res, 204); }
+        if (req.method === 'PATCH') { const b = await readBody(req); if (['new', 'seen', 'fixed', 'support'].includes(b.status)) bug.status = b.status; saveBugs(); bumpAdmin('bugs'); return send(res, 200, bug); }
       }
       return send(res, 404, {error: 'not found'});
     }
@@ -410,4 +532,4 @@ const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync
 const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
 if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};
+module.exports = {_adminWaiters: () => adminWaiters, server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};

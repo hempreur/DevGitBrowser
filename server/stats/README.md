@@ -24,13 +24,24 @@ Commandes utiles : `systemctl status devgit-stats` · `journalctl -u devgit-stat
 ## Boutique d'extensions (DevGit Store)
 Les extensions publiées depuis le panneau admin sont stockées dans `/opt/devgit-stats/data/store/`. Le catalogue public se trouve à `GET /v1/store/catalog`. La publication et le retrait demandent le jeton admin.
 
-## Messages en direct, arrêt d'urgence, bugs et parrainage (v1.17)
+## Messages en direct, arrêt d'urgence, bugs et parrainage (v1.17+)
 - `GET /v1/live?after=N&lock=0|1&v=…&cc=…` : connexion d'écoute des navigateurs ouverts (réponse dès qu'un message ou un changement de verrou arrive, sinon au bout de 25 s). Rien n'est enregistré.
 - `GET /v1/config?v=…&cc=…` : état de l'arrêt d'urgence et des fonctions coupées, lu au lancement.
 - `POST /v1/admin/messages` : envoie un message aux navigateurs ouverts (`{"text","level":"info|alert","versions","countries","url"}`).
 - `PUT /v1/admin/lockdown` : arrêt d'urgence (`{"active":true,"versions":"","message":"…"}` ; `{"active":false}` pour débloquer).
 - `PUT /v1/admin/features` : fonctions coupées (`{"features":["store","vpn",…]}`).
 - `POST /v1/bug`, `POST /v1/referral/claim`, `GET /v1/referral/CODE` : rapports de bug et parrainage.
+- `DELETE /v1/admin/messages/ID` et `DELETE /v1/admin/messages` : retire un message (ou tous) ; il disparaît aussi des navigateurs ouverts qui l'affichent. (v1.18)
+- `DELETE /v1/admin/bugs` (`?status=fixed` pour les seuls corrigés) : supprime des rapports de bug. (v1.18)
+
+## Panneau admin en temps réel et tchat de support (v1.18)
+- `GET /v1/admin/watch?rev=N` : écoute du panneau admin. Le serveur répond dès qu'un événement arrive (nouvel utilisateur actif, note, rapport de bug, message, parrainage, discussion…) avec la liste des parties à recharger, sinon au bout de 25 s.
+- Tchat de support : chaque rapport envoyé par un navigateur 1.18 porte l'empreinte SHA-256 d'une clé secrète gardée sur le PC de la personne. Seule l'empreinte est stockée.
+  - `POST /v1/admin/support/ID/open` (`{"welcome":"…"}`) : prise en charge, la discussion s'ouvre des deux côtés ;
+  - `POST /v1/admin/support/ID/messages` (`{"text"}`), `POST /v1/admin/support/ID/close`, `GET /v1/admin/support/ID` ;
+  - `POST /v1/support/ID/messages` (`{"key","text"}`) : message de l'utilisateur, vérifié avec sa clé (20 messages par minute au plus) ;
+  - les réponses arrivent aux navigateurs par `/v1/live` (paramètre `chat`).
+- Les discussions sont enregistrées avec les rapports dans `bugs.json` (300 messages au plus par discussion) et supprimées avec eux.
 
 ### Débloquer sans le navigateur (secours)
 Sur le VPS, avec le jeton admin :

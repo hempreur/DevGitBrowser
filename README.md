@@ -87,8 +87,8 @@ Le navigateur Windows tout-en-un de **CodexHempreur INC** : bloqueur de publicit
 ## 💬 Communauté et aide
 
 - **Discord** : [discord.gg/hmQZuDXBvu](https://discord.gg/hmQZuDXBvu), pour les questions, les idées et les nouveautés.
-- **Un bug ?** Dans le navigateur : ☰ → À propos → **🐞 Signaler un bug**. Il arrive directement chez le créateur.
-- **Inviter tes amis** : clique sur **🏆** en haut à droite, puis sur l'un des boutons de partage.
+- **Un bug ?** Dans le navigateur : ☰ → À propos → **🐞 Signaler un bug**. Il arrive directement chez le créateur ; s'il le prend en charge, une **fenêtre de discussion** s'ouvre pour échanger avec toi en direct.
+- **Inviter tes amis** : clique sur le **bouton des succès** (à gauche de l'heure, en haut à droite), puis sur l'un des boutons de partage.
 
 ---
 

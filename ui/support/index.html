@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+<title>Support DevGitBrowser</title><link rel="stylesheet" href="support.css"><script src="../i18n.js"></script></head>
+<body>
+<header>
+  <img src="../../assets/logo-mark.png" alt="" width="34" height="34">
+  <div class="head-text">
+    <h1 id="title">Support DevGitBrowser</h1>
+    <p id="subtitle">Discussion avec l’équipe DevGitBrowser</p>
+  </div>
+  <span id="state" class="state on">En ligne</span>
+</header>
+<section id="about" class="about"><span class="about-label">Signalement</span><p id="subject" data-no-i18n></p><p id="meta" class="meta hidden" data-no-i18n></p></section>
+<main id="thread" aria-live="polite"></main>
+<p id="error" class="error hidden"></p>
+<form id="form">
+  <textarea id="text" rows="2" maxlength="1000" placeholder="Écris ton message…" aria-label="Message"></textarea>
+  <button id="send" type="submit" class="primary" title="Envoyer (Entrée)">Envoyer</button>
+</form>
+<div id="admin-bar" class="admin-bar hidden">
+  <span class="hint">Entrée pour envoyer · Maj+Entrée pour aller à la ligne</span>
+  <button id="end" type="button" class="ghost">Terminer la discussion</button>
+</div>
+<script src="support.js"></script>
+</body></html>

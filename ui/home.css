@@ -1,0 +1,85 @@
+/* DevGitBrowser 1.18 — page d'accueil.
+   Mise en page sobre : recherche au centre, accès rapide, raccourcis, et l'espace partenaire BabelVisio
+   (maquette animée de son interface). Les couleurs suivent le thème choisi (variables --t-*). */
+.welcome.hp{
+  --hp-bg:var(--t-bg,#0a0d1f);--hp-surface:var(--t-surface,#11152f);--hp-surface2:var(--t-surface2,#171c3d);--hp-input:var(--t-input,#0c1027);
+  --hp-line:var(--t-line,#262c56);--hp-line2:var(--t-line2,#353d73);--hp-txt:var(--t-txt,#eef0ff);--hp-muted:var(--t-muted,#9aa2cc);
+  --hp-accent:var(--t-accent,#8b7dff);--hp-accent2:var(--t-accent2,#4fb7ff);--hp-on-accent:var(--t-on-accent,#ffffff);--hp-good:var(--t-good,#6ee7a8);
+  background:radial-gradient(1100px 520px at 50% -180px,color-mix(in srgb,var(--hp-accent) 16%,transparent),transparent 70%),var(--hp-bg)!important;
+  padding:0!important;color:var(--hp-txt)
+}
+.welcome.hp:before,.welcome.hp:after{display:none!important}
+.hp-wrap{max-width:1240px;margin:0 auto;padding:32px 32px 40px}
+.hp *{box-sizing:border-box}
+.hp svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---- En-tête : marque, salutation, recherche */
+.hp-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;margin-bottom:30px}
+.hp-brand{display:flex;align-items:center;gap:13px;text-align:left}
+.hp-brand img{border-radius:12px;filter:drop-shadow(0 6px 18px color-mix(in srgb,var(--hp-accent) 35%,transparent))}
+.hp-brand strong{display:block;font-size:22px;font-weight:800;letter-spacing:-.4px;color:var(--hp-txt)}
+.hp-brand span{display:block;font-size:13px;color:var(--hp-muted)}
+.hp-brand b{font-weight:600;color:var(--hp-txt)}
+.hp-brand em{font-style:normal}
+.hp-search{width:min(720px,100%);display:flex;align-items:center;gap:10px;height:56px;padding:0 7px 0 18px;border-radius:16px;
+  background:var(--hp-input);border:1px solid var(--hp-line2);box-shadow:0 18px 50px rgba(0,0,0,.28);transition:border-color .15s,box-shadow .15s}
+.hp-search:focus-within{border-color:var(--hp-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--hp-accent) 20%,transparent),0 18px 50px rgba(0,0,0,.28)}
+.hp-search>svg{width:20px;height:20px;color:var(--hp-muted)}
+.hp-search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:var(--hp-txt);font-size:15px}
+.hp-search input::placeholder{color:var(--hp-muted)}
+.hp-search button{height:42px;padding:0 20px;border:0;border-radius:11px;background:var(--hp-accent);color:var(--hp-on-accent);font-weight:700;font-size:13.5px}
+.hp-search button:hover{filter:brightness(1.08)}
+.hp-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;margin:0;padding:0;list-style:none;color:var(--hp-muted);font-size:12px}
+.hp-trust li{display:flex;align-items:center;gap:6px}
+.hp-trust svg{width:15px;height:15px;color:var(--hp-good)}
+
+/* ---- Grille principale */
+.hp-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,.92fr);gap:26px;align-items:start}
+.hp-main{display:flex;flex-direction:column;gap:26px;min-width:0}
+.hp-section{margin:0!important;max-width:none!important}
+.hp-section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.hp-section-head h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--hp-muted)}
+.hp-section-head span{font-size:12px;color:var(--hp-muted);opacity:.75}
+.hp .home-sites-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.hp .site-tile{background:var(--hp-surface)!important;border:1px solid var(--hp-line)!important;border-radius:12px;box-shadow:none!important;color:var(--hp-txt)}
+.hp .site-tile:hover{border-color:var(--hp-accent)!important;background:var(--hp-surface2)!important}
+.hp .site-tile small{color:var(--hp-muted)!important}
+.hp-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.hp-card{display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;align-items:center;text-align:left;
+  padding:15px 16px;border-radius:14px;border:1px solid var(--hp-line);background:var(--hp-surface);color:var(--hp-txt);transition:border-color .15s,background .15s,transform .15s}
+.hp-card:hover{border-color:var(--hp-accent);background:var(--hp-surface2);transform:translateY(-1px)}
+.hp-card svg{grid-row:1/3;width:40px;height:40px;padding:10px;border-radius:11px;color:var(--hp-accent);background:color-mix(in srgb,var(--hp-accent) 14%,transparent)}
+.hp-card strong{font-size:14px;font-weight:700}
+.hp-card small{font-size:12px;color:var(--hp-muted)}
+
+/* ---- Espace partenaire BabelVisio */
+.hp-sponsor{border:1px solid var(--hp-line);border-radius:18px;background:var(--hp-surface);padding:14px;display:flex;flex-direction:column;gap:13px;min-width:0}
+.hp-sponsor-tag{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.hp-sponsor-tag span{font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--hp-muted);padding:4px 9px;border:1px solid var(--hp-line);border-radius:999px}
+.hp-sponsor-tag em{font-style:normal;color:var(--hp-muted)}
+.hp-sponsor-text{padding:0 6px 4px}
+.hp-sponsor-text h2{margin:0 0 8px;font-size:23px;line-height:1.2;letter-spacing:-.4px;font-weight:800;color:var(--hp-txt)}
+.hp-sponsor-text h2 span{color:#8f87ff}
+.hp-sponsor-text p{margin:0 0 12px;font-size:13px;line-height:1.6;color:var(--hp-muted)}
+.hp-pills{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0;padding:0;list-style:none}
+.hp-pills li{font-size:11.5px;padding:5px 10px;border-radius:999px;background:var(--hp-surface2);border:1px solid var(--hp-line);color:var(--hp-txt)}
+.hp-cta{display:flex;justify-content:space-between;align-items:center;width:100%;height:44px;padding:0 16px;border:0;border-radius:11px;background:#6c63ff;color:#fff;font-weight:700;font-size:14px;transition:filter .15s}
+.hp-cta:hover{filter:brightness(1.1)}
+
+/* Capture d'un salon BabelVisio : légèrement inclinée, ombre portée en dessous */
+.bv-shot{position:relative;margin:8px 10px 18px;perspective:1400px;cursor:pointer}
+.bv-shot:after{content:'';position:absolute;left:8%;right:8%;bottom:-16px;height:26px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);filter:blur(6px);z-index:0;transition:transform .35s ease,opacity .35s ease}
+.bv-shot img{position:relative;z-index:1;display:block;width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.08);
+  transform:rotateY(-9deg) rotateX(5deg) rotateZ(-1.5deg);transform-origin:50% 60%;
+  box-shadow:0 22px 40px -14px rgba(0,0,0,.6),0 6px 14px rgba(0,0,0,.25);transition:transform .35s ease,box-shadow .35s ease;user-select:none}
+.bv-shot:hover img{transform:rotateY(-4deg) rotateX(2deg) rotateZ(-.5deg) translateY(-3px);box-shadow:0 30px 50px -16px rgba(0,0,0,.65),0 8px 18px rgba(0,0,0,.25)}
+.bv-shot:hover:after{transform:scaleX(.94);opacity:.8}
+@media (prefers-reduced-motion:reduce){.bv-shot img,.bv-shot:after{transition:none}}
+
+/* ---- Écrans plus étroits */
+@media (max-width:1080px){.hp-grid{grid-template-columns:1fr}.hp-sponsor{max-width:640px;width:100%;margin:0 auto}}
+@media (max-width:640px){.hp-wrap{padding:26px 16px 32px}.hp-shortcuts{grid-template-columns:1fr}.hp-trust{gap:6px 14px}}
+
+/* Bouton des succès (v1.18) : suit le thème comme l'horloge */
+:root[data-theme]:not([data-theme="neon"]) body:not(.x-mode) .status-cluster .trophy-btn{background:var(--t-surface)!important;border-color:var(--t-line)!important;color:var(--t-txt)!important}
