@@ -89,8 +89,8 @@ test('verrouillage câblé dans le navigateur : persistant, fail-closed, admin j
   assert.match(main,/function readLockdown\(\) \{ const d = readJson\('lockdown\.json'\)/);
   assert.match(main,/onLock:\(lock,\{reached\}\)=>\{ if\(lock\.blocked\)engageLockdown\(lock\); else if\(reached\)liftLockdown\(\); \}/,'déblocage seulement sur réponse du serveur');
   assert.match(main,/const lockExempt = \(\) => adminOverride \|\| Boolean\(readStatsToken\(\)\);/,'PC administrateur jamais bloqué');
-  assert.match(main,/function createWindow\(\{[^}]*\}=\{\}\) \{\n  if \(locked\) \{ openLockWindow\(\); return null; \}/,'aucune fenêtre tant que c’est bloqué');
-  assert.match(main,/if\(startupLock\)\{ engageLockdown\(startupLock\); \}\n    if\(!locked\)\{\n    restoreSession\(\);/,'navigateur fermé : bloqué dès le lancement');
+  assert.match(main,/function createWindow\(\{[^}]*\}=\{\}\) \{\r?\n  if \(locked\) \{ openLockWindow\(\); return null; \}/,'aucune fenêtre tant que c’est bloqué');
+  assert.match(main,/if\(startupLock\)\{ engageLockdown\(startupLock\); \}\r?\n    if\(!locked\)\{\r?\n    restoreSession\(\);/,'navigateur fermé : bloqué dès le lancement');
   assert.match(main,/if\(locked\)\{ openLockWindow\(\); return; \}/,'second lancement : écran de blocage');
   assert.match(main,/if \(!admin\.verifySecret\(admin\.normalizeKey\(key\), adminKeyHash\(\)\)\)/,'accès admin par la clé, avec limitation des essais');
   const html=read('ui/index.html');
