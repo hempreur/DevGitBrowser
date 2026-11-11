@@ -210,7 +210,15 @@ function updateBookmarksBar(state){
   const all=elem('button','bm-all','Tous les favoris');all.type='button';all.addEventListener('click',()=>openLibrary('bookmarks'));
   bar.replaceChildren(...items,all);
 }
+// Salutation de la page d'accueil (v1.18) : selon l'heure, avec la date du jour.
+function updateGreeting(){
+  const h=new Date().getHours();
+  $('hp-greet').textContent=h>=18||h<4?'Bonsoir':h<12?'Bonjour':'Bon après-midi';
+  try{$('hp-date').textContent='· '+new Intl.DateTimeFormat(uiLocale(),{weekday:'long',day:'numeric',month:'long'}).format(new Date());}catch{}
+}
+setInterval(updateGreeting,60_000);
 function updateHome(state){
+  updateGreeting();
   const host=$('home-sites');
   const seen=new Set();const list=[];
   for(const b of state.bookmarks||[]){if(list.length<8&&!seen.has(b.url)){seen.add(b.url);list.push({...b,kind:'★'});}}
@@ -478,6 +486,7 @@ $('card-security').addEventListener('click',()=>showPanel('security'));
 $('address-form').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('address').value);});
 $('start-search').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('start-address').value);});
 $('open-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
+document.querySelector('.bv-mock')?.addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
 // Suggestions : favoris puis historique (liste native affichée au-dessus des pages).
 function suggest(input){
   clearTimeout(suggestTimer);
@@ -1071,10 +1080,17 @@ $('x-gate-ok').addEventListener('click',async()=>{
 });
 for(const id of ['x-enter-code','x-new-code'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('x-gate-ok').click();});
 $('x-exit').addEventListener('click',()=>run(()=>api.xExit(),'Mode DGBx fermé.'));
-$('x-code').addEventListener('click',async()=>{
-  const now=current?.xmodeSetup?.code?prompt('Code actuel :'):'';if(now===null)return;
-  const next=prompt('Nouveau code (4 à 8 chiffres, vide pour supprimer le code) :');if(next===null)return;
-  await run(()=>api.xResetCode(now||'',next.trim()),next.trim()?'Code d’accès modifié.':'Code d’accès supprimé.');
+// Changement du code d'accès : petit formulaire en ligne (Electron ne gère pas prompt()).
+$('x-code').addEventListener('click',()=>{
+  const has=Boolean(current?.xmodeSetup?.code);$('x-code-now').classList.toggle('hidden',!has);
+  $('x-code-now').value='';$('x-code-next').value='';$('x-code-form').classList.remove('hidden');(has?$('x-code-now'):$('x-code-next')).focus();
+});
+$('x-code-cancel').addEventListener('click',()=>$('x-code-form').classList.add('hidden'));
+$('x-code-form').addEventListener('submit',async e=>{
+  e.preventDefault();const next=$('x-code-next').value.trim();
+  if(next&&!/^\d{4,8}$/.test(next)){notify('Le code doit contenir 4 à 8 chiffres.',true);return;}
+  const ok=await run(()=>api.xResetCode($('x-code-now').value.trim(),next),next?'Code d’accès modifié.':'Code d’accès supprimé.');
+  if(ok!==null)$('x-code-form').classList.add('hidden');
 });
 function applyXmode(state){
   const on=Boolean(state.xmode);
@@ -1251,25 +1267,40 @@ function renderMap(srv){
 }
 // ---- Rapports de bug
 let adminBugs=[];
-const BUG_STATUS={new:'🆕 Nouveau',seen:'👀 Vu',fixed:'✅ Corrigé'};
+const BUG_STATUS={new:'🆕 Nouveau',seen:'👀 Vu',fixed:'✅ Corrigé',support:'💬 En discussion'};
+// Double clic de confirmation (pas de boîte de dialogue) : le bouton change de texte pendant 4 s.
+function confirmClick(btn,label,fn){btn.addEventListener('click',()=>{if(btn.dataset.armed==='1'){btn.dataset.armed='';btn.textContent=btn.dataset.label;fn();return;}btn.dataset.label=btn.textContent;btn.dataset.armed='1';btn.textContent=label;setTimeout(()=>{if(btn.dataset.armed==='1'){btn.dataset.armed='';btn.textContent=btn.dataset.label;}},4000);});}
 async function loadAdminBugs(){adminBugs=await run(()=>api.adminRemote('bugs'))||[];renderAdminBugs();}
 function renderAdminBugs(){
   const f=$('admin-bug-filter').value;
-  const list=adminBugs.filter(b=>f==='all'||(f==='fixed'?b.status==='fixed':b.status!=='fixed'));
+  // Les rapports dépliés le restent quand la liste se met à jour toute seule.
+  const opened=new Set([...$('admin-bug-list').querySelectorAll('details[open]')].map(d=>d.dataset.id));
+  const list=adminBugs.filter(b=>f==='all'||(f==='fixed'?b.status==='fixed':f==='support'?b.status==='support':b.status!=='fixed'));
+  const sig=f+JSON.stringify(list.map(b=>[b.id,b.status,b.chatOpen,b.unread]));
+  if($('admin-bug-list').dataset.sig===sig)return;$('admin-bug-list').dataset.sig=sig;
   if(!list.length){$('admin-bug-list').replaceChildren(elem('div','empty-list','Aucun rapport ici.'));return;}
   $('admin-bug-list').replaceChildren(...list.map(b=>{
-    const box=elem('details','admin-bug '+b.status);const sum=elem('summary');
+    const box=elem('details','admin-bug '+b.status);box.dataset.id=b.id;if(opened.has(b.id))box.open=true;const sum=elem('summary');
     sum.append(elem('b','',BUG_STATUS[b.status]||b.status),elem('span','',new Date(b.at).toLocaleString(uiLocale())+` · v${b.v} · ${FLAG(b.cc)} ${b.os}`),elem('em','',b.text.slice(0,90)));
+    if(b.unread>0)sum.append(elem('span','bug-unread',`💬 ${b.unread}`));
     box.append(sum,elem('p','admin-bug-text',b.text));
     if(b.contact)box.append(elem('p','muted','Contact : '+b.contact));
     if(b.log)box.append(elem('pre','bug-preview',b.log));
     const actions=elem('div','form-buttons');
+    if(b.canChat){
+      const chat=elem('button',b.chatOpen?'primary small-btn':'outline small-btn',b.chatOpen?'💬 Ouvrir la discussion':'💬 Prendre en charge');chat.type='button';
+      chat.title=b.chatOpen?'Rouvre la fenêtre de discussion':'Ouvre une discussion de support : une fenêtre s’ouvre ici et chez la personne';
+      chat.addEventListener('click',async()=>{if(b.chatOpen)await run(()=>api.adminRemote('support-window',b.id));else if(await run(()=>api.adminRemote('support-open',b.id,'Bonjour ! Merci pour ton signalement. Je regarde ton problème avec toi.'))){b.chatOpen=true;b.status='support';renderAdminBugs();}});
+      actions.append(chat);
+    }else actions.append(elem('span','muted small-note','Discussion impossible : rapport envoyé par une version antérieure à la 1.18.'));
     for(const [st,label] of [['seen','Marquer vu'],['fixed','Marquer corrigé'],['new','Remettre à traiter']])if(b.status!==st){const btn=elem('button','outline small-btn',label);btn.type='button';btn.addEventListener('click',async()=>{if(await run(()=>api.adminRemote('bug-status',b.id,st))){b.status=st;renderAdminBugs();}});actions.append(btn);}
-    const del=elem('button','outline small-btn danger','Supprimer');del.type='button';del.addEventListener('click',async()=>{if(await run(()=>api.adminRemote('bug-delete',b.id))!==null){adminBugs=adminBugs.filter(x=>x!==b);renderAdminBugs();}});
+    const del=elem('button','outline small-btn danger','Supprimer');del.type='button';confirmClick(del,'Confirmer ?',async()=>{if(await run(()=>api.adminRemote('bug-delete',b.id))){adminBugs=adminBugs.filter(x=>x!==b);renderAdminBugs();}});
     actions.append(del);box.append(actions);return box;
   }));
 }
 $('admin-bug-filter').addEventListener('change',renderAdminBugs);
+confirmClick($('admin-bugs-clear-fixed'),'Confirmer ?',async()=>{const r=await run(()=>api.adminRemote('bugs-delete','fixed'));if(r){notify(`${r.deleted} rapport(s) corrigé(s) supprimé(s).`);loadAdminBugs();}});
+confirmClick($('admin-bugs-clear-all'),'Vraiment tout ?',async()=>{const r=await run(()=>api.adminRemote('bugs-delete','all'));if(r){notify(`${r.deleted} rapport(s) supprimé(s).`);loadAdminBugs();}});
 // ---- Messages ciblés et arrêt d'urgence
 const KILL_FEATURES={store:'Boutique',preview:'Aperçu des liens',media:'Lecteur protégé',vpn:'VPN',import:'Import',telemetry:'Statistiques'};
 let adminConfig=null;
@@ -1278,11 +1309,17 @@ function renderAdminRemote(){
   const n=c.listening||0;$('admin-listening').replaceChildren(elem('i'),document.createTextNode(` ${nf.format(n)} navigateur${n>1?'s':''} ouvert${n>1?'s':''}`));
   // Messages récents
   const recent=c.recent||[];
+  // Liste reconstruite seulement si elle a changé (garde un bouton « Confirmer ? » armé pendant les mises à jour en direct).
+  const sig=JSON.stringify(recent.map(m=>[m.id,m.delivered]));
+  if($('admin-msg-list').dataset.sig!==sig){$('admin-msg-list').dataset.sig=sig;
   $('admin-msg-list').replaceChildren(...(recent.length?recent.map(m=>{
     const row=elem('div','item-row');const text=elem('span','item-text');
     text.append(elem('strong','',(m.level==='alert'?'⚠️ ':'📣 ')+m.text),elem('small','',`${new Date(m.at).toLocaleString(uiLocale())} · reçu par ${nf.format(m.delivered||0)} navigateur(s)`+(m.versions&&m.versions!=='*'?` · versions ${m.versions}`:'')+(m.countries?.length?` · ${m.countries.join(', ')}`:'')));
-    row.append(text);return row;
-  }):[elem('div','empty-list','Aucun message envoyé ces dernières 24 heures.')]));
+    const del=elem('button','outline small-btn danger','Retirer');del.type='button';del.title='Supprime ce message, y compris des navigateurs ouverts';
+    confirmClick(del,'Confirmer ?',async()=>{const r=await run(()=>api.adminRemote('message-delete',m.id),'Message retiré.');if(r){adminConfig=r;renderAdminRemote();}});
+    row.append(text,del);return row;
+  }):[elem('div','empty-list','Aucun message envoyé ces dernières 24 heures.')]));}
+  $('admin-msg-clear').classList.toggle('hidden',!recent.length);
   // Arrêt d'urgence
   const L=c.lockdown||{};const on=L.active===true;
   $('ak-state').className='lock-state '+(on?'on':'off');
@@ -1292,7 +1329,7 @@ function renderAdminRemote(){
   for(const id of ['ak-versions','ak-message']){$(id).disabled=on;}
   if(!on&&document.activeElement!==$('ak-versions')&&!$('ak-versions').value)$('ak-versions').value='';
   if(on){$('ak-versions').value=L.versions||'';$('ak-message').value=L.message||'';}
-  $('ak-features').replaceChildren(...Object.entries(KILL_FEATURES).map(([id,label])=>{const l=elem('label','check-line');const cb=elem('input');cb.type='checkbox';cb.value=id;cb.checked=(c.features||[]).includes(id);l.append(cb,document.createTextNode(' '+label));return l;}));
+  if($('ak-features').dataset.dirty!=='1')$('ak-features').replaceChildren(...Object.entries(KILL_FEATURES).map(([id,label])=>{const l=elem('label','check-line');const cb=elem('input');cb.type='checkbox';cb.value=id;cb.checked=(c.features||[]).includes(id);l.append(cb,document.createTextNode(' '+label));return l;}));
 }
 async function loadAdminConfig(){adminConfig=await run(()=>api.adminRemote('config'));renderAdminRemote();}
 $('admin-msg-form').addEventListener('submit',async e=>{
@@ -1324,7 +1361,9 @@ $('ak-lift').addEventListener('click',async()=>{
   const r=await run(()=>api.adminRemote('lockdown',{active:false}),'✅ Navigateurs débloqués.');
   if(r){adminConfig=r;renderAdminRemote();}
 });
-$('ak-features-save').addEventListener('click',async()=>{
+$('ak-features').addEventListener('change',()=>{$('ak-features').dataset.dirty='1';});
+confirmClick($('admin-msg-clear'),'Confirmer ?',async()=>{const r=await run(()=>api.adminRemote('message-delete','all'),'Messages retirés.');if(r){adminConfig=r;renderAdminRemote();}});
+$('ak-features-save').addEventListener('click',async()=>{$('ak-features').dataset.dirty='';
   const list=[...$('ak-features').querySelectorAll('input:checked')].map(c=>c.value);
   if(list.length&&!confirm('Couper pour tout le monde : '+list.map(f=>KILL_FEATURES[f]).join(', ')+' ?'))return;
   const r=await run(()=>api.adminRemote('features',list),list.length?'Fonctions coupées.':'Toutes les fonctions sont rétablies.');
@@ -1338,7 +1377,7 @@ async function loadAdminStats(){
   renderServer(res);
   if(res.server){renderMap(res.server);loadAdminBugs();loadAdminConfig();}
   loadAdminStore();
-  const st=res.github;
+  const st=res.github;adminLive.githubAt=Date.now();
   if(!st){$('admin-kpis').replaceChildren(elem('p','muted','GitHub : '+res.githubError));$('admin-versions').replaceChildren();$('admin-community').replaceChildren();return;}
   $('admin-kpis').replaceChildren(
     kpi('Installations',nf.format(st.totals.installs),'Téléchargements de l’installateur'),
@@ -1352,6 +1391,27 @@ async function loadAdminStats(){
     row.append(elem('b','',v.tag),track,elem('span','',`${nf.format(v.installs)} install. · ${nf.format(v.updates)} MAJ`));return row;}));
   $('admin-community').replaceChildren(kpi('★ Étoiles',nf.format(st.repo.stars),'Les gens qui aiment le projet'),kpi('Abonnés',nf.format(st.repo.watchers),''),kpi('Forks',nf.format(st.repo.forks),''),kpi('Signalements ouverts',nf.format(st.repo.openIssues),'Bugs / demandes sur GitHub'));
 }
+// ---- Temps réel (v1.18) : le serveur prévient dès qu'un événement arrive ; seules les parties concernées sont rechargées.
+// Les chiffres GitHub (limités en nombre d'appels) ne sont relus qu'à l'ouverture, sur « Actualiser » ou toutes les 10 min.
+const adminLive={timer:null,kinds:new Set(),githubAt:0};
+async function refreshAdminServer(){
+  const srv=await api.adminServerStats().catch(()=>null);if(!srv)return;
+  renderServer({server:srv});renderMap(srv);
+  $('admin-updated').textContent='Mis à jour à '+clockFmt.format(new Date());
+}
+function flushAdminLive(){
+  adminLive.timer=null;if($('admin-dash').classList.contains('hidden'))return;
+  const k=adminLive.kinds;adminLive.kinds=new Set();
+  if(k.has('stats')||k.has('bugs'))refreshAdminServer();
+  if(k.has('bugs')||k.has('support'))loadAdminBugs();
+  if(k.has('messages')||k.has('config')||k.has('listening'))loadAdminConfig();
+  if(Date.now()-adminLive.githubAt>10*60_000)loadAdminStats();
+}
+api.onAdminEvent(ev=>{
+  for(const k of ev?.kinds||[])adminLive.kinds.add(k);
+  const dot=$('admin-realtime');dot.classList.remove('pulse');void dot.offsetWidth;dot.classList.add('pulse');
+  if(!adminLive.timer)adminLive.timer=setTimeout(flushAdminLive,400);
+});
 $('admin-token-form').addEventListener('submit',async e=>{e.preventDefault();const ok=await run(()=>api.adminSetToken($('admin-token').value),'Jeton du serveur enregistré (chiffré).');$('admin-token').value='';if(ok)loadAdminStats();});
 $('admin-token-change').addEventListener('click',()=>{$('admin-server-data').classList.add('hidden');$('admin-server-setup').classList.remove('hidden');$('admin-token-form').classList.remove('hidden');$('admin-server-hint').textContent='Colle le nouveau jeton du serveur.';$('admin-token').focus();});
 

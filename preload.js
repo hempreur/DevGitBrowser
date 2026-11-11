@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   welcomed:()=>invoke('app:welcomed'),
   xSetup:(age,code)=>invoke('xmode:setup',age,code),xEnter:code=>invoke('xmode:enter',code),xExit:()=>invoke('xmode:exit'),
   xResetCode:(code,next)=>invoke('xmode:reset-code',code,next),xOpen:url=>invoke('xmode:open',url),weatherCity:name=>invoke('weather:set-city',name),weatherRefresh:()=>invoke('weather:refresh'),
-  adminUnlock:key=>invoke('admin:unlock',key),adminRecover:words=>invoke('admin:recover',words),adminClose:()=>invoke('admin:close'),adminStats:()=>invoke('admin:stats'),adminSetToken:t=>invoke('admin:set-token',t),telemetryConsent:yes=>invoke('telemetry:consent',yes),rate:n=>invoke('telemetry:rate',n),storeCatalog:force=>invoke('store:catalog',force),storeDetails:id=>invoke('store:details',id),storeInstall:id=>invoke('store:install',id),storeUninstall:id=>invoke('store:uninstall',id),storePublish:id=>invoke('store:publish',id),storeUnpublish:id=>invoke('store:unpublish',id),openLog:()=>invoke('app:open-log'),repair:what=>invoke('app:repair',what),
+  adminUnlock:key=>invoke('admin:unlock',key),adminRecover:words=>invoke('admin:recover',words),adminClose:()=>invoke('admin:close'),adminStats:()=>invoke('admin:stats'),adminServerStats:()=>invoke('admin:server-stats'),adminSetToken:t=>invoke('admin:set-token',t),telemetryConsent:yes=>invoke('telemetry:consent',yes),rate:n=>invoke('telemetry:rate',n),storeCatalog:force=>invoke('store:catalog',force),storeDetails:id=>invoke('store:details',id),storeInstall:id=>invoke('store:install',id),storeUninstall:id=>invoke('store:uninstall',id),storePublish:id=>invoke('store:publish',id),storeUnpublish:id=>invoke('store:unpublish',id),openLog:()=>invoke('app:open-log'),repair:what=>invoke('app:repair',what),
   pwCreate:m=>invoke('pw:create',m),pwUnlock:m=>invoke('pw:unlock',m),pwLock:()=>invoke('pw:lock'),pwList:q=>invoke('pw:list',q),
   pwReveal:id=>invoke('pw:reveal',id),pwCopy:(id,field)=>invoke('pw:copy',id,field),pwSave:data=>invoke('pw:save',data),
   pwUpdate:(id,data)=>invoke('pw:update',id,data),pwDelete:id=>invoke('pw:delete',id),pwGenerate:(len,opts)=>invoke('pw:generate',len,opts),pwBreach:()=>invoke('pw:breach'),pwImportCsv:remove=>invoke('pw:import-csv',Boolean(remove)),
@@ -50,6 +50,6 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   githubRepo:(repo,branch)=>invoke('github:choose-repo',repo,branch),
   githubSync:()=>invoke('github:sync'),githubDisconnect:()=>invoke('github:disconnect'),
   onLegacyReady:listen('dgb:legacy-ready'),onLegacyError:listen('dgb:legacy-error'),
-  onState:listen('dgb:state'),onNotice:listen('dgb:notice'),onCommand:listen('dgb:command'),onFindResult:listen('dgb:find-result'),
+  onState:listen('dgb:state'),onNotice:listen('dgb:notice'),onCommand:listen('dgb:command'),onAdminEvent:listen('dgb:admin-event'),onFindResult:listen('dgb:find-result'),
   onHoverUrl:listen('dgb:hover-url'),onFocusFind:listen('dgb:focus-find'),onFocusAddress:listen('dgb:focus-address')
 }));

@@ -128,7 +128,7 @@ function engageLockdown(info) {
   try { if (windows.size) { settings.restoreAfterUpdate = true; saveSettings(); saveSessionNow(); } } catch {}
   openLockWindow();
   try { closeLinkPreview(); } catch {}
-  for (const w of [updateWin, radioWin]) { try { if (w && !w.isDestroyed()) w.destroy(); } catch {} }
+  for (const w of [updateWin, radioWin, ...supportWins.values()]) { try { if (w && !w.isDestroyed()) w.destroy(); } catch {} }
   try { if (tor?.state?.status && tor.state.status !== 'off') { vpnGlobal = false; tor.stop?.(); } } catch {}
   for (const st of [...windows.values()]) { try { st.win.destroy(); } catch {} }
 }
@@ -156,7 +156,7 @@ function adminUnlockLockScreen(key) {
   if (!windows.size) restoreSession();
   if (lockWin && !lockWin.isDestroyed()) { const w = lockWin; lockWin = null; try { w.destroy(); } catch {} }
   const s = windows.values().next().value;
-  if (s) { s.adminOpen = true; broadcast(); setTimeout(() => { if (!s.win.isDestroyed()) s.win.webContents.send('dgb:command', 'admin-dash'); }, 900); }
+  if (s) { s.adminOpen = true; broadcast(); adminWatchLoop(); setTimeout(() => { if (!s.win.isDestroyed()) s.win.webContents.send('dgb:command', 'admin-dash'); }, 900); }
 }
 async function recheckLock() {
   if (!remote || !telemetry?.available) { sendLockStatus('offline'); return; }
@@ -175,6 +175,104 @@ function onLiveMessage(m) {
     try { if (Notification.isSupported()) { const n = new Notification({title: T('⚠️ Alerte DevGitBrowser'), body: m.text, icon: path.join(__dirname, 'assets', 'icon.png'), urgency: 'critical'}); n.on('click', () => { const s = focusedState() || windows.values().next().value; if (s) { if (s.win.isMinimized()) s.win.restore(); s.win.focus(); } }); n.show(); } } catch {}
   }
   broadcast();
+}
+// Message retiré par l'éditeur : il disparaît du bandeau des navigateurs ouverts.
+function onLiveRetract(ids) {
+  const gone = new Set(ids); const before = liveMessages.length;
+  liveMessages = liveMessages.filter(m => !gone.has(m.id));
+  if (liveMessages.length !== before) broadcast();
+}
+// ======================================================== Tchat de support (v1.18)
+// Côté utilisateur : chaque signalement porte une clé secrète ; quand l'éditeur le prend en charge, une
+// fenêtre de discussion s'ouvre automatiquement. Côté admin : même fenêtre, en mode « support ».
+const supportWins = new Map();   // 'user:<id>' | 'admin:<id>' → BrowserWindow
+const supportOwner = new Map();  // webContents.id → {mode, bugId}
+const supportViews = new Map();  // bugId → dernière vue reçue (côté utilisateur)
+const SUPPORT_MAX_CHATS = 5;
+const supportChatList = () => (Array.isArray(settings.supportChats) ? settings.supportChats : []);
+function addSupportChat(bugId, key, subject) {
+  settings.supportChats = [...supportChatList().filter(c => c.bugId !== bugId), {bugId, key, subject: String(subject || '').slice(0, 140), at: new Date().toISOString()}].slice(-SUPPORT_MAX_CHATS);
+  saveSettings();
+}
+function sendSupport(mode, bugId, view) {
+  const w = supportWins.get(mode + ':' + bugId);
+  if (w && !w.isDestroyed()) w.webContents.send('dgb-support:update', view);
+}
+function openSupportWindow(mode, bugId, {focus = true} = {}) {
+  const k = mode + ':' + bugId; let w = supportWins.get(k);
+  if (w && !w.isDestroyed()) { if (focus) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); } return w; }
+  w = new BrowserWindow({width: 460, height: 640, minWidth: 360, minHeight: 440, title: mode === 'admin' ? T('Support — discussion avec l’utilisateur') : T('Support DevGitBrowser'),
+    icon: path.join(__dirname, 'assets', 'icon.png'), backgroundColor: '#0d0b1c', show: false, autoHideMenuBar: true,
+    webPreferences: {preload: path.join(__dirname, 'ui', 'support', 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true}});
+  w.setMenu(null);
+  const wcId = w.webContents.id;
+  supportWins.set(k, w); supportOwner.set(wcId, {mode, bugId});
+  w.webContents.on('will-navigate', e => e.preventDefault());
+  w.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  w.once('ready-to-show', () => { if (focus) { w.show(); w.focus(); } else w.showInactive(); });
+  w.on('closed', () => { supportWins.delete(k); supportOwner.delete(wcId); });
+  w.loadFile(path.join(__dirname, 'ui', 'support', 'index.html'), {query: {mode}});
+  if (mode === 'admin') adminWatchLoop();
+  return w;
+}
+function onSupportView(v) {
+  if (locked) return;
+  const chat = supportChatList().find(c => c.bugId === v.bugId); if (!chat) return;
+  const prev = supportViews.get(v.bugId); supportViews.set(v.bugId, v);
+  const w = supportWins.get('user:' + v.bugId);
+  if (v.open && (!w || w.isDestroyed())) openSupportWindow('user', v.bugId);
+  sendSupport('user', v.bugId, {...v, subject: v.subject || chat.subject});
+  const last = v.messages[v.messages.length - 1];
+  if (prev && last?.from === 'admin' && !(w && !w.isDestroyed() && w.isFocused())) {
+    try { if (Notification.isSupported()) { const n = new Notification({title: T('💬 Réponse du support DevGitBrowser'), body: last.text.slice(0, 200), icon: path.join(__dirname, 'assets', 'icon.png')}); n.on('click', () => openSupportWindow('user', v.bugId)); n.show(); } } catch {}
+  }
+  // Discussion close : la fenêtre affiche la fin ; on arrête d'écouter ce signalement.
+  if (!v.open && v.messages.some(m => m.from === 'system' && m.text === 'close')) { settings.supportChats = supportChatList().filter(c => c.bugId !== v.bugId); saveSettings(); }
+}
+async function adminSupportCall(bugId, action = '', body) {
+  const token = readStatsToken(); if (!token || !telemetry?.available) throw new Error('Enregistre d’abord le jeton du serveur.');
+  const p = '/v1/admin/support/' + bugId + (action ? '/' + action : '');
+  return telemetry.api(p, {method: action ? 'POST' : 'GET', body: action ? (body || {}) : undefined, token, timeout: 20_000, maxBytes: 2 * 1024 * 1024});
+}
+async function refreshAdminSupport(bugId) {
+  try { const v = await adminSupportCall(bugId); sendSupport('admin', bugId, v); const w = supportWins.get('admin:' + bugId); if (w && !w.isDestroyed() && w.isFocused()) adminSupportCall(bugId, 'read').catch(() => {}); } catch (e) { sendSupport('admin', bugId, {error: e.message}); }
+}
+// ---- Panneau admin en temps réel : écoute longue du serveur tant que le panneau ou une discussion est ouvert.
+let adminWatchRunning = false, adminWatchRev = -1;
+const adminWatching = () => [...windows.values()].some(s => s.adminOpen && !s.win.isDestroyed()) || [...supportWins.keys()].some(k => k.startsWith('admin:'));
+const pause = ms => new Promise(r => { const t = setTimeout(r, ms); t.unref?.(); });
+function emitAdminEvent(ev) {
+  for (const s of windows.values()) if (s.adminOpen && !s.win.isDestroyed()) s.win.webContents.send('dgb:admin-event', ev);
+  if (ev.kinds.includes('support') || ev.kinds.includes('bugs')) {
+    for (const k of supportWins.keys()) if (k.startsWith('admin:')) refreshAdminSupport(k.slice(6));
+    // Un utilisateur écrit dans une discussion ouverte : la fenêtre de support s'ouvre aussi côté admin.
+    if (ev.kinds.includes('support') && [...windows.values()].some(s => s.adminOpen)) {
+      const token = readStatsToken();
+      if (token) telemetry.api('/v1/admin/bugs', {token, timeout: 20_000, maxBytes: 20 * 1024 * 1024}).then(r => {
+        for (const b of r?.bugs || []) if (b.chatOpen && b.unread > 0 && !supportWins.has('admin:' + b.id)) openSupportWindow('admin', b.id, {focus: false});
+      }).catch(() => {});
+    }
+  }
+}
+async function adminWatchLoop() {
+  if (adminWatchRunning) return; adminWatchRunning = true; let fails = 0;
+  try {
+    while (adminWatching()) {
+      const token = readStatsToken();
+      if (!token || !telemetry?.available) { await pause(2_000); continue; }
+      try {
+        const r = await telemetry.api('/v1/admin/watch?rev=' + adminWatchRev, {token, timeout: 40_000, maxBytes: 16 * 1024});
+        fails = 0; const first = adminWatchRev < 0;
+        if (Number.isSafeInteger(r?.rev)) adminWatchRev = r.rev;
+        const kinds = (Array.isArray(r?.kinds) ? r.kinds : []).filter(k => typeof k === 'string').slice(0, 10);
+        if (!first && kinds.length) emitAdminEvent({kinds, listening: Number(r.listening) || 0});
+      } catch (e) {
+        // Serveur antérieur à la 1.18 (pas d'écoute admin) : simple rafraîchissement toutes les 30 s.
+        if (/404|not found/i.test(e.message)) { await pause(30_000); emitAdminEvent({kinds: ['stats', 'bugs', 'config'], poll: true}); continue; }
+        await pause(Math.min(30_000, 2_000 * ++fails));
+      }
+    }
+  } finally { adminWatchRunning = false; }
 }
 // ======================================================== Mises à jour : notification et fenêtre (v1.16)
 let updateWin = null, updateFlow = null;
@@ -386,7 +484,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, language:'auto', refCode:'', referredBy:'', refAutoChecked:false, restoreAfterUpdate:false, dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, language:'auto', refCode:'', referredBy:'', refAutoChecked:false, restoreAfterUpdate:false, dismissedMessages:[], supportChats:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -413,6 +511,7 @@ function loadSettings() {
     if (remoteLib.validRefCode(raw.refCode)) p.refCode=raw.refCode;
     if (remoteLib.validRefCode(raw.referredBy)) p.referredBy=raw.referredBy;
     if (Array.isArray(raw.dismissedMessages)) p.dismissedMessages=raw.dismissedMessages.filter(x=>typeof x==='string'&&/^[a-z0-9-]{4,40}$/.test(x)).slice(-50);
+    if (Array.isArray(raw.supportChats)) p.supportChats=raw.supportChats.filter(c=>c&&/^[a-f0-9]{16}$/.test(c.bugId)&&/^[a-f0-9]{64}$/.test(c.key)).slice(-5).map(c=>({bugId:c.bugId,key:c.key,subject:String(c.subject||'').slice(0,140),at:String(c.at||'').slice(0,40)}));
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
@@ -1242,7 +1341,7 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
-  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store','refCode','referredBy','refAutoChecked','restoreAfterUpdate','dismissedMessages'].includes(key)) throw new Error('Réglage protégé.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store','refCode','referredBy','refAutoChecked','restoreAfterUpdate','dismissedMessages','supportChats'].includes(key)) throw new Error('Réglage protégé.');
   if (key==='telemetry') { setTelemetry(value); return; }
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
@@ -2561,7 +2660,7 @@ function registerIpc(){
     'admin:unlock':(s,key)=>{
       adminLimiter.check();
       if(!admin.verifySecret(admin.normalizeKey(key),adminKeyHash())){adminLimiter.fail();logger.warn('Admin : clé refusée');throw new Error('Clé admin incorrecte.');}
-      adminLimiter.ok(); s.adminOpen=true; broadcast(); return true;
+      adminLimiter.ok(); s.adminOpen=true; broadcast(); adminWatchLoop(); return true;
     },
     'admin:recover':(_s,words)=>{
       adminLimiter.check();
@@ -2578,6 +2677,11 @@ function registerIpc(){
       return {github:github.status==='fulfilled'?github.value:null, githubError:github.status==='rejected'?github.reason.message:'',
         server:server.status==='fulfilled'?server.value:null, serverError:server.status==='rejected'?server.reason.message:'', serverUrl:STATS_URL};
     },
+    'admin:server-stats':async s=>{
+      if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
+      const token=readStatsToken();if(!token||!telemetry?.available)return null;
+      return telemetry.adminStats(token);
+    },
     'admin:remote':async(s,action,arg,arg2)=>{
       if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
       const token=readStatsToken();if(!token||!telemetry?.available)throw new Error('Enregistre d’abord le jeton du serveur.');
@@ -2587,9 +2691,13 @@ function registerIpc(){
       if(action==='features'){const r=await call('/v1/admin/features',{method:'PUT',body:{features:Array.isArray(arg)?arg:[]}});return r;}
       if(action==='message')return call('/v1/admin/messages',{method:'POST',body:arg&&typeof arg==='object'?arg:{}});
       if(action==='bugs')return (await call('/v1/admin/bugs'))?.bugs||[];
+      if(action==='message-delete'){if(arg==='all')return call('/v1/admin/messages',{method:'DELETE'});const n=Number(arg);if(!Number.isSafeInteger(n)||n<0)throw new Error('Message inconnu.');return call('/v1/admin/messages/'+n,{method:'DELETE'});}
+      if(action==='bugs-delete')return call('/v1/admin/bugs'+(arg==='fixed'?'?status=fixed':''),{method:'DELETE'});
       const id=String(arg||'');if(!/^[a-f0-9]{16}$/.test(id))throw new Error('Rapport inconnu.');
       if(action==='bug-status'&&['new','seen','fixed'].includes(arg2))return call('/v1/admin/bugs/'+id,{method:'PATCH',body:{status:arg2}});
-      if(action==='bug-delete')return call('/v1/admin/bugs/'+id,{method:'DELETE'});
+      if(action==='bug-delete'){const w=supportWins.get('admin:'+id);if(w&&!w.isDestroyed())w.destroy();await call('/v1/admin/bugs/'+id,{method:'DELETE'});return true;}
+      if(action==='support-open'){const r=await adminSupportCall(id,'open',{welcome:String(arg2||'').slice(0,1000)});openSupportWindow('admin',id);setTimeout(()=>sendSupport('admin',id,r),600).unref?.();return r;}
+      if(action==='support-window'){openSupportWindow('admin',id);return true;}
       throw new Error('Action inconnue.');
     },
     'admin:set-token':(s,value)=>{
@@ -2687,7 +2795,10 @@ function registerIpc(){
       let log='';if(data?.withLog===true){try{log=fs.readFileSync(logger.path(),'utf8');}catch{}log=remoteLib.sanitizeLog(logger.redact(log));}
       const cc=(()=>{try{return app.getLocaleCountryCode();}catch{return '';}})();
       const header=`DevGitBrowser ${app.getVersion()} · Electron ${process.versions.electron} · ${process.platform} ${os.release()} · ${os.arch()}\n`;
-      const r=await telemetry.api('/v1/bug',{method:'POST',body:{text,contact:String(data?.contact||'').slice(0,120),v:app.getVersion(),os:telemetryLib.osName(process.platform),cc:/^[A-Z]{2}$/.test(cc)?cc:'ZZ',log:log?header+log:header},timeout:30_000});
+      // Clé secrète du tchat de support : seule son empreinte part au serveur ; elle reste sur ce PC.
+      const chatKey=require('crypto').randomBytes(32).toString('hex');
+      const r=await telemetry.api('/v1/bug',{method:'POST',body:{text,contact:String(data?.contact||'').slice(0,120),v:app.getVersion(),os:telemetryLib.osName(process.platform),cc:/^[A-Z]{2}$/.test(cc)?cc:'ZZ',log:log?header+log:header,chatKey},timeout:30_000});
+      if(/^[a-f0-9]{16}$/.test(r?.id||''))addSupportChat(r.id,chatKey,text);
       logger.info('Rapport de bug envoyé',r?.id);ach('bump','bugs');return r?.id||'';
     },
     'ref:info':async()=>{
@@ -2791,6 +2902,27 @@ function registerIpc(){
   ipcMain.handle('dgb-radio:theme',event=>(radioWin&&event.sender===radioWin.webContents)?settings.theme:'');
   // Scriptlets anti-publicités synchrones, demandés par le preload des pages.
   ipcMain.on('dgb-i18n:get',event=>{ event.returnValue=i18nPayload(); });
+  // Fenêtres de support : la discussion est déduite de la fenêtre appelante, jamais des arguments.
+  const supportOf=event=>supportOwner.get(event.sender.id)||null;
+  ipcMain.handle('dgb-support:get',async event=>{
+    const o=supportOf(event);if(!o)throw new Error('Fenêtre inconnue.');
+    if(o.mode==='admin'){const v=await adminSupportCall(o.bugId);adminSupportCall(o.bugId,'read').catch(()=>{});return {mode:'admin',...v};}
+    const chat=supportChatList().find(c=>c.bugId===o.bugId);const v=supportViews.get(o.bugId);
+    return {mode:'user',bugId:o.bugId,subject:v?.subject||chat?.subject||'',open:v?v.open:true,messages:v?.messages||[],seq:v?.seq||0};
+  });
+  ipcMain.handle('dgb-support:send',async(event,raw)=>{
+    const o=supportOf(event);if(!o)throw new Error('Fenêtre inconnue.');
+    const text=String(raw||'').replace(/\u0000/g,'').trim().slice(0,1000);if(!text)throw new Error('Message vide.');
+    if(o.mode==='admin'){const v=await adminSupportCall(o.bugId,'messages',{text});return {mode:'admin',...v};}
+    const chat=supportChatList().find(c=>c.bugId===o.bugId);if(!chat)throw new Error('Cette discussion est terminée.');
+    const v=await telemetry.api('/v1/support/'+o.bugId+'/messages',{method:'POST',body:{key:chat.key,text},timeout:20_000,maxBytes:1024*1024});
+    const clean=remoteLib.cleanSupport([v])[0];if(clean){supportViews.set(o.bugId,clean);if(remote)remote.chatSeq.set(o.bugId,clean.seq);}
+    return {mode:'user',...(clean||{})};
+  });
+  ipcMain.handle('dgb-support:end',async event=>{
+    const o=supportOf(event);if(!o||o.mode!=='admin')throw new Error('Action réservée au support.');
+    return {mode:'admin',...await adminSupportCall(o.bugId,'close')};
+  });
   ipcMain.on('dgb-lock:get',event=>{ event.returnValue={message:lockInfo.message, version:app.getVersion()}; });
   ipcMain.on('dgb-lock:action',(event,action,arg)=>{
     if(!lockWin||event.sender!==lockWin.webContents)return;
@@ -2903,7 +3035,7 @@ else {
     remote=new remoteLib.RemoteConfig({telemetry,version:app.getVersion(),country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},
       initialLock:startupLock,
       onLock:(lock,{reached})=>{ if(lock.blocked)engageLockdown(lock); else if(reached)liftLockdown(); },
-      onMessage:onLiveMessage,
+      onMessage:onLiveMessage,onRetract:onLiveRetract,onSupport:onSupportView,getChats:supportChatList,
       onFeatures:list=>{ if(list.includes('preview'))closeLinkPreview(); broadcast(); }});
     remote.start();
     setTimeout(()=>autoReferral().catch(e=>logger.warn('Parrainage auto',e.message)),3_000).unref?.();

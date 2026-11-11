@@ -53,7 +53,7 @@ test('succès secrets DGBx : invisibles hors du mode, points et rang',()=>{
 
 test('succès et invitations câblés dans le navigateur',()=>{
   const main=read('main.js'),html=read('ui/index.html'),js=read('ui/renderer.js');
-  assert.match(html,/id="trophy-btn"[^>]*>.*🏆/);assert.ok(html.indexOf('id="trophy-btn"')<html.indexOf('id="clock-weather"'),'à côté de la météo et de l’heure');
+  assert.match(html,/id="trophy-btn"[^>]*><svg class="trophy-ico"/);assert.ok(html.indexOf('id="trophy-btn"')<html.indexOf('id="clock-weather"'),'à côté de la météo et de l’heure');
   for(const c of ['link','message','whatsapp','discord','telegram','x','facebook','reddit','email'])assert.match(html,new RegExp(`data-share="${c}"`),c);
   for(const k of ['pages','bookmarks','pip','privateTabs','previews','extensions','breachChecks','trackerReports','invites','bugs','imports'])assert.match(main,new RegExp(`ach\\('bump', ?'${k}'`),k);
   assert.match(main,/if \(a\.secret && !inDgbx\(\)\) continue;/);assert.match(main,/'ach:summary':s=>achievements\?achievements\.summary\(\{includeSecret:Boolean\(s\.xmode\)\}\)/);
