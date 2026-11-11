@@ -530,3 +530,12 @@ html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrom
 .tier-bronze .ach-tier{color:#e0a26a}.tier-silver .ach-tier{color:#d6dbe6}.tier-gold .ach-tier{color:#f5c542}.tier-platinum .ach-tier{color:#9ff0ff}
 @media (prefers-reduced-motion:reduce){.trophy-btn.glow{animation:none}}
 .welcome-ref-done{margin-top:16px;padding:10px 14px;border:1px solid #7df2b655;border-radius:10px;background:#0f2a2a;color:#bdf5dc!important;font-size:13px!important}
+/* v1.17 — messages en direct / arrêt d'urgence */
+.level-pick{display:flex;gap:18px;flex-wrap:wrap}.level-pick label{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer}.level-pick input{width:auto;margin:0;accent-color:var(--mint)}.level-pick small{color:#9fb0e0;font-weight:400}
+.admin-target{margin:8px 0}.admin-target summary{cursor:pointer;color:#9fb0e0;font-size:12px}
+.lock-state{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:12px;margin:8px 0 12px;border:1px solid #2c3a6a;background:#0c1234}
+.lock-state b{font-size:16px}.lock-state span{color:#9fb0e0;font-size:12px}
+.lock-state.on{border-color:#ff3d6a;background:linear-gradient(90deg,#3a0d1d,#2a0d2e);box-shadow:0 0 18px #ff3d6a33}.lock-state.on b{color:#ff8aa6}
+.danger-btn{background:linear-gradient(95deg,#d6284f,#9b1f6b);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:700 13px Inter,'Segoe UI',sans-serif;cursor:pointer}.danger-btn:disabled{opacity:.45;cursor:default}
+.ak-confirm{margin-top:12px;padding:14px 16px;border:1px solid #ff3d6a88;border-radius:12px;background:#2a0d1d}.ak-confirm p{margin:0 0 10px;color:#ffd0dc;line-height:1.5}
+.ak-confirm input{text-transform:uppercase;letter-spacing:2px;font-weight:800}

@@ -91,6 +91,91 @@ const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
 const remoteLib = require('./lib/remote');
 const {UpdateFlow} = require('./lib/update-flow');
+// ======================================================== Arrêt d'urgence : verrouillage total (v1.17)
+// L'éditeur peut suspendre totalement le navigateur depuis son serveur. Le verrou est écrit sur le
+// disque : il s'applique aux navigateurs ouverts (instantanément) et fermés (au lancement), tient au
+// redémarrage et hors ligne, et ne se lève que lorsque le serveur confirme le déblocage.
+// Exceptions : le PC administrateur (jeton du serveur enregistré) et une session déverrouillée avec la clé admin.
+let locked = false, lockWin = null, lockInfo = {message: '', since: ''}, startupLock = null, lockActive = false, adminOverride = false;
+function readLockdown() { const d = readJson('lockdown.json'); return d && d.blocked === true ? d : null; }
+function writeLockdown(info) { try { writeAtomic(userDataFile('lockdown.json'), JSON.stringify({blocked: true, message: String(info.message || ''), since: String(info.since || ''), rev: Number(info.rev) || 0, at: new Date().toISOString()})); } catch {} }
+function clearLockdown() { try { fs.rmSync(userDataFile('lockdown.json'), {force: true}); } catch {} }
+const lockExempt = () => adminOverride || Boolean(readStatsToken());
+function sendLockStatus(state, extra = {}) { if (lockWin && !lockWin.isDestroyed()) lockWin.webContents.send('dgb-lock:status', {state, info: {message: lockInfo.message, version: app.getVersion()}, ...extra}); }
+function openLockWindow() {
+  if (lockWin && !lockWin.isDestroyed()) { if (lockWin.isMinimized()) lockWin.restore(); lockWin.show(); lockWin.focus(); return; }
+  lockWin = new BrowserWindow({width: 640, height: 660, resizable: false, maximizable: false, fullscreenable: false,
+    title: T('DevGitBrowser — Accès suspendu'), icon: path.join(__dirname, 'assets', 'icon.png'), backgroundColor: '#0a0a1e', show: false, autoHideMenuBar: true,
+    webPreferences: {preload: path.join(__dirname, 'ui', 'lock', 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true}});
+  lockWin.setMenu(null);
+  lockWin.webContents.on('will-navigate', e => e.preventDefault());
+  lockWin.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  lockWin.once('ready-to-show', () => { lockWin.show(); lockWin.focus(); });
+  // Fermer la fenêtre revient à quitter ; au prochain lancement, le verrou local re-bloque l'accès.
+  lockWin.on('closed', () => { lockWin = null; if (locked && !quitting) { quitting = true; app.quit(); } });
+  lockWin.loadFile(path.join(__dirname, 'ui', 'lock', 'index.html'));
+}
+// Applique le verrou : tout est fermé (fenêtres, aperçu, radio, VPN) après sauvegarde des onglets.
+function engageLockdown(info) {
+  lockActive = true;
+  lockInfo = {message: String(info?.message || ''), since: String(info?.since || ''), rev: Number(info?.rev) || 0};
+  writeLockdown(lockInfo);
+  if (lockExempt()) { broadcast(); return; }
+  if (locked) { sendLockStatus('still'); return; }
+  locked = true;
+  logger.warn('Arrêt d’urgence : verrouillage total engagé');
+  // Onglets sauvegardés pour être rouverts au déblocage (même si « Rouvrir les onglets » est désactivé).
+  try { if (windows.size) { settings.restoreAfterUpdate = true; saveSettings(); saveSessionNow(); } } catch {}
+  openLockWindow();
+  try { closeLinkPreview(); } catch {}
+  for (const w of [updateWin, radioWin]) { try { if (w && !w.isDestroyed()) w.destroy(); } catch {} }
+  try { if (tor?.state?.status && tor.state.status !== 'off') { vpnGlobal = false; tor.stop?.(); } } catch {}
+  for (const st of [...windows.values()]) { try { st.win.destroy(); } catch {} }
+}
+function liftLockdown() {
+  const wasActive = lockActive;
+  lockActive = false; clearLockdown();
+  if (wasActive) logger.info('Arrêt d’urgence levé');
+  if (locked) {
+    locked = false; startupLock = null;
+    // D'abord rouvrir le navigateur, ENSUITE fermer l'écran de blocage (sinon, plus aucune fenêtre : Electron quitterait).
+    if (!windows.size) restoreSession();
+    if (lockWin && !lockWin.isDestroyed()) { const w = lockWin; lockWin = null; try { w.destroy(); } catch {} }
+    const s = windows.values().next().value; if (s) setTimeout(() => notice(s, '✅ L’accès à DevGitBrowser a été rétabli.'), 1200);
+  }
+  if (wasActive) broadcast();
+}
+// Déverrouillage de ce PC avec la clé admin (pour cette session), afin de pouvoir lever l'arrêt depuis l'admin.
+function adminUnlockLockScreen(key) {
+  try {
+    adminLimiter.check();
+    if (!admin.verifySecret(admin.normalizeKey(key), adminKeyHash())) { adminLimiter.fail(); logger.warn('Écran de verrouillage : clé admin refusée'); sendLockStatus('admin-refused', {error: 'Clé admin incorrecte.'}); return; }
+  } catch (e) { sendLockStatus('admin-refused', {error: e.message}); return; }
+  adminLimiter.ok(); adminOverride = true; locked = false;
+  logger.warn('Écran de verrouillage : déverrouillé avec la clé admin (session uniquement)');
+  if (!windows.size) restoreSession();
+  if (lockWin && !lockWin.isDestroyed()) { const w = lockWin; lockWin = null; try { w.destroy(); } catch {} }
+  const s = windows.values().next().value;
+  if (s) { s.adminOpen = true; broadcast(); setTimeout(() => { if (!s.win.isDestroyed()) s.win.webContents.send('dgb:command', 'admin-dash'); }, 900); }
+}
+async function recheckLock() {
+  if (!remote || !telemetry?.available) { sendLockStatus('offline'); return; }
+  sendLockStatus('checking');
+  const before = remote.reachedAt;
+  await remote.refresh().catch(() => {});
+  if (locked) sendLockStatus(remote.reachedAt === before ? 'offline' : 'still');
+}
+// Messages en direct (uniquement pendant l'utilisation) : file d'affichage en mémoire.
+let liveMessages = [];
+function onLiveMessage(m) {
+  if (locked) return;
+  liveMessages = [...liveMessages.filter(x => x.id !== m.id), m].slice(-5);
+  logger.info('Message en direct reçu', m.level);
+  if (m.level === 'alert') {
+    try { if (Notification.isSupported()) { const n = new Notification({title: T('⚠️ Alerte DevGitBrowser'), body: m.text, icon: path.join(__dirname, 'assets', 'icon.png'), urgency: 'critical'}); n.on('click', () => { const s = focusedState() || windows.values().next().value; if (s) { if (s.win.isMinimized()) s.win.restore(); s.win.focus(); } }); n.show(); } } catch {}
+  }
+  broadcast();
+}
 // ======================================================== Mises à jour : notification et fenêtre (v1.16)
 let updateWin = null, updateFlow = null;
 function sendUpdateState() { if (updateWin && !updateWin.isDestroyed() && updater) updateWin.webContents.send('dgb-update:state', updater.state); }
@@ -465,9 +550,8 @@ function publicState(s) {
     lang: i18nLang,
     achievements: achievements ? (() => { const sm = achievements.summary({includeSecret: Boolean(s.xmode)}); return {unseen: sm.unseen, unlocked: sm.unlocked, total: sm.total, rank: sm.rank.icon}; })() : null,
     materialSupported: materialSupported(),
-    remote: remote ? {blocked: remote.state.kill.blocked, killMessage: remote.state.kill.message,
-      disabled: remote.state.kill.features.map(f => remoteLib.FEATURES[f]),
-      messages: remote.state.messages.filter(m => !settings.dismissedMessages.includes(m.id))} : {blocked:false, killMessage:'', disabled:[], messages:[]},
+    remote: {lockdownAdmin: lockActive && !locked, killMessage: lockInfo.message,
+      disabled: (remote?.features || []).map(f => remoteLib.FEATURES[f]), messages: liveMessages},
     referral: {referredBy: settings.referredBy, auto: autoReferralCode === settings.referredBy && Boolean(autoReferralCode)},
     discord: {presence: settings.discordPresence, showSite: settings.discordShowSite, connected: Boolean(discord?.connected)},
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
@@ -1012,6 +1096,7 @@ function home(s) {
   sendState(s);
 }
 function createWindow({initialTab=true, bounds=null, tabs=null, activeIndex=0}={}) {
+  if (locked) { openLockWindow(); return null; }
   const display = screen.getPrimaryDisplay().workArea;
   const options = {
     width:Math.min(1320,display.width),height:Math.min(850,display.height),minWidth:740,minHeight:520,
@@ -1048,7 +1133,7 @@ function createWindow({initialTab=true, bounds=null, tabs=null, activeIndex=0}={
   win.on('leave-full-screen',()=>{ if (s.htmlFullscreen) { s.htmlFullscreen=false; const t=activeTab(s); try{t?.view.webContents.executeJavaScript('document.fullscreenElement&&document.exitFullscreen()',true).catch(()=>{});}catch{} layout(s); sendState(s); } });
   win.on('close',()=>{ if (!quitting && windows.size===1) saveSessionNow(); });
   win.on('closed',()=>{
-    for (const t of s.tabs.values()) {rememberClosed(t);stopEmbeddedLegacy(t,false);if (!t.view.webContents.isDestroyed()) t.view.webContents.close();}
+    for (const t of s.tabs.values()) {rememberClosed(t);stopEmbeddedLegacy(t,false);const wc=t.view?.webContents;if (wc && !wc.isDestroyed()) wc.close();}
     s.tabs.clear(); windows.delete(s.id);
     const inspector=networkWindows.get(s.id);if(inspector){inspector.win.close();networkWindows.delete(s.id);}
     if (!quitting && windows.size) scheduleSessionSave();
@@ -2498,7 +2583,9 @@ function registerIpc(){
       const token=readStatsToken();if(!token||!telemetry?.available)throw new Error('Enregistre d’abord le jeton du serveur.');
       const call=(p,o={})=>telemetry.api(p,{...o,token,timeout:20_000,maxBytes:20*1024*1024});
       if(action==='config')return call('/v1/admin/config');
-      if(action==='config-save'){const r=await call('/v1/admin/config',{method:'PUT',body:arg});remote?.refresh().then(()=>broadcast()).catch(()=>{});return r;}
+      if(action==='lockdown'){const r=await call('/v1/admin/lockdown',{method:'PUT',body:{active:arg?.active===true,versions:String(arg?.versions||''),message:String(arg?.message||'')}});remote?.refresh().catch(()=>{});return r;}
+      if(action==='features'){const r=await call('/v1/admin/features',{method:'PUT',body:{features:Array.isArray(arg)?arg:[]}});return r;}
+      if(action==='message')return call('/v1/admin/messages',{method:'POST',body:arg&&typeof arg==='object'?arg:{}});
       if(action==='bugs')return (await call('/v1/admin/bugs'))?.bugs||[];
       const id=String(arg||'');if(!/^[a-f0-9]{16}$/.test(id))throw new Error('Rapport inconnu.');
       if(action==='bug-status'&&['new','seen','fixed'].includes(arg2))return call('/v1/admin/bugs/'+id,{method:'PATCH',body:{status:arg2}});
@@ -2589,7 +2676,7 @@ function registerIpc(){
     'pw:profiles':()=>vault.listProfiles(),
     'pw:profile-save':(_s,data)=>{const list=vault.saveProfile(data&&typeof data==='object'?data:{});ach('atLeast','profiles',list.length);return list;},
     'pw:profile-delete':(_s,id)=>{vault.removeProfile(String(id||''));return vault.listProfiles();},
-    'remote:dismiss':(_s,id)=>{const v=String(id||'');if(!/^[a-z0-9-]{4,40}$/.test(v))return;if(!settings.dismissedMessages.includes(v)){settings.dismissedMessages=[...settings.dismissedMessages,v].slice(-50);saveSettings();}broadcast();},
+    'remote:dismiss':(_s,id)=>{const n=Number(id);liveMessages=liveMessages.filter(m=>m.id!==n);broadcast();},
     'bug:preview':()=>{
       let log='';try{log=fs.readFileSync(logger.path(),'utf8');}catch{}
       return {log:remoteLib.sanitizeLog(logger.redact(log)),info:{version:app.getVersion(),os:`${process.platform} ${os.release()}`,electron:process.versions.electron}};
@@ -2704,6 +2791,13 @@ function registerIpc(){
   ipcMain.handle('dgb-radio:theme',event=>(radioWin&&event.sender===radioWin.webContents)?settings.theme:'');
   // Scriptlets anti-publicités synchrones, demandés par le preload des pages.
   ipcMain.on('dgb-i18n:get',event=>{ event.returnValue=i18nPayload(); });
+  ipcMain.on('dgb-lock:get',event=>{ event.returnValue={message:lockInfo.message, version:app.getVersion()}; });
+  ipcMain.on('dgb-lock:action',(event,action,arg)=>{
+    if(!lockWin||event.sender!==lockWin.webContents)return;
+    if(action==='quit'){quitting=true;app.quit();}
+    else if(action==='admin')adminUnlockLockScreen(arg);
+    else recheckLock();
+  });
   ipcMain.on('dgb-update:ready',event=>{ if(updateWin&&event.sender===updateWin.webContents)sendUpdateState(); });
   ipcMain.on('dgb-update:action',(event,action)=>{
     if(!updateWin||event.sender!==updateWin.webContents)return;
@@ -2730,6 +2824,7 @@ try {
 if(!app.requestSingleInstanceLock()){app.quit();}
 else {
   app.on('second-instance',(_e,argv)=>{
+    if(locked){ openLockWindow(); return; }
     const url=(argv||[]).find(a=>/^https?:\/\//i.test(a));
     const s=focusedState();
     if(!s){createWindow(url?{tabs:[url]}:{});return;}
@@ -2804,8 +2899,12 @@ else {
       country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},platform:process.platform,
       isActive:()=>Boolean(BrowserWindow.getFocusedWindow())});
     telemetry.start();
+    startupLock=readLockdown();
     remote=new remoteLib.RemoteConfig({telemetry,version:app.getVersion(),country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},
-      onChange:st=>{ if(st.kill.blocked){logger.warn('Version désactivée à distance');updater?.check?.().catch(()=>{});} if(st.kill.features.includes('preview'))closeLinkPreview(); broadcast(); }});
+      initialLock:startupLock,
+      onLock:(lock,{reached})=>{ if(lock.blocked)engageLockdown(lock); else if(reached)liftLockdown(); },
+      onMessage:onLiveMessage,
+      onFeatures:list=>{ if(list.includes('preview'))closeLinkPreview(); broadcast(); }});
     remote.start();
     setTimeout(()=>autoReferral().catch(e=>logger.warn('Parrainage auto',e.message)),3_000).unref?.();
     discord=new DiscordPresence({clientId:DISCORD_APP_ID,onError:e=>logger.warn('Discord',e.message)});
@@ -2814,9 +2913,12 @@ else {
     // Built-in extensions work for every Windows profile, with or without GitHub.
     await loadBundledExtensions();
     loadStoreExtensions().then(startStore).catch(e=>logger.warn('Store',e.message));
+    if(startupLock){ engageLockdown(startupLock); }
+    if(!locked){
     restoreSession();
     if(settings.vpnAtStartup&&tor?.state?.available){const first=windows.values().next().value;if(first)startVpn(first,settings.vpnCountry);}
     if(settings.gamingMode)applyProcessPriority();
+    }
     updater.start();
     if(token){api().getUser().then(u=>{account={id:u.id,login:u.login};broadcast();if(settings.github)syncGithub().catch(()=>{});})
       .catch(()=>{token='';account=null;lastError='Session GitHub expirée. Reconnecte-toi.';broadcast();});}
@@ -2834,5 +2936,5 @@ else {
     for(const inspector of networkWindows.values())inspector.monitor.stop();
     if(browsing){if(settings?.clearHistoryOnExit)browsing.clearHistory(0);browsing.flush();}
   });
-  app.on('window-all-closed',()=>app.quit());
+  app.on('window-all-closed',()=>{ if(locked && lockWin && !lockWin.isDestroyed()) return; app.quit(); });
 }

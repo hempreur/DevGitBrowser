@@ -12,29 +12,17 @@ test('serveur : versions ciblées (*, exacte, <, >=, plusieurs conditions)',()=>
   assert.ok(m('<1.13.0','1.12.9'));assert.ok(!m('<1.13.0','1.13.0'));assert.ok(m('<1.13.0','1.9.0'),'comparaison numérique, pas alphabétique');
   assert.ok(m('>=1.10.0, <1.12.0','1.11.5'));assert.ok(!m('>=1.10.0, <1.12.0','1.12.0'));
   assert.ok(!m('<1.13.0','?'));
-  assert.throws(()=>srv.cleanConfig({kill:{versions:'tout'}}),/versions/);
-  assert.throws(()=>srv.cleanConfig({messages:[{text:'x',url:'http://pas-https'}]}),/https/);
+  assert.throws(()=>srv.cleanLockdown({active:true,versions:'tout'}),/versions/);
+  assert.throws(()=>srv.cleanMessage({text:'x',url:'http://pas-https'}),/https/);
+  assert.throws(()=>srv.cleanMessage({text:'  '}),/vide/);
 });
 
-test('serveur : config publique filtrée par version, pays et date',()=>{
-  srv._setConfig(srv.cleanConfig({kill:{versions:'<1.13.0',message:'Faille corrigée',features:['store','inconnue']},messages:[
-    {id:'msg-all1',text:'Bonjour à tous',versions:'*'},
-    {id:'msg-fr01',text:'Salut la France',versions:'*',countries:'fr, be'},
-    {id:'msg-old1',text:'Expiré',versions:'*',until:'2000-01-01'},
-    {id:'msg-v112',text:'Pour 1.12',versions:'1.12.0',level:'warning',url:'https://exemple.fr/x'}]}));
-  const a=srv.publicConfig('1.12.0','FR');
-  assert.equal(a.kill.blocked,true);assert.deepEqual(a.kill.features,['store']);
-  assert.deepEqual(a.messages.map(m=>m.id),['msg-all1','msg-fr01','msg-v112']);
-  assert.equal(a.messages[2].level,'warning');assert.equal(a.messages[0].versions,undefined,'règles de ciblage non divulguées');
-  const b=srv.publicConfig('1.13.0','PT');assert.equal(b.kill.blocked,false);assert.deepEqual(b.messages.map(m=>m.id),['msg-all1']);
-});
-
-test('serveur : routes HTTP config, bug, parrainage, admin protégé, en ligne',async()=>{
+test('serveur : routes HTTP bug, parrainage, admin protégé, en ligne',async()=>{
   await new Promise(r=>srv.server.listen(0,'127.0.0.1',r));
   const base=`http://127.0.0.1:${srv.server.address().port}`,auth={authorization:'Bearer '+'A'.repeat(40)};
   const j=(u,o={})=>fetch(base+u,{...o,headers:{'content-type':'application/json',...(o.headers||{})}});
   try{
-    assert.equal((await (await j('/v1/config?v=1.12.0&cc=FR')).json()).kill.blocked,true);
+    assert.equal((await (await j('/v1/config?v=1.12.0&cc=FR')).json()).lockdown.blocked,false);
     // rapport de bug
     assert.equal((await j('/v1/bug',{method:'POST',body:JSON.stringify({text:'x'})})).status,400);
     const bug=await (await j('/v1/bug',{method:'POST',body:JSON.stringify({text:'La radio plante',v:'1.13.0',os:'win',cc:'FR',contact:'bob#1',log:'ligne\n'.repeat(5)})})).json();
@@ -53,26 +41,17 @@ test('serveur : routes HTTP config, bug, parrainage, admin protégé, en ligne',
     assert.equal((await j('/v1/referral/claim',{method:'POST',body:JSON.stringify({code:'ABCD2345',id:id(2)})})).status,409,'une seule fois');
     assert.equal((await j('/v1/referral/claim',{method:'POST',body:JSON.stringify({code:'abc',id:id(3)})})).status,400);
     assert.equal((await (await j('/v1/referral/ABCD2345')).json()).count,1);
-    // configuration admin
-    assert.equal((await j('/v1/admin/config',{method:'PUT',body:'{}'})).status,401);
-    const saved=await (await j('/v1/admin/config',{method:'PUT',headers:auth,body:JSON.stringify({kill:{versions:'',features:[]},messages:[{text:'Nouvelle version !',versions:'<1.14.0'}]})})).json();
-    assert.equal(saved.messages.length,1);assert.equal((await (await j('/v1/config?v=1.13.0')).json()).messages[0].text,'Nouvelle version !');
-    assert.equal((await j('/v1/admin/config',{method:'PUT',headers:auth,body:JSON.stringify({kill:{versions:'n importe'}})})).status,400);
+    // routes admin protégées
+    for(const [m,u] of [['PUT','/v1/admin/lockdown'],['PUT','/v1/admin/features'],['POST','/v1/admin/messages'],['GET','/v1/admin/config']])
+      assert.equal((await j(u,{method:m,body:m==='GET'?undefined:'{}'})).status,401,u);
+    assert.equal((await j('/v1/admin/config',{method:'PUT',headers:auth,body:'{}'})).status,404,'ancienne route supprimée');
     // statistiques : en ligne + parrainages
     const st=await (await j('/v1/stats',{headers:auth})).json();
     assert.equal(st.live.total,2);assert.deepEqual(st.live.countries,{FR:1,PT:1});assert.equal(st.referrals.total,1);assert.deepEqual(st.referrals.top[0],['ABCD2345',1]);
-    assert.ok(fs.existsSync(path.join(process.env.DATA_DIR,'config.json')));
   } finally { await new Promise(r=>srv.server.close(r)); }
 });
 
-test('navigateur : config distante nettoyée, badges, codes de parrainage',async()=>{
-  const c=R.cleanRemote({kill:{blocked:true,message:'x'.repeat(500),features:['store','rm -rf']},messages:[{id:'ok-1',text:'hi',url:'javascript:alert(1)'},{id:'../x',text:'bad'}]});
-  assert.equal(c.kill.message.length,300);assert.deepEqual(c.kill.features,['store']);assert.equal(c.messages.length,1);assert.equal(c.messages[0].url,'');
-  let changes=0;const tm={available:true,api:async u=>{assert.match(u,/^\/v1\/config\?v=1\.13\.0&cc=FR$/);return {kill:{blocked:false,features:['vpn']},messages:[]};}};
-  const rc=new R.RemoteConfig({telemetry:tm,version:'1.13.0',country:()=>'fr',onChange:()=>changes++});
-  await rc.refresh();await rc.refresh();assert.equal(changes,1,'notifié seulement si ça change');assert.ok(rc.disabled('vpn'));assert.ok(!rc.disabled('store'));
-  const failing=new R.RemoteConfig({telemetry:{available:true,api:async()=>{throw new Error('hors ligne');}},version:'1.13.0',country:()=>'',onChange(){}});
-  await failing.refresh();assert.equal(failing.lastError,'hors ligne');assert.equal(failing.state.kill.blocked,false,'hors ligne = rien de bloqué');
+test('navigateur : badges et codes de parrainage',async()=>{
   const code=R.newRefCode();assert.ok(R.validRefCode(code));assert.ok(!R.validRefCode('abcd2345'));assert.ok(!/[01IO]/.test(code));
   assert.equal(R.badgeFor(0),null);assert.equal(R.badgeFor(1).id,'bronze');assert.equal(R.badgeFor(12).id,'gold');assert.equal(R.nextBadge(3).id,'gold');assert.equal(R.nextBadge(99),null);
 });
@@ -116,7 +95,7 @@ test('1.13 câblé : opt-in Discord, réglages protégés, admin, carte',()=>{
   assert.match(main,/if\(!s\.adminOpen\)throw new Error\('Panneau admin verrouillé\.'\);\s*const token=readStatsToken\(\);if\(!token\|\|!telemetry\?\.available\)/);
   assert.match(main,/data\?\.withLog===true/,'journal joint seulement si coché');
   assert.match(main,/remote\?\.disabled\('store'\)/);assert.match(main,/remote\?\.disabled\('vpn'\)/);assert.match(main,/remote\?\.disabled\('import'\)/);
-  for(const id of ['kill-banner','remote-banner','ref-card','bug-card','discord-section','admin-map','admin-bug-list','admin-msg-form','welcome-ref'])assert.match(html,new RegExp(`id="${id}"`),id);
+  for(const id of ['kill-banner','remote-banner','ref-card','bug-card','discord-section','admin-map','admin-bug-list','admin-msg-form','admin-lockdown-card','welcome-ref'])assert.match(html,new RegExp(`id="${id}"`),id);
   assert.match(html,/src="world-map\.js"/);assert.match(js,/renderMap\(res\.server\)/);
   global.window={};new Function('window',map)(global.window);const W=global.window.DGB_WORLD;
   assert.equal(W.w,1000);assert.ok(W.d.startsWith('M'));for(const cc of ['FR','PT','US','BR','JP','BE','DZ','MA','SG'])assert.ok(Array.isArray(W.points[cc]),cc);
