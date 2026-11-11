@@ -31,7 +31,7 @@ jobs:
           $global:LASTEXITCODE = 0
           node -e "require('@electron/fuses').flipFuses('probe/fusibles/electron.exe',{version:require('@electron/fuses').FuseVersion.V1,[require('@electron/fuses').FuseV1Options.RunAsNode]:false,[require('@electron/fuses').FuseV1Options.EnableCookieEncryption]:true,[require('@electron/fuses').FuseV1Options.EnableNodeOptionsEnvironmentVariable]:false,[require('@electron/fuses').FuseV1Options.EnableNodeCliInspectArguments]:false,[require('@electron/fuses').FuseV1Options.OnlyLoadAppFromAsar]:true}).then(()=>console.log('fusibles OK'))"
           npm install --no-save --no-audit --no-fund rcedit@4
-          node -e "require('rcedit').rcedit('probe/icone/electron.exe',{icon:'assets/icon.ico','version-string':{ProductName:'DevGitBrowser'}}).then(()=>console.log('icone OK'))"
+          node -e "(require('rcedit').rcedit||require('rcedit'))('probe/icone/electron.exe',{icon:'assets/icon.ico','version-string':{ProductName:'DevGitBrowser'}}).then(()=>console.log('icone OK'))"
       - name: Signer chaque variante
         shell: pwsh
         env:
