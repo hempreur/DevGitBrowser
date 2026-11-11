@@ -1,3 +1,14 @@
+## 1.15.1 — DevGitShield plus solide sur les Wi-Fi publics, dépôt nettoyé
+
+### Correctif
+- **DevGitShield** : sur un Wi-Fi d'hôtel, de gare ou d'entreprise (portail de connexion), une page web pouvait être reçue à la place d'une liste de filtres. Si elle ne commençait pas par `<!doctype` ou `<html`, elle était acceptée et remplaçait les règles de blocage jusqu'à la mise à jour suivante. Désormais, toute réponse HTML (type `text/html`, ou contenu commençant par `<`) est refusée et les règles actuelles sont conservées.
+
+### Dépôt
+- Nouveau README avec captures d'écran.
+- Suppression de deux fichiers devenus inutiles :
+  - `legacy/legacy-browser.ps1` : ancienne fenêtre IE séparée, remplacée par l'IE intégré à l'onglet et appelée nulle part.
+  - `INSTALLATION-RAPIDE.txt` : notice de l'archive ZIP d'origine (v1.0.0), dépassée.
+
 ## 1.15.0 — 🏆 Succès et invitations
 
 ### 🏆 Succès
