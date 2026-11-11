@@ -1,3 +1,20 @@
+## 1.12.0 — Mica/Acrylic, aperçu des liens, « Qui me piste ? »
+
+### 🕵 Qui me piste ?
+- Nouveau rapport par site (menu 🛡 → « Qui me piste sur ce site ? ») : les **entreprises** qui ont tenté de suivre ta navigation sur la page affichée (Google, Meta, Amazon, Microsoft, TikTok, Criteo, Taboola, Hotjar…), avec leur rôle (publicité, mesure d'audience, réseau social, empreinte, enregistrement de session) et le nombre de requêtes bloquées.
+- Base locale d'environ 60 acteurs ; les domaines inconnus restent listés. Rien n'est envoyé sur Internet.
+- Le rapport repart de zéro à chaque nouvelle page. Il prévient quand DevGitShield est désactivé ou en pause sur le site.
+
+### 👁 Aperçu des liens
+- **Maj + survol** d'un lien (réglage par défaut) : la page s'ouvre dans une petite fenêtre au-dessus de la page en cours, avec « Ouvrir dans un onglet » et ✕.
+- Autre mode : **survol prolongé** (1 seconde), ou désactivé (Paramètres → Apparence).
+- L'aperçu se ferme quand la souris quitte le lien et l'aperçu, ainsi qu'avec Échap, un clic, le défilement ou un changement d'onglet.
+- La page aperçue est muette, sans boîtes de dialogue, protégée par DevGitShield. Ses pop-ups s'ouvrent dans un vrai onglet. Jamais d'aperçu depuis un onglet privé ou DGBx.
+
+### 🪟 Effet de fenêtre Windows 11
+- **Mica** (la couleur du fond d'écran transparaît dans la barre d'onglets) ou **Acrylic** (flou dépoli) : Paramètres → Apparence → « Effet de fenêtre ».
+- Proposé uniquement sous Windows 11 22H2 ou plus récent ; compatible avec tous les thèmes.
+
 ## 1.11.0 — Bienvenue : assistant de premier lancement, import, coffre enrichi
 
 ### Assistant de premier lancement (5 étapes)

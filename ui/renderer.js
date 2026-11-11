@@ -3,7 +3,7 @@ const api=window.DevGit;
 const $=id=>document.getElementById(id);
 const TAB_MIME='application/x-devgit-tab';
 let current=null, panel='', toastTimer, statusTimer, libraryView='history', historyOffset=0, historyQuery='', suggestTimer, draggingTabId=null, draggingBookmark=null;
-const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin'];
+const panels=['github','extensions','security','settings','library','about','passwords','tasks','welcome','xgate','admin','trackers'];
 const DEFAULT_STATUS='Navigateur indépendant · Profil local isolé';
 
 // ---------------------------------------------------------------- Messages
@@ -48,6 +48,7 @@ async function showPanel(name){
   if(panel==='passwords'){loadVault();if($('profiles-card').open)loadProfiles();}
   if(panel==='settings')renderImportSources('settings-import');
   if(panel==='tasks')startPerf();else stopPerf();
+  if(panel==='trackers')loadTrackers();
   if(panel && current)render(current);
 }
 function openLibrary(view){libraryView=view;return showPanel('library');}
@@ -609,6 +610,11 @@ function showStrength(input,bar,label){const n=strength(input.value);bar.style.w
 function updateExtras(state){
   updateClockWeather(state);updateTelemetry(state);
   applyTheme(state.theme);
+  {const m=state.materialSupported&&state.preferences?.windowMaterial!=='none'?state.preferences?.windowMaterial||'':'';
+   if((document.documentElement.dataset.material||'')!==m){if(m)document.documentElement.dataset.material=m;else delete document.documentElement.dataset.material;}
+   $('material-line').classList.toggle('hidden',!state.materialSupported);
+   if(document.activeElement!==$('window-material'))$('window-material').value=state.preferences?.windowMaterial||'none';
+   if(document.activeElement!==$('link-preview'))$('link-preview').value=state.preferences?.linkPreview||'shift';}
   applyXmode(state);
   // VPN
   const vpn=state.vpn||{};
@@ -772,6 +778,29 @@ function startPerf(){refreshPerf();if(!perfTimerId)perfTimerId=setInterval(refre
 function stopPerf(){if(perfTimerId){clearInterval(perfTimerId);perfTimerId=null;}}
 $('gaming-toggle').addEventListener('change',()=>run(()=>api.gaming($('gaming-toggle').checked),$('gaming-toggle').checked?'🎮 Mode gaming activé.':'Mode gaming désactivé.').then(refreshPerf));
 $('perf-sleep-all').addEventListener('click',async()=>{const n=await run(()=>api.sleepAll());if(n!==null)notify(`${n} onglet(s) mis en veille.`);refreshPerf();});
+// ---------------------------------------------------------------- Qui me piste ?
+const TRACKER_ICONS={ads:'📢',analytics:'📊',social:'👥',fingerprint:'🧬',session:'🎥',cdn:'📦',other:'👁'};
+async function loadTrackers(){
+  const r=await run(()=>api.trackersReport());if(!r)return;
+  $('trackers-sub').textContent=r.host?`Sur ${r.host} : les entreprises qui ont tenté de suivre ta navigation, bloquées par DevGitShield.`:'Ouvre un site pour voir qui tente de te pister.';
+  $('trackers-companies').textContent=r.companies||0;$('trackers-total').textContent=r.total||0;
+  $('trackers-domains').textContent=r.rows.reduce((n,x)=>n+x.domains.length,0);
+  const note=$('trackers-note');
+  const msg=!r.enabled?'DevGitShield est désactivé : les pisteurs ne sont ni bloqués ni comptés.':r.paused?'DevGitShield est en pause sur ce site : les pisteurs passent et ne sont pas comptés.':'';
+  note.textContent=msg;note.classList.toggle('hidden',!msg);
+  const list=$('trackers-list');
+  if(!r.rows.length){list.replaceChildren(elem('div','empty-list',r.host&&!msg?'✅ Aucun pisteur détecté sur cette page.':'Rien à afficher.'));return;}
+  const max=Math.max(...r.rows.map(x=>x.count));
+  list.replaceChildren(...r.rows.map(x=>{
+    const row=elem('div','item-row tracker-row');const text=elem('span','item-text');
+    text.append(elem('strong','',`${TRACKER_ICONS[x.category]||'👁'} ${x.company}`),elem('small','',`${x.label} · ${x.domains.join(', ')}`));
+    const bar=elem('span','tracker-bar');const fill=elem('i');fill.style.width=Math.max(6,Math.round(x.count/max*100))+'%';bar.append(fill);
+    row.append(text,bar,elem('b','tracker-count',String(x.count)));return row;
+  }));
+}
+$('trackers-refresh').addEventListener('click',loadTrackers);
+$('window-material').addEventListener('change',()=>run(()=>api.preference('windowMaterial',$('window-material').value),'Effet de fenêtre appliqué.'));
+$('link-preview').addEventListener('change',()=>run(()=>api.preference('linkPreview',$('link-preview').value),'Aperçu des liens mis à jour.'));
 // ---------------------------------------------------------------- Import depuis un autre navigateur
 const BROWSER_ICONS={'Google Chrome':'🟡','Microsoft Edge':'🔷','Brave':'🦁','Vivaldi':'🔴','Opera':'⭕','Opera GX':'🎮','Mozilla Firefox':'🦊'};
 let importSourcesCache=null;

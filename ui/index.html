@@ -198,6 +198,17 @@
   </div>
 </section>
 
+<section id="panel-trackers" class="panel hidden">
+  <div class="panel-wrap">
+    <div class="panel-header"><div><span class="kicker">DEVGITSHIELD · RAPPORT</span><h2>🕵 Qui me piste ?</h2><p id="trackers-sub">Les entreprises qui ont tenté de suivre ta navigation sur ce site, bloquées par DevGitShield.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
+    <div class="tracker-summary"><div><b id="trackers-companies">0</b><span>entreprises</span></div><div><b id="trackers-total">0</b><span>requêtes bloquées</span></div><div><b id="trackers-domains">0</b><span>domaines</span></div></div>
+    <div id="trackers-note" class="notice warning hidden"></div>
+    <div id="trackers-list" class="item-list"></div>
+    <div class="form-buttons"><button id="trackers-refresh" class="outline" type="button">↻ Actualiser</button></div>
+    <p class="muted small-note">Le rapport concerne la page affichée et repart de zéro à chaque nouvelle page. Base locale : rien n’est envoyé sur Internet.</p>
+  </div>
+</section>
+
 <section id="panel-security" class="panel hidden">
   <div class="panel-wrap">
     <div class="panel-header"><div><span class="kicker">CONTRÔLE • AUTORISATIONS</span><h2>Sécurité des sites</h2><p>Les permissions sensibles ne sont jamais accordées par défaut. Clique sur le cadenas de la barre d’adresse pour revenir ici.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
@@ -347,6 +358,8 @@
     <div class="section-card">
       <h3>Apparence</h3><p class="muted">Choisis les couleurs de l’interface (également dans le menu ☰ → Thème).</p>
       <div id="settings-themes" class="theme-grid"></div>
+      <div class="setting-line" id="material-line"><div><strong>Effet de fenêtre Windows 11</strong><p>Mica laisse transparaître la couleur de ton fond d’écran dans la barre d’onglets ; Acrylic ajoute un flou dépoli. Windows 11 (22H2 ou plus récent).</p></div><select id="window-material" class="compact-select" aria-label="Effet de fenêtre"><option value="none">Aucun</option><option value="mica">Mica</option><option value="acrylic">Acrylic</option></select></div>
+      <div class="setting-line"><div><strong>Aperçu des liens</strong><p>Affiche la page d’un lien dans une petite fenêtre sans quitter la page en cours. Échap ou clic ailleurs pour fermer.</p></div><select id="link-preview" class="compact-select" aria-label="Aperçu des liens"><option value="shift">Maj + survol</option><option value="hover">Survol prolongé (1 s)</option><option value="off">Désactivé</option></select></div>
     </div>
     <div class="section-card" id="import-section">
       <h3>📥 Importer depuis un autre navigateur</h3><p class="muted">Favoris et historique de Chrome, Edge, Brave, Opera, Vivaldi ou Firefox. Si l’historique ne s’importe pas, ferme d’abord l’autre navigateur. Pour les mots de passe, utilise « Importer un CSV » dans le coffre.</p>

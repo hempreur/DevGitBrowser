@@ -25,6 +25,20 @@ const { UpdateService } = require('./lib/updater');
 const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage, warningPage, crashPage, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
 const { PasswordVault, generatePassword } = require('./lib/vault');
 const importer = require('./lib/importer');
+const trackerDb = require('./lib/trackers');
+const WINDOW_MATERIALS = ['none','mica','acrylic'];
+const LINK_PREVIEW_MODES = ['off','shift','hover'];
+// Mica / Acrylic : Windows 11 22H2 (build 22621) ou plus récent.
+function materialSupported() {
+  if (process.platform !== 'win32') return false;
+  const build = Number(String(os.release()).split('.')[2]) || 0;
+  return build >= 22621;
+}
+function applyMaterial(win) {
+  if (!win || win.isDestroyed() || !materialSupported() || typeof win.setBackgroundMaterial !== 'function') return;
+  const m = WINDOW_MATERIALS.includes(settings.windowMaterial) ? settings.windowMaterial : 'none';
+  try { win.setBackgroundColor(m === 'none' ? '#06091c' : '#00000000'); win.setBackgroundMaterial(m); } catch (e) { logger.warn('Effet de fenêtre', e.message); }
+}
 const { TorService, COUNTRIES: VPN_COUNTRIES } = require('./lib/tor');
 const { PhishingGuard } = require('./lib/phishing');
 const logger = require('./lib/logger');
@@ -80,7 +94,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -101,6 +115,8 @@ function loadSettings() {
     const savedTheme = LEGACY_THEMES[raw.theme] || raw.theme;
     if (THEMES.some(t=>t.id===savedTheme)) p.theme=savedTheme;
     if (VPN_COUNTRIES.some(c=>c.code===raw.vpnCountry)) p.vpnCountry=raw.vpnCountry;
+    if (WINDOW_MATERIALS.includes(raw.windowMaterial)) p.windowMaterial=raw.windowMaterial;
+    if (LINK_PREVIEW_MODES.includes(raw.linkPreview)) p.linkPreview=raw.linkPreview;
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
     if (raw.xmodeAge===true) p.xmodeAge=true;
@@ -232,7 +248,9 @@ function publicState(s) {
       showBookmarksBar:settings.showBookmarksBar, recordHistory:settings.recordHistory, clearHistoryOnExit:settings.clearHistoryOnExit,
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
       secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer,
-      shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry },
+      shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry,
+      windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview },
+    materialSupported: materialSupported(),
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
     telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
@@ -660,6 +678,91 @@ function handleInternalLink(t, url) {
   });
   return true;
 }
+// ======================================================== Aperçu des liens (v1.12)
+const PREVIEW_W = 560, PREVIEW_H = 400, PREVIEW_HEAD = 40;
+let preview = null; // {s, win, view, url, linkRect, poll, graceAt}
+let previewTimer = null;
+function closeLinkPreview() {
+  if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+  const p = preview; preview = null;
+  if (!p) return;
+  if (p.poll) clearInterval(p.poll);
+  try { if (!p.view.webContents.isDestroyed()) p.view.webContents.close(); } catch {}
+  try { if (!p.win.isDestroyed()) p.win.destroy(); } catch {}
+}
+function previewPlacement(s, rect) {
+  // rect : position du lien dans la page (pixels CSS ≈ DIP au zoom 100 %).
+  const content = s.win.getContentBounds();
+  const pageX = content.x + RAIL_WIDTH, pageY = content.y + chromeHeight(s);
+  const pageW = content.width - RAIL_WIDTH, pageH = content.height - chromeHeight(s) - statusHeight(s);
+  const w = Math.min(PREVIEW_W, pageW - 16), h = Math.min(PREVIEW_H, pageH - 16);
+  const [lx, ly, lw, lh] = rect;
+  let x = pageX + lx, y = pageY + ly + lh + 6;
+  if (y + h > pageY + pageH) y = pageY + ly - h - 6;          // pas de place dessous : au-dessus
+  y = Math.max(pageY + 8, Math.min(y, pageY + pageH - h - 8));
+  x = Math.max(pageX + 8, Math.min(x, pageX + pageW - w - 8));
+  return {x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h),
+    link: {x: pageX + lx, y: pageY + ly, width: lw, height: lh}};
+}
+const inside = (pt, r, pad = 0) => pt.x >= r.x - pad && pt.x <= r.x + r.width + pad && pt.y >= r.y - pad && pt.y <= r.y + r.height + pad;
+function sendPreviewInfo() {
+  const p = preview; if (!p || p.win.isDestroyed() || p.view.webContents.isDestroyed()) return;
+  const wc = p.view.webContents;
+  p.win.webContents.send('dgb-preview:info', {url: wc.getURL() || p.url, title: wc.getTitle(), loading: wc.isLoading()});
+}
+function openLinkPreview(s, t, url, rect) {
+  if (!isWebUrl(url) || s.win.isDestroyed()) return;
+  if (preview && preview.url === url && preview.s === s) return;
+  closeLinkPreview();
+  const place = previewPlacement(s, rect);
+  if (place.width < 260 || place.height < 180) return;
+  const win = new BrowserWindow({parent: s.win, x: place.x, y: place.y, width: place.width, height: place.height, frame: false, show: false,
+    resizable: false, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, backgroundColor: '#0b1028', hasShadow: true,
+    webPreferences: {preload: path.join(__dirname, 'ui', 'preview', 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true}});
+  win.setMenu(null);
+  win.webContents.on('will-navigate', e => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  const view = new WebContentsView({webPreferences: {session: browsingSession, nodeIntegration: false, contextIsolation: true, sandbox: true,
+    webSecurity: true, allowRunningInsecureContent: false, webviewTag: false, safeDialogs: true, disableDialogs: true, navigateOnDragDrop: false}});
+  view.setBackgroundColor('#ffffff');
+  win.contentView.addChildView(view);
+  view.setBounds({x: 1, y: PREVIEW_HEAD, width: place.width - 2, height: place.height - PREVIEW_HEAD - 1});
+  const vwc = view.webContents;
+  vwc.setAudioMuted(true);
+  // Liens « nouvel onglet » et pop-ups de l'aperçu : ouverts dans un vrai onglet.
+  vwc.setWindowOpenHandler(({url: next}) => { if (isWebUrl(next)) { try { newTab(s, next); } catch {} closeLinkPreview(); } return {action: 'deny'}; });
+  for (const ev of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate']) vwc.on(ev, sendPreviewInfo);
+  vwc.on('before-input-event', (e, input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); closeLinkPreview(); } });
+  win.webContents.once('did-finish-load', sendPreviewInfo);
+  win.loadFile(path.join(__dirname, 'ui', 'preview', 'index.html'));
+  vwc.loadURL(url).catch(() => {});
+  win.showInactive();
+  preview = {s, t, win, view, url, linkRect: place.link, graceAt: 0, poll: null};
+  // Fermeture quand la souris quitte à la fois le lien et l'aperçu (délai de grâce).
+  preview.poll = setInterval(() => {
+    const p = preview; if (!p || p.win.isDestroyed()) { closeLinkPreview(); return; }
+    if (p.s.win.isDestroyed() || !p.s.win.isVisible() || p.s.win.isMinimized() || p.s.panelOpen || activeTab(p.s) !== p.t) { closeLinkPreview(); return; }
+    const pt = screen.getCursorScreenPoint();
+    const over = inside(pt, p.win.getBounds(), 6) || inside(pt, p.linkRect, 4) || p.win.isFocused();
+    if (over) { p.graceAt = 0; return; }
+    if (!p.graceAt) p.graceAt = Date.now() + 700;
+    else if (Date.now() >= p.graceAt) closeLinkPreview();
+  }, 200);
+}
+function onPreviewHover(t, data) {
+  const s = t.owner, mode = settings.linkPreview;
+  if (mode === 'off' || t.private || t.xTab || s.xmode || s.panelOpen || activeTab(s) !== t) return;
+  const type = String(data?.type || '');
+  if (type === 'close') { closeLinkPreview(); return; }
+  if (type === 'leave') { if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; } return; }
+  let zoom = 1; try { zoom = t.view.webContents.getZoomFactor() || 1; } catch {}
+  const url = String(data?.url || ''), rect = Array.isArray(data?.rect) && data.rect.length === 4 ? data.rect.map(n => (Number(n) || 0) * zoom) : null;
+  if (!rect || !isWebUrl(url)) return;
+  if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+  const delay = type === 'shift' || (type === 'enter' && data.shift) ? (mode === 'off' ? -1 : 250) : mode === 'hover' && type === 'enter' ? 1000 : -1;
+  if (delay < 0) return;
+  previewTimer = setTimeout(() => { previewTimer = null; openLinkPreview(s, t, url, rect); }, delay);
+}
 function tabForWebContents(wc) {
   for (const s of windows.values()) for (const t of s.tabs.values()) if (t.view?.webContents === wc) return t;
   return null;
@@ -694,13 +797,14 @@ function createWindow({initialTab=true, bounds=null, tabs=null, activeIndex=0}={
   const s={id:++nextWindowId,win,tabs:new Map(),activeId:null,panelOpen:false,blockedPopups:0,shellHeight:SHELL_HEIGHT,htmlFullscreen:false,stateTimer:null};
   windows.set(s.id,s);
   win.setMenu(null);
+  applyMaterial(win);
   win.once('ready-to-show',()=>{ if (bounds?.maximized) win.maximize(); win.show(); });
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('did-finish-load',()=>{ s.stateTimer=null; sendState(s); });
   win.webContents.on('before-input-event',(event,input)=>{ if (handleShortcut(s,input,'shell')) event.preventDefault(); });
   win.on('resize',()=>layout(s));
-  win.on('move',()=>layout(s));
+  win.on('move',()=>{ layout(s); if (preview?.s===s) closeLinkPreview(); });
   win.on('focus',()=>{ const t=activeTab(s); if (t?.url && !s.panelOpen && !t.view.webContents.isDestroyed()) {/* keep page focus */} });
   win.on('hide',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
   win.on('show',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
@@ -825,12 +929,16 @@ function setPreference(key, value) {
   if (key==='secureDns' && !['off','automatic','secure'].includes(value)) throw new Error('Mode DNS inconnu.');
   if (key==='dnsProvider' && !Object.hasOwn(DNS_PROVIDERS,value)) throw new Error('Fournisseur DNS inconnu.');
   if (key==='vpnCountry' && !VPN_COUNTRIES.some(c=>c.code===value)) throw new Error('Pays inconnu.');
+  if (key==='windowMaterial' && !WINDOW_MATERIALS.includes(value)) throw new Error('Effet inconnu.');
+  if (key==='linkPreview' && !LINK_PREVIEW_MODES.includes(value)) throw new Error('Mode d’aperçu inconnu.');
   if (key==='gamingMode') { setGamingMode(value); return; }
   settings[key]=value;
   if (key==='secureDns' || key==='dnsProvider') applySecureDns();
   if (key==='phishingProtection' && phishing) { phishing.enabled=value; if (value) phishing.load(); }
   if (key==='theme' && radioWin && !radioWin.isDestroyed()) radioWin.webContents.send('dgb-radio:theme', value);
   if (key==='autoUpdate' && updater) updater.setAuto(value);
+  if (key==='windowMaterial') for (const w of windows.values()) applyMaterial(w.win);
+  if (key==='linkPreview' && value==='off') closeLinkPreview();
   if (key==='shieldAnnoyances') adBlocker?.setAnnoyances(value).catch(()=>{});
   if (key==='shieldBoost') adBlocker?.setBoost(value);
   if (key==='webrtcProtection') for (const s of windows.values()) for (const t of s.tabs.values()) { try { t.view.webContents.setWebRTCIPHandlingPolicy(value?'default_public_interface_only':'default'); } catch {} }
@@ -1019,6 +1127,7 @@ function shieldMenu(s) {
   popupMenu(s, [
     {label:`DevGitShield · ${state?.enabled ? (allowed ? 'en pause sur ce site' : 'actif') : 'désactivé'}`, enabled:false},
     {label:`${blocked} requête(s) bloquée(s) sur cette page · ${state?.totalBlocked||0} depuis le démarrage`, enabled:false},
+    {label:'🕵 Qui me piste sur ce site ?', enabled:Boolean(t?.url), click:()=>s.win.webContents.send('dgb:command','trackers')},
     {type:'separator'},
     {label:host ? `Protéger ${host}` : 'Protéger ce site', type:'checkbox', checked:!allowed, enabled:Boolean(host) && Boolean(state?.enabled), click:()=>{
       try { adBlocker.setAllowed(host, !allowed); saveSettings(); t.view.webContents.reload(); broadcast(); notice(s, !allowed ? `DevGitShield en pause sur ${host}.` : `DevGitShield réactivé sur ${host}.`); } catch(e) { notice(s,e.message,true); }
@@ -1740,6 +1849,15 @@ function registerPasswordCapture() {
     return localVideo.download({videoId:id,kind,quality,savePath:pick.filePath});
   });
   // Bouton « Télécharger » du survol vidéo : uniquement les fichiers vidéo directs (pas les flux protégés).
+  ipcMain.on('dgb-preview:hover', (event, data) => {
+    const t = tabForWebContents(event.sender);
+    if (t && event.senderFrame === event.sender.mainFrame) onPreviewHover(t, data);
+  });
+  ipcMain.on('dgb-preview:action', (event, action) => {
+    const p = preview; if (!p || p.win.isDestroyed() || event.sender !== p.win.webContents) return;
+    if (action === 'open') { const url = p.view.webContents.getURL() || p.url; closeLinkPreview(); if (isWebUrl(url) && !p.s.win.isDestroyed()) { try { newTab(p.s, url); } catch (e) { notice(p.s, e.message, true); } } }
+    else closeLinkPreview();
+  });
   ipcMain.on('dgb-video:download', (event, src) => {
     const t = tabForWebContents(event.sender);
     if (!t || typeof src !== 'string' || !/^https?:\/\//i.test(src) || src.length > 4000) return;
@@ -2212,6 +2330,16 @@ function registerIpc(){
     'pw:profiles':()=>vault.listProfiles(),
     'pw:profile-save':(_s,data)=>vault.saveProfile(data&&typeof data==='object'?data:{}),
     'pw:profile-delete':(_s,id)=>{vault.removeProfile(String(id||''));return vault.listProfiles();},
+    'trackers:report':s=>{
+      const t=activeTab(s);const wc=t?.view?.webContents;
+      if(!t?.url||!wc||wc.isDestroyed())return {host:'',rows:[],total:0,enabled:Boolean(adBlocker?.enabled),paused:false};
+      const counts=adBlocker?adBlocker.trackersFor(wc.id):new Map();
+      const pageBase=trackerDb.baseDomain(currentHost(s));
+      for(const h of [...counts.keys()])if(trackerDb.baseDomain(h)===pageBase&&!trackerDb.lookup(h))counts.delete(h); // le site lui-même
+      const rows=trackerDb.report(counts);
+      return {host:currentHost(s),rows,total:[...counts.values()].reduce((a,b)=>a+b,0),companies:rows.filter(r=>r.known).length,
+        enabled:Boolean(adBlocker?.enabled),paused:Boolean(adBlocker?.isAllowlisted(t.url))};
+    },
     'import:sources':()=>process.platform==='win32'?importer.detectSources().map(({id,kind,browser,profile})=>({id,kind,browser,profile,help:importer.PASSWORD_EXPORT_HELP[browser]||''})):[],
     'import:run':(_s,id,opts)=>{
       const src=importer.detectSources().find(x=>x.id===String(id||''));if(!src)throw new Error('Navigateur introuvable.');
@@ -2391,6 +2519,7 @@ else {
     quitting=true;
     if(adBlockTimer)clearInterval(adBlockTimer);if(syncTimer)clearInterval(syncTimer);updater?.stop();
     if(perfTimer)clearInterval(perfTimer);
+    closeLinkPreview();
     tor?.stop(false).catch(()=>{});vault?.lock();
     for(const inspector of networkWindows.values())inspector.monitor.stop();
     if(browsing){if(settings?.clearHistoryOnExit)browsing.clearHistory(0);browsing.flush();}

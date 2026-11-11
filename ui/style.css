@@ -438,3 +438,17 @@ body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
 .vault-tools{margin:12px 0;align-items:center;flex-wrap:wrap}.vault-tools small{flex:1;min-width:200px}
 #gen-out{font-family:Consolas,'Cascadia Mono',monospace;letter-spacing:.5px}
 #profile-form{margin-top:14px}
+/* v1.12 — Qui me piste ? */
+.tracker-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.tracker-summary div{border:1px solid #33408a;border-radius:13px;padding:16px;background:#0e1640aa;display:flex;flex-direction:column;gap:4px}
+.tracker-summary b{font-size:30px;color:var(--mint)}.tracker-summary span{color:#9eafc2;font-size:12px}
+.tracker-row{gap:14px}.tracker-bar{flex:0 0 160px;height:7px;border-radius:5px;background:#2a3456;overflow:hidden}.tracker-bar i{display:block;height:100%;background:linear-gradient(90deg,#50d9fa,#b16cff)}
+.tracker-count{min-width:34px;text-align:right;color:var(--txt)}
+@media(max-width:760px){.tracker-bar{display:none}}
+/* v1.12 — Mica / Acrylic (Windows 11) : la barre laisse passer l'effet du système */
+html[data-material],html[data-material] body{background:transparent!important}
+html[data-material] #chrome{background:color-mix(in srgb,var(--t-chrome,#0c0d30) 58%,transparent)!important;box-shadow:none!important}
+html[data-material] .statusbar{background:color-mix(in srgb,var(--t-chrome,#060c24) 62%,transparent)!important}
+html[data-material] .tab{background:color-mix(in srgb,var(--t-chrome,#142035) 45%,transparent)}
+html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrome,#0c0d30) 42%,transparent)!important}
+.tracker-row{padding:12px 16px!important;margin-bottom:8px}
