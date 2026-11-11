@@ -486,7 +486,7 @@ $('card-security').addEventListener('click',()=>showPanel('security'));
 $('address-form').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('address').value);});
 $('start-search').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('start-address').value);});
 $('open-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
-document.querySelector('.bv-mock')?.addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
+document.querySelector('.bv-shot')?.addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
 // Suggestions : favoris puis historique (liste native affichée au-dessus des pages).
 function suggest(input){
   clearTimeout(suggestTimer);

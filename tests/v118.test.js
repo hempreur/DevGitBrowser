@@ -138,9 +138,9 @@ test('interface 1.18 : accueil, bouton des succès, plus de prompt()',()=>{
   assert.match(html,/<div class="status-cluster">\s*<button id="trophy-btn"[^>]*><svg class="trophy-ico"/,'icône neutre collée à l’heure');
   assert.ok(!html.includes('🏆</span>'));
   for(const id of ['start-search','start-address','open-babel','home-sites','home-sites-section','card-history','card-bookmarks','card-security','card-network','hp-greet'])assert.ok(html.includes(`id="${id}"`),id);
-  assert.match(html,/href="home\.css"/);assert.match(html,/class="bv-mock" aria-hidden="true" data-no-i18n/);
-  assert.ok(!/<img[^>]+bv-/.test(html),'maquette dessinée en CSS, sans photo');
-  assert.match(css,/prefers-reduced-motion:reduce\)\{\.bv-msg/);
+  assert.match(html,/href="home\.css"/);assert.match(html,/<div class="bv-shot"><img src="\.\.\/assets\/babelvisio-salon\.webp" alt="[^"]+"/);
+  assert.ok(fs.statSync(path.join(root,'assets','babelvisio-salon.webp')).size<200_000,'image légère');
+  assert.match(css,/\.bv-shot img\{[^}]*transform:rotateY\(-9deg\)/);assert.match(css,/\.bv-shot:after\{/);
   // les anciennes classes de l'accueil ne sont plus dans les feuilles de style
   for(const f of ['ui/style.css','ui/themes.css'])for(const c of ['.intro-panel','.promo-babel','.quick-item','.hero-hologram'])assert.ok(!read(f).includes(c),f+' '+c);
   const en=JSON.parse(read('i18n/en.json'));for(const k of ['Bonsoir','Raccourcis','Découvrir BabelVisio','Terminer la discussion','Discussion terminée'])assert.ok(en[k],k);

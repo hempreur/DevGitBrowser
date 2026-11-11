@@ -3,7 +3,7 @@
 ### 🏠 Nouvelle page d'accueil
 - Mise en page plus sobre et plus professionnelle : recherche au centre, salutation et date du jour, protections actives, accès rapide à tes sites et raccourcis avec des icônes nettes.
 - Les couleurs suivent le thème choisi (Néon, Noir, Blanc, Nature, Sable, Océan, Velours).
-- **Partenaire BabelVisio** : une maquette animée de son interface montre ce que propose le site (salons vidéo avec ou sans webcam, discussion, liste des connectés, parties de UNO, Code Créateur). Elle est dessinée entièrement en CSS, sans photo de vraies personnes, et respecte le réglage « réduire les animations » de Windows.
+- **Partenaire BabelVisio** : une capture d'un salon BabelVisio (discussion, webcams, liste des utilisateurs), légèrement inclinée avec une ombre portée, présente le site ; un clic dessus ouvre BabelVisio.
 
 ### 💬 Support en direct
 - Après un **🐞 Signaler un bug**, si l'équipe prend ton signalement en charge, une **fenêtre de discussion s'ouvre automatiquement** pour échanger avec toi en direct, avec une notification Windows quand une réponse arrive.
