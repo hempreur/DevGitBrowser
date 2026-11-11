@@ -228,6 +228,8 @@ function publicConfig(v, cc) {
 
 // ---- Messages en direct (connexions d'écoute)
 const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
+// Version de l'API, lue par le navigateur pour signaler un serveur pas à jour (18 = DevGitBrowser 1.18).
+const API_VERSION = 18;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 let liveSeq = Date.now(); // croissant même après un redémarrage du serveur
 let liveItems = [];
@@ -322,7 +324,7 @@ function adminWatch(req, res) {
 let lastListening = 0;
 setInterval(() => { if (waiters.size !== lastListening) { lastListening = waiters.size; bumpAdmin('listening'); } }, 5_000).unref();
 function adminConfig() {
-  return {lockdown: config.lockdown, features: config.features, listening: waiters.size,
+  return {api: API_VERSION, lockdown: config.lockdown, features: config.features, listening: waiters.size,
     recent: [...liveItems].reverse().slice(0, 30).map(({id, text: body, level, versions, countries, url, at, delivered}) => ({id, text: body, level, versions, countries, url, at, delivered}))};
 }
 
@@ -512,7 +514,7 @@ const handler = async (req, res) => {
       }
       return send(res, 404, {error: 'not found'});
     }
-    if (req.method === 'GET' && url === '/health') return send(res, 200, {ok: true});
+    if (req.method === 'GET' && url === '/health') return send(res, 200, {ok: true, api: API_VERSION});
     if (req.method === 'POST' && (url === '/v1/ping' || url === '/v1/rate')) {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
       if (limited(ip)) return send(res, 429, {error: 'rate'});

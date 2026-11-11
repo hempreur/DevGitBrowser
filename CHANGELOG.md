@@ -1,3 +1,11 @@
+## 1.18.1 — Nouvelle bannière BabelVisio, panneau admin plus clair
+
+- **Accueil** : la nouvelle bannière BabelVisio (salons live, webcams, jeux, traduction) s'affiche en grand, avec une ombre portée ; un clic ouvre le site. Les raccourcis passent sur une seule ligne.
+- **Carte du monde** : la légende grisée inutile est retirée.
+- **Serveur pas à jour** : le panneau admin l'indique clairement, avec la commande à lancer, au lieu d'une « erreur du serveur » lors de la suppression d'un message ou de l'ouverture d'un tchat.
+- **Rapports de bug** : le panneau explique pourquoi le tchat n'est pas disponible (rapport envoyé depuis une version antérieure à la 1.18, ou serveur pas à jour).
+- **Installation du serveur** : la commande récupère toujours la toute dernière version (plus de version en cache pendant quelques minutes après une publication) et vérifie le fichier avant de l'installer.
+
 ## 1.18.0 — Nouvel accueil, support en direct, panneau admin en temps réel
 
 ### 🏠 Nouvelle page d'accueil

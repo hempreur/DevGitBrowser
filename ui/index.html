@@ -65,7 +65,10 @@
         <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1"/></svg>Picture-in-Picture</li>
       </ul>
     </header>
-    <div class="hp-grid">
+    <section class="hp-sponsor" aria-label="Partenaire : BabelVisio">
+      <div class="hp-sponsor-tag"><span>Partenaire</span><em>babelvisio.com</em></div>
+      <button id="open-babel" class="bv-banner" type="button" title="Découvrir BabelVisio (www.BabelVisio.com)"><img src="../assets/babelvisio-banniere.webp" alt="BabelVisio : discutez, jouez et partagez en direct. Salons live, webcams, jeux et traduction." width="2172" height="724" draggable="false"></button>
+    </section>
       <div class="hp-main">
         <section class="home-sites hp-section" id="home-sites-section"><div class="hp-section-head"><h3>Accès rapide</h3><span>Tes favoris et sites les plus visités</span></div><div id="home-sites" class="home-sites-grid"></div></section>
         <section class="hp-section"><div class="hp-section-head"><h3>Raccourcis</h3></div>
@@ -77,17 +80,6 @@
           </div>
         </section>
       </div>
-      <aside class="hp-sponsor" aria-label="Partenaire : BabelVisio">
-        <div class="hp-sponsor-tag"><span>Partenaire</span><em>babelvisio.com</em></div>
-        <div class="bv-shot"><img src="../assets/babelvisio-salon.webp" alt="Aperçu d’un salon BabelVisio : discussion, webcams et liste des utilisateurs" width="1200" height="720" draggable="false"></div>
-        <div class="hp-sponsor-text">
-          <h2>On se retrouve. On discute. <span>On joue.</span></h2>
-          <p>BabelVisio réunit salons vidéo avec ou sans webcam, messages privés sous pseudo et jeux à plusieurs : UNO, poker, blackjack, billard, échecs et défis.</p>
-          <button id="open-babel" class="hp-cta" type="button">Découvrir BabelVisio <span>↗</span></button>
-          <ul class="hp-pills"><li>Salons vidéo</li><li>Messages privés</li><li>Jeux multijoueurs</li><li>Vie privée respectée</li></ul>
-        </div>
-      </aside>
-    </div>
   </div>
 </main>
 
@@ -139,11 +131,12 @@
       </form>
     </div>
     <div id="admin-dash" class="hidden">
+      <p id="admin-outdated" class="admin-outdated hidden">⚠️ Ton serveur n’est pas à jour : le temps réel, la suppression des messages et le tchat de support ne fonctionneront pas. Sur le VPS, lance : <code>curl -fsSL https://raw.githubusercontent.com/hempreur/DevGitBrowser/main/server/stats/install.sh | sudo bash</code></p>
       <div class="admin-toolbar"><span id="admin-realtime" class="admin-realtime" title="Le panneau se met à jour tout seul dès qu’un événement arrive sur le serveur"><i></i> Temps réel</span><span id="admin-updated" class="muted"></span><button id="admin-refresh" class="outline" type="button">Actualiser</button></div>
       <div class="section-card admin-server"><h3>🌍 Utilisateurs dans le monde</h3>
         <div id="admin-server-setup" class="hidden"><p class="muted" id="admin-server-hint"></p><form id="admin-token-form" class="inline-buttons"><input id="admin-token" class="compact-input wide" type="password" autocomplete="off" placeholder="Jeton affiché à la fin de l’installation du serveur" aria-label="Jeton du serveur"><button class="primary" type="submit">Enregistrer</button></form></div>
         <div id="admin-server-data" class="hidden"><div id="admin-server-kpis" class="admin-kpis"></div>
-          <div class="admin-map-wrap"><div class="admin-map-head"><h4>🗺 Carte du monde</h4><span id="admin-live" class="admin-live"><i></i> 0 en ligne</span><span class="muted small-note">● en ligne maintenant · ○ actifs sur 30 jours</span></div><svg id="admin-map" class="admin-map" viewBox="0 0 1000 500" role="img" aria-label="Carte des utilisateurs"></svg><div id="admin-live-list" class="admin-live-list"></div></div>
+          <div class="admin-map-wrap"><div class="admin-map-head"><h4>🗺 Carte du monde</h4><span id="admin-live" class="admin-live"><i></i> 0 en ligne</span></div><svg id="admin-map" class="admin-map" viewBox="0 0 1000 500" role="img" aria-label="Carte des utilisateurs"></svg><div id="admin-live-list" class="admin-live-list"></div></div>
           <div class="admin-cols"><div><h4>Utilisateurs actifs par jour (30 j)</h4><div id="admin-daily" class="admin-daily"></div></div><div><h4>Classement par pays (30 j)</h4><ol id="admin-countries" class="admin-countries"></ol></div></div>
           <div class="admin-cols"><div><h4>Satisfaction</h4><div id="admin-rating" class="admin-rating"></div></div><div><h4>Versions utilisées</h4><div id="admin-uversions" class="admin-bars"></div></div></div>
           <button id="admin-token-change" class="link-btn" type="button">Changer le jeton du serveur</button></div>
