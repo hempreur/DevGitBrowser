@@ -18,6 +18,12 @@ jobs:
           node-version: '22'
       - name: Installer les dépendances
         run: npm install --no-audit --no-fund
+      - name: Installer Electron castLabs (Widevine)
+        shell: pwsh
+        run: |
+          node node_modules/electron/install.js
+          if (!(Test-Path node_modules/electron/dist/electron.exe)) { throw 'Binaires Electron castLabs absents (node_modules/electron/dist).' }
+          Write-Host "Electron castLabs : $((Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version)"
       - name: Exécuter les tests
         run: npm test
       - name: Vérifier le vrai moteur de filtrage DevGitShield
