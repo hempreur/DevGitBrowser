@@ -97,10 +97,10 @@ test('Discord : trames, nettoyage de l’activité, poignée de main avec un fau
   const fake=net.createServer(sock=>sock.on('data',c=>{const r=D.decode(Buffer.concat([pending,c]));pending=r.rest;for(const f of r.frames){seen.push(f);if(f.op===0)sock.write(D.encode(1,{cmd:'DISPATCH',evt:'READY',data:{}}));}}));
   await new Promise(r=>fake.listen(0,'127.0.0.1',r));
   const port=fake.address().port;
-  const p=new D.DiscordPresence({clientId:'1570092370903437352',connect:()=>net.createConnection(port,'127.0.0.1'),pid:42,minIntervalMs:0});
+  const p=new D.DiscordPresence({clientId:'1570094942779473930',connect:()=>net.createConnection(port,'127.0.0.1'),pid:42,minIntervalMs:0});
   p.setActivity({details:'Navigue avec DevGitBrowser',state:'Sur exemple.fr'});
   for(let i=0;i<40&&seen.length<2;i++)await new Promise(r=>setTimeout(r,25));
-  assert.equal(seen[0].op,0);assert.equal(seen[0].data.client_id,'1570092370903437352');
+  assert.equal(seen[0].op,0);assert.equal(seen[0].data.client_id,'1570094942779473930');
   assert.equal(seen[1].data.cmd,'SET_ACTIVITY');assert.equal(seen[1].data.args.pid,42);assert.equal(seen[1].data.args.activity.state,'Sur exemple.fr');
   p.setActivity({details:'Navigue avec DevGitBrowser',state:'Sur exemple.fr'});await new Promise(r=>setTimeout(r,60));
   assert.equal(seen.length,2,'activité identique : rien de renvoyé');
@@ -111,7 +111,7 @@ test('Discord : trames, nettoyage de l’activité, poignée de main avec un fau
 
 test('1.13 câblé : opt-in Discord, réglages protégés, admin, carte',()=>{
   const main=read('main.js'),html=read('ui/index.html'),js=read('ui/renderer.js'),map=read('ui/world-map.js');
-  assert.match(main,/discordPresence:false/);assert.match(main,/DISCORD_APP_ID = '1570092370903437352'/);
+  assert.match(main,/discordPresence:false/);assert.match(main,/DISCORD_APP_ID = '1570094942779473930'/);
   assert.match(main,/'refCode','referredBy','dismissedMessages'\]\.includes\(key\)/);
   assert.match(main,/if\(!s\.adminOpen\)throw new Error\('Panneau admin verrouillé\.'\);\s*const token=readStatsToken\(\);if\(!token\|\|!telemetry\?\.available\)/);
   assert.match(main,/data\?\.withLog===true/,'journal joint seulement si coché');

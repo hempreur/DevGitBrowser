@@ -28,7 +28,7 @@ const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
 const remoteLib = require('./lib/remote');
 const {DiscordPresence} = require('./lib/discord');
-const DISCORD_APP_ID = '1570092370903437352';
+const DISCORD_APP_ID = '1570094942779473930';
 let remote = null, discord = null;
 const WINDOW_MATERIALS = ['none','mica','acrylic'];
 const LINK_PREVIEW_MODES = ['off','shift','hover'];
