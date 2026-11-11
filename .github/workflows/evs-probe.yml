@@ -15,6 +15,7 @@ jobs:
       - name: Préparer trois variantes
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force probe | Out-Null
           foreach ($v in 'origine','fusibles','icone') { Copy-Item -Recurse node_modules/electron/dist "probe/$v" }
           node -e "require('@electron/fuses').flipFuses('probe/fusibles/electron.exe',{version:require('@electron/fuses').FuseVersion.V1,[require('@electron/fuses').FuseV1Options.RunAsNode]:false,[require('@electron/fuses').FuseV1Options.EnableCookieEncryption]:true,[require('@electron/fuses').FuseV1Options.EnableNodeOptionsEnvironmentVariable]:false,[require('@electron/fuses').FuseV1Options.EnableNodeCliInspectArguments]:false,[require('@electron/fuses').FuseV1Options.OnlyLoadAppFromAsar]:true}).then(()=>console.log('fusibles OK'))"
           npx --yes rcedit@4 probe/icone/electron.exe --set-icon assets/icon.ico --set-version-string ProductName DevGitBrowser
