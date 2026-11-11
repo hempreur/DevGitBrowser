@@ -529,3 +529,4 @@ html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrom
 .ach-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#9fb0e0}.ach-tier{text-transform:uppercase;letter-spacing:.6px;font-weight:700}
 .tier-bronze .ach-tier{color:#e0a26a}.tier-silver .ach-tier{color:#d6dbe6}.tier-gold .ach-tier{color:#f5c542}.tier-platinum .ach-tier{color:#9ff0ff}
 @media (prefers-reduced-motion:reduce){.trophy-btn.glow{animation:none}}
+.welcome-ref-done{margin-top:16px;padding:10px 14px;border:1px solid #7df2b655;border-radius:10px;background:#0f2a2a;color:#bdf5dc!important;font-size:13px!important}

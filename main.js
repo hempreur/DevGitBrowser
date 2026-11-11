@@ -6,7 +6,7 @@
   if (media.isMediaExecutable(process.execPath) || process.argv.includes('--devgit-media')) { media.run(); return; }
 }
 
-const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer, screen, shell, clipboard, powerMonitor, webContents: allWebContents } = require('electron');
+const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer, screen, shell, clipboard, powerMonitor, Notification, webContents: allWebContents } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -90,6 +90,51 @@ const { PasswordVault, generatePassword } = require('./lib/vault');
 const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
 const remoteLib = require('./lib/remote');
+const {UpdateFlow} = require('./lib/update-flow');
+// ======================================================== Mises à jour : notification et fenêtre (v1.16)
+let updateWin = null, updateFlow = null;
+function sendUpdateState() { if (updateWin && !updateWin.isDestroyed() && updater) updateWin.webContents.send('dgb-update:state', updater.state); }
+function openUpdateWindow() {
+  if (updateWin && !updateWin.isDestroyed()) { updateWin.show(); updateWin.focus(); return; }
+  const parent = focusedState()?.win || windows.values().next().value?.win;
+  updateWin = new BrowserWindow({width: 470, height: 520, resizable: false, minimizable: true, maximizable: false, fullscreenable: false,
+    title: T('Mise à jour de DevGitBrowser'), icon: path.join(__dirname, 'assets', 'icon.png'), backgroundColor: '#0a0d26', show: false,
+    parent: parent && !parent.isDestroyed() ? parent : undefined, autoHideMenuBar: true,
+    webPreferences: {preload: path.join(__dirname, 'ui', 'update', 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true}});
+  updateWin.setMenu(null);
+  updateWin.webContents.on('will-navigate', e => e.preventDefault());
+  updateWin.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  updateWin.once('ready-to-show', () => { updateWin.show(); updateWin.focus(); });
+  updateWin.on('closed', () => { updateWin = null; updateFlow?.setWindowOpen(false); });
+  updateWin.loadFile(path.join(__dirname, 'ui', 'update', 'index.html'));
+}
+function notifyUpdate(kind, state) {
+  const v = state.version;
+  const title = kind === 'ready' ? T('Mise à jour prête') : T('Nouvelle version disponible');
+  const body = kind === 'ready' ? T(`DevGitBrowser ${v} est prêt : clique pour l’installer.`) : T(`DevGitBrowser ${v} est disponible : téléchargement en cours…`);
+  try {
+    if (Notification.isSupported()) {
+      const n = new Notification({title, body, icon: path.join(__dirname, 'assets', 'icon.png'), silent: false});
+      n.on('click', () => openUpdateWindow());
+      n.show();
+    }
+  } catch (e) { logger.warn('Notification de mise à jour', e.message); }
+  for (const w of windows.values()) notice(w, `${title} : ${body}`);
+}
+// Faux service de mise à jour, uniquement pour les tests hors installation (DGB_TEST_UPDATER=1.99.0).
+function testUpdater(version) {
+  const {EventEmitter} = require('node:events');
+  const u = new EventEmitter();
+  u.checkForUpdates = async () => {
+    u.emit('checking-for-update');
+    setTimeout(() => {
+      u.emit('update-available', {version, releaseNotes: 'Nouveautés de test'});
+      let p = 0; const t = setInterval(() => { p += 25; u.emit('download-progress', {percent: p}); if (p >= 100) { clearInterval(t); u.emit('update-downloaded', {version}); } }, 400);
+    }, 300);
+  };
+  u.quitAndInstall = () => { try { fs.writeFileSync(userDataFile('test-update-installed.txt'), version); } catch {} app.quit(); };
+  return u;
+}
 const achLib = require('./lib/achievements');
 let achievements = null, achTimer = null, achLastAds = 0;
 // Succès (v1.15) : un compteur local, débloqué au fil de l'utilisation.
@@ -104,6 +149,42 @@ function onAchievementsUnlocked(list) {
   }
   broadcast();
 }
+async function claimReferral(raw) {
+  const code=String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!remoteLib.validRefCode(code))throw new Error('Code de parrainage invalide (8 caractères).');
+  if(settings.referredBy)throw new Error('Tu as déjà indiqué un parrain.');
+  if(code===settings.refCode)throw new Error('C’est ton propre code !');
+  if(!telemetry?.available)throw new Error('Aucun serveur DevGit configuré dans cette version.');
+  if(!telemetryLib.validId(settings.telemetryId)){settings.telemetryId=telemetryLib.newId();}
+  try{await telemetry.api('/v1/referral/claim',{method:'POST',body:{code,id:settings.telemetryId},timeout:15_000});}
+  catch(e){if(/already/.test(e.message))throw new Error('Un parrain a déjà été enregistré pour ce PC.');if(/self/.test(e.message))throw new Error('C’est ton propre code !');throw e;}
+  settings.referredBy=code;saveSettings();broadcast();return true;
+}
+// Premier lancement : le code du lien d'invitation est retrouvé et validé tout seul.
+function installerPathFromRegistry() {
+  if (process.platform !== 'win32') return '';
+  try {
+    const out = require('node:child_process').execFileSync('reg', ['query', 'HKCU\\Software\\DevGitBrowser', '/v', 'InstallerPath'], {encoding: 'utf8', windowsHide: true, timeout: 5000});
+    const m = out.match(/InstallerPath\s+REG_SZ\s+(.+)/); return m ? m[1].trim() : '';
+  } catch { return ''; }
+}
+async function autoReferral() {
+  if (settings.welcomed || settings.referredBy || settings.refAutoChecked) return;
+  settings.refAutoChecked = true; saveSettings();
+  let found = null;
+  try {
+    found = require('./lib/referral-source').findReferralCode({installerPath: installerPathFromRegistry(),
+      downloadsDir: (() => { try { return app.getPath('downloads'); } catch { return ''; } })(), clipboardText: () => clipboard.readText()});
+  } catch {}
+  if (!found) return;
+  logger.info('Parrainage détecté', found.source);
+  autoReferralCode = found.code;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { await claimReferral(found.code); const s = windows.values().next().value; if (s) notice(s, `🎁 Parrainage validé automatiquement (code ${found.code}). Merci !`); return; }
+    catch (e) { if (/déjà|propre code|invalide/.test(e.message)) { logger.warn('Parrainage auto', e.message); return; } await new Promise(r => setTimeout(r, 20_000)); }
+  }
+}
+let autoReferralCode = '';
 async function refreshReferralCount() {
   if (!telemetry?.available || !remoteLib.validRefCode(settings.refCode)) return;
   try { const r = await telemetry.api('/v1/referral/' + settings.refCode, {timeout: 10_000}); if (Number.isFinite(r?.count)) ach('atLeast', 'referrals', r.count); } catch {}
@@ -220,7 +301,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, language:'auto', refCode:'', referredBy:'', dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, language:'auto', refCode:'', referredBy:'', refAutoChecked:false, restoreAfterUpdate:false, dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -260,7 +341,7 @@ function loadSettings() {
     if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','vpnAtStartup','discordPresence','discordShowSite','mediaPlayer']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','vpnAtStartup','discordPresence','discordShowSite','refAutoChecked','restoreAfterUpdate','mediaPlayer']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -379,13 +460,15 @@ function publicState(s) {
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
       secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer,
       shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry,
-      windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview, language:settings.language },
+      windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview, language:settings.language,
+      discordPresence:settings.discordPresence, discordShowSite:settings.discordShowSite, telemetry:settings.telemetry===true },
     lang: i18nLang,
     achievements: achievements ? (() => { const sm = achievements.summary({includeSecret: Boolean(s.xmode)}); return {unseen: sm.unseen, unlocked: sm.unlocked, total: sm.total, rank: sm.rank.icon}; })() : null,
     materialSupported: materialSupported(),
     remote: remote ? {blocked: remote.state.kill.blocked, killMessage: remote.state.kill.message,
       disabled: remote.state.kill.features.map(f => remoteLib.FEATURES[f]),
       messages: remote.state.messages.filter(m => !settings.dismissedMessages.includes(m.id))} : {blocked:false, killMessage:'', disabled:[], messages:[]},
+    referral: {referredBy: settings.referredBy, auto: autoReferralCode === settings.referredBy && Boolean(autoReferralCode)},
     discord: {presence: settings.discordPresence, showSite: settings.discordShowSite, connected: Boolean(discord?.connected)},
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
@@ -1074,7 +1157,7 @@ function reopenClosed(s) {
 }
 function setPreference(key, value) {
   if (!Object.hasOwn(defaultSettings(), key) || typeof value !== typeof defaultSettings()[key]) throw new Error('Réglage inconnu.');
-  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store','refCode','referredBy','dismissedMessages'].includes(key)) throw new Error('Réglage protégé.');
+  if (['adminKey','xmodeCode','xmodeAge','weatherCity','welcomed','telemetryId','telemetryAsked','rating','store','refCode','referredBy','refAutoChecked','restoreAfterUpdate','dismissedMessages'].includes(key)) throw new Error('Réglage protégé.');
   if (key==='telemetry') { setTelemetry(value); return; }
   if (key==='searchEngine' && !Object.hasOwn(SEARCH_ENGINES,value)) throw new Error('Moteur de recherche inconnu.');
   if (key==='theme' && !THEMES.some(t=>t.id===value)) throw new Error('Thème inconnu.');
@@ -1565,7 +1648,7 @@ function sessionSnapshot() {
 function saveSessionNow() {
   if (sessionTimer) { clearTimeout(sessionTimer); sessionTimer=null; }
   if (!settings || !app.isReady() || !windows.size) return;
-  try { writeAtomic(userDataFile('session.json'), JSON.stringify(settings.restoreSession ? sessionSnapshot() : {version:1,windows:[]})); } catch {}
+  try { writeAtomic(userDataFile('session.json'), JSON.stringify(settings.restoreSession || settings.restoreAfterUpdate ? sessionSnapshot() : {version:1,windows:[]})); } catch {}
 }
 function scheduleSessionSave() {
   if (quitting || sessionTimer || !settings) return;
@@ -1573,7 +1656,10 @@ function scheduleSessionSave() {
   sessionTimer.unref?.();
 }
 function restoreSession() {
-  const data = settings.restoreSession ? readJson('session.json') : null;
+  // Après une mise à jour lancée depuis la fenêtre dédiée, les onglets sont toujours rouverts (une fois).
+  const afterUpdate = settings.restoreAfterUpdate === true;
+  if (afterUpdate) { settings.restoreAfterUpdate = false; saveSettings(); }
+  const data = settings.restoreSession || afterUpdate ? readJson('session.json') : null;
   const list = Array.isArray(data?.windows) ? data.windows.slice(0,6) : [];
   let restored = 0;
   for (const w of list) {
@@ -2524,17 +2610,7 @@ function registerIpc(){
       if(Number.isFinite(count))ach('atLeast','referrals',count);
       return {code,link:'https://hempreur.github.io/DevGitBrowser/?ref='+code,count,badge:count==null?null:remoteLib.badgeFor(count),next:count==null?null:remoteLib.nextBadge(count),referredBy:settings.referredBy,badges:remoteLib.BADGES};
     },
-    'ref:claim':async(_s,raw)=>{
-      const code=String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-      if(!remoteLib.validRefCode(code))throw new Error('Code de parrainage invalide (8 caractères).');
-      if(settings.referredBy)throw new Error('Tu as déjà indiqué un parrain.');
-      if(code===settings.refCode)throw new Error('C’est ton propre code !');
-      if(!telemetry?.available)throw new Error('Aucun serveur DevGit configuré dans cette version.');
-      if(!telemetryLib.validId(settings.telemetryId)){settings.telemetryId=telemetryLib.newId();}
-      try{await telemetry.api('/v1/referral/claim',{method:'POST',body:{code,id:settings.telemetryId},timeout:15_000});}
-      catch(e){if(/already/.test(e.message))throw new Error('Un parrain a déjà été enregistré pour ce PC.');if(/self/.test(e.message))throw new Error('C’est ton propre code !');throw e;}
-      settings.referredBy=code;saveSettings();broadcast();return true;
-    },
+    'ref:claim':(_s,raw)=>claimReferral(raw),
     'ach:summary':s=>achievements?achievements.summary({includeSecret:Boolean(s.xmode)}):null,
     'ach:seen':s=>{ach('markSeen',Boolean(s.xmode));ach('flush');broadcast();return true;},
     'ach:event':(_s,name)=>{if(['generated'].includes(name))ach('bump',name);return true;},
@@ -2610,7 +2686,7 @@ function registerIpc(){
     'app:copy-diagnostics':()=>{const info=aboutInfo();clipboard.writeText(Object.entries({...info,extensions:info.extensions.map(e=>`${e.name} ${e.version}`).join(', '),shield:info.shield?.quality,update:info.update?.status}).map(([k,v])=>`${k}: ${v}`).join('\n'));},
     'app:open-repository':(s,page='')=>{const target=REPOSITORY_URL+({releases:'/releases',changelog:'/blob/main/CHANGELOG.md',issues:'/issues'}[page]||'');newTab(s,target);},
     'update:check':async()=>{if(!updater)throw new Error('Service de mise à jour indisponible.');await updater.check();return updater.state;},
-    'update:install':()=>{if(!updater)throw new Error('Service de mise à jour indisponible.');updater.install();},
+    'update:install':()=>{if(!updater)throw new Error('Service de mise à jour indisponible.');settings.restoreAfterUpdate=true;saveSettings();saveSessionNow();updater.install();},
     'proxy:set':(_s,proxy)=>configureProxy(proxy),
     'github:connect':(_s,personaltoken)=>connectGitHub(personaltoken),
     'github:choose-repo':(_s,name,branch)=>selectRepository(name,branch),
@@ -2628,6 +2704,12 @@ function registerIpc(){
   ipcMain.handle('dgb-radio:theme',event=>(radioWin&&event.sender===radioWin.webContents)?settings.theme:'');
   // Scriptlets anti-publicités synchrones, demandés par le preload des pages.
   ipcMain.on('dgb-i18n:get',event=>{ event.returnValue=i18nPayload(); });
+  ipcMain.on('dgb-update:ready',event=>{ if(updateWin&&event.sender===updateWin.webContents)sendUpdateState(); });
+  ipcMain.on('dgb-update:action',(event,action)=>{
+    if(!updateWin||event.sender!==updateWin.webContents)return;
+    if(action==='install'){ try{ settings.restoreAfterUpdate=true; saveSettings(); saveSessionNow(); updater.install(); }catch(e){ logger.warn('Mise à jour',e.message); sendUpdateState(); } }
+    else { updateFlow?.postpone(updater?.state?.version); updateWin.close(); }
+  });
   ipcMain.on('dgb-shield:early',(event,url)=>{
     try{
       if(event.sender.session!==browsingSession){event.returnValue={enabled:false};return;}
@@ -2703,9 +2785,11 @@ else {
     perfTimer=setInterval(()=>{sleepIdleTabs();if(settings.gamingMode)applyProcessPriority();},20_000);perfTimer.unref?.();
     try{await browsingSession.setProxy(proxyForElectron(settings.proxy));}
     catch{settings.proxy={...DEFAULT_PROXY};}
-    updater=new UpdateService({app,enabled:settings.autoUpdate,onState:state=>{
-      broadcast();
-      if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
+    const fakeUpdate=!app.isPackaged&&/^\d+\.\d+\.\d+$/.test(process.env.DGB_TEST_UPDATER||'')?process.env.DGB_TEST_UPDATER:'';
+    updateFlow=new UpdateFlow({notify:notifyUpdate,openWindow:()=>openUpdateWindow()});
+    updater=new UpdateService({app,enabled:settings.autoUpdate,force:Boolean(fakeUpdate),...(fakeUpdate?{loadUpdater:()=>testUpdater(fakeUpdate)}:{}),onState:state=>{
+      broadcast(); sendUpdateState();
+      updateFlow.handle(state);
     }});
     startWeather();
     achievements=new achLib.Achievements({read:()=>readJson('achievements.json'),write:data=>writeAtomic(userDataFile('achievements.json'),JSON.stringify(data)),onUnlock:onAchievementsUnlocked});
@@ -2723,6 +2807,7 @@ else {
     remote=new remoteLib.RemoteConfig({telemetry,version:app.getVersion(),country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},
       onChange:st=>{ if(st.kill.blocked){logger.warn('Version désactivée à distance');updater?.check?.().catch(()=>{});} if(st.kill.features.includes('preview'))closeLinkPreview(); broadcast(); }});
     remote.start();
+    setTimeout(()=>autoReferral().catch(e=>logger.warn('Parrainage auto',e.message)),3_000).unref?.();
     discord=new DiscordPresence({clientId:DISCORD_APP_ID,onError:e=>logger.warn('Discord',e.message)});
     updateDiscord();
     token=restoreToken();

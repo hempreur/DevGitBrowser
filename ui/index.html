@@ -378,7 +378,8 @@
     <div class="welcome-step hidden" data-step="5"><span class="kicker">5 / 5</span><h2>Ton coffre à mots de passe</h2><p>Définis un mot de passe maître : il chiffrera tous les mots de passe que tu enregistres. Il n’est stocké nulle part — retiens-le bien.</p>
       <div class="two-fields"><div><label for="welcome-master">Mot de passe maître</label><input id="welcome-master" type="password" autocomplete="new-password"></div><div><label for="welcome-master2">Confirmation</label><input id="welcome-master2" type="password" autocomplete="new-password"></div></div>
       <div class="strength"><span id="welcome-strength-bar"></span></div><small id="welcome-strength" class="muted">Au moins 8 caractères (12 conseillés).</small>
-      <div class="welcome-ref"><label for="welcome-ref">Un ami t’a invité ? Son code de parrainage (facultatif)</label><input id="welcome-ref" class="compact-input" maxlength="9" autocomplete="off" spellcheck="false" placeholder="ABCD2345"></div>
+      <div class="welcome-ref" id="welcome-ref-box"><label for="welcome-ref">Un ami t’a invité ? Son code de parrainage (facultatif)</label><input id="welcome-ref" class="compact-input" maxlength="9" autocomplete="off" spellcheck="false" placeholder="ABCD2345"></div>
+      <p id="welcome-ref-done" class="welcome-ref-done hidden"></p>
       <p id="welcome-vault-done" class="muted hidden">✅ Ton coffre existe déjà : tu peux terminer.</p>
       <p class="muted">DevGitBrowser se met à jour tout seul : tu seras prévenu quand une nouvelle version est prête.</p></div>
     <div class="welcome-nav"><span id="welcome-dots" class="welcome-dots"></span><button id="welcome-skip" class="outline" type="button">Passer</button><button id="welcome-next" class="primary" type="button">Commencer</button></div>

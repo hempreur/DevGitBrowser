@@ -1,3 +1,32 @@
+## 1.16.0 — Mises à jour guidées, parrainage automatique, réglages corrigés
+
+### 🔄 Mises à jour
+- **Pendant l'utilisation** : une **notification Windows** prévient quand une nouvelle version est trouvée, puis quand elle est prête. Un clic ouvre la fenêtre de mise à jour. Le bandeau dans le navigateur reste là.
+- **À l'ouverture**, si le navigateur n'a pas été utilisé depuis un moment : une **fenêtre de mise à jour** s'ouvre toute seule. Elle montre la version, les nouveautés et le téléchargement, puis **installe automatiquement** la mise à jour après un compte à rebours de 10 secondes. Les boutons « Installer maintenant » et « Plus tard » restent disponibles ; avec « Plus tard », l'installation se fait à la prochaine fermeture.
+- Les onglets ouverts sont **toujours rouverts** après une mise à jour, même si l'option « Rouvrir les onglets au démarrage » est désactivée.
+
+### 🎁 Parrainage automatique
+- Le code d'un lien d'invitation est **validé tout seul au premier lancement**, sans rien saisir :
+  - le site transmet l'adresse du lien avec le téléchargement de l'installateur ;
+  - Windows note cette adresse dans la « marque du web » du fichier ;
+  - le navigateur la retrouve, via l'installateur ou le dossier Téléchargements.
+- En secours, le site copie aussi le code au format `DevGitBrowser ref:CODE`. Le navigateur le lit une seule fois, au premier lancement, et seulement dans ce format exact.
+- L'assistant affiche « 🎁 Parrainage validé automatiquement ». Le champ manuel reste disponible si aucun code n'est trouvé.
+
+### 🛠 Corrigé
+- Trois interrupteurs des Paramètres se décochaient tout seuls après avoir été activés (le réglage était pourtant enregistré) : **Discord**, **Montrer le site que je visite** et **Statistiques anonymes**. Un test vérifie désormais que chaque interrupteur reste dans la position choisie.
+
+## 1.15.1 — DevGitShield plus solide sur les Wi-Fi publics, dépôt nettoyé
+
+### Correctif
+- **DevGitShield** : sur un Wi-Fi d'hôtel, de gare ou d'entreprise (portail de connexion), une page web pouvait être reçue à la place d'une liste de filtres. Si elle ne commençait pas par `<!doctype` ou `<html`, elle était acceptée et remplaçait les règles de blocage jusqu'à la mise à jour suivante. Désormais, toute réponse HTML (type `text/html`, ou contenu commençant par `<`) est refusée et les règles actuelles sont conservées.
+
+### Dépôt
+- Nouveau README avec captures d'écran.
+- Suppression de deux fichiers devenus inutiles :
+  - `legacy/legacy-browser.ps1` : ancienne fenêtre IE séparée, remplacée par l'IE intégré à l'onglet et appelée nulle part.
+  - `INSTALLATION-RAPIDE.txt` : notice de l'archive ZIP d'origine (v1.0.0), dépassée.
+
 ## 1.15.0 — 🏆 Succès et invitations
 
 ### 🏆 Succès

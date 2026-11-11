@@ -958,7 +958,7 @@ async function applyWelcomeProtection(){
   if(country!==(p.vpnCountry||''))await run(()=>api.preference('vpnCountry',country));
 }
 async function finishWelcome(){
-  const ref=$('welcome-ref').value.trim();if(ref)await run(()=>api.refClaim(ref),'Merci ! Ton parrain a été enregistré.');
+  const ref=$('welcome-ref').value.trim();if(ref&&!current?.referral?.referredBy)await run(()=>api.refClaim(ref),'Merci ! Ton parrain a été enregistré.');
   await run(()=>api.welcomed());await showPanel('');
   notify('Bienvenue dans DevGitBrowser ! Bonne navigation.'+($('welcome-vpn').checked?' Le VPN se connectera au prochain démarrage.':''));
 }
@@ -1328,6 +1328,8 @@ $('admin-token-change').addEventListener('click',()=>{$('admin-server-data').cla
 function updateTelemetry(state){
   const tm=state.telemetry||{};
   renderRemote(state);renderTrophy(state);
+  {const by=state.referral?.referredBy||'';$('welcome-ref-box').classList.toggle('hidden',Boolean(by));$('welcome-ref-done').classList.toggle('hidden',!by);
+   if(by)$('welcome-ref-done').textContent=state.referral.auto?`🎁 Parrainage validé automatiquement : code ${by}. Merci !`:`🎁 Parrainé par le code ${by}. Merci !`;}
   $('tm-banner').classList.toggle('hidden',!(tm.available&&!tm.asked&&state.welcomed&&!state.xmode));
   $('telemetry-line').classList.toggle('hidden',!tm.available);
   $('rate-card').classList.toggle('hidden',!tm.available);

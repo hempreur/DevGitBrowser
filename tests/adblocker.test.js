@@ -149,3 +149,11 @@ test('The blocker is wired into the browser security panel and main session',()=
   assert.match(renderer,/adblockRefresh/);
   assert.match(html,/MSHTML/);
 });
+
+test('DevGitShield : une page HTML (portail Wi-Fi) ne remplace jamais une liste de filtres',async()=>{
+  const {fetchText}=require('../lib/adblocker');
+  const mk=(body,type='text/plain')=>async()=>({ok:true,status:200,headers:{get:()=>type},text:async()=>body});
+  for(const [body,type] of [['<title>Portail Wi-Fi</title><p>Connecte-toi pour accéder à Internet.</p>','text/plain'],['<!doctype html><html><body>'+'x'.repeat(60),'text/plain'],['﻿  <head><meta charset="utf-8">'+'x'.repeat(60),'text/plain'],['! Title: EasyList\n||ads.example^\n'+'x'.repeat(40),'text/html; charset=utf-8']])
+    await assert.rejects(fetchText(mk(body,type),'https://exemple.fr/liste.txt'),/HTML/);
+  assert.match(await fetchText(mk('[Adblock Plus 2.0]\n! Title: EasyList\n||ads.example^\n'),'https://exemple.fr/liste.txt'),/^\[Adblock/);
+});

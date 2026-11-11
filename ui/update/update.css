@@ -1,0 +1,16 @@
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:radial-gradient(ellipse at 50% 0,#2a1c66,#0a0d26 70%);color:#eaf2ff;font:14px/1.55 Inter,'Segoe UI',Arial,sans-serif;overflow:hidden}
+main{height:100%;display:flex;flex-direction:column;align-items:center;text-align:center;padding:26px 30px 18px}
+.logo{filter:drop-shadow(0 0 18px #18cbff88)}
+.kicker{margin-top:10px;font-size:10px;letter-spacing:2px;font-weight:800;color:#50d9fa}
+h1{font-size:21px;margin:6px 0 4px}
+.versions{margin:0 0 14px;color:#9fb0e0;font-size:15px}.versions b{color:#b16cff;margin:0 6px}.to{color:#7df2b6;font-weight:800}
+.progress{width:100%;height:10px;border-radius:6px;background:#1c2257;overflow:hidden;border:1px solid #2c3a7a}
+.progress i{display:block;height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,#50d9fa,#b16cff);transition:width .4s}
+.status{margin:10px 0 6px;min-height:22px;color:#cdd8ff}.status.ready{color:#7df2b6;font-weight:700}
+details{width:100%;text-align:left;margin:4px 0}summary{cursor:pointer;color:#9fb0e0;font-size:12px}
+pre{max-height:110px;overflow:auto;white-space:pre-wrap;font:12px/1.5 Inter,'Segoe UI',sans-serif;color:#b7c6ea;background:#0b1033;border:1px solid #2c3a7a;border-radius:8px;padding:8px 10px;margin:6px 0 0}
+.buttons{display:flex;gap:10px;margin-top:auto;padding-top:12px;width:100%}
+button{flex:1;padding:11px 14px;border-radius:10px;font:700 14px Inter,'Segoe UI',sans-serif;cursor:pointer;border:1px solid #3a4689}
+.primary{border:0;background:linear-gradient(95deg,#267bfd,#a03ef0);color:#fff}.primary:disabled{opacity:.45;cursor:default}
+.ghost{background:#141a48;color:#cdd8ff}.ghost:hover{border-color:#50d9fa}
+.foot{margin:10px 0 0;font-size:11px;color:#7d8cb8}.hidden{display:none}
