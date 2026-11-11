@@ -1,3 +1,18 @@
+## 1.14.0 — DevGitBrowser in English · interface en anglais
+
+### 🌐 Langue de l'interface
+- Nouveau réglage **Langue** : Automatique (langue de Windows), Français ou English. Il est disponible dès le premier écran de l'assistant de bienvenue et dans Paramètres → Général.
+- Le changement s'applique **immédiatement**, sans redémarrer. Il couvre toutes les fenêtres : navigateur, radio, analyse réseau, aperçu des liens.
+- Sont aussi traduits les menus (☰, clic droit, onglets, 🛡, VPN), les boîtes de dialogue, les notifications, les messages d'erreur, les pages d'erreur et de site dangereux, et le statut Discord.
+- Plus de 1 350 textes traduits. Dates et noms de pays suivent la langue choisie.
+- En mode « Automatique », un Windows en français garde l'interface en français ; toutes les autres langues de Windows passent en anglais.
+
+### 🎁 Site web : liens de parrainage
+- Le lien `https://hempreur.github.io/DevGitBrowser/?ref=CODE` affiche un encadré « Un ami t'a invité ! » avec le code et un bouton Copier.
+
+### Language
+- New **Language** setting: Automatic (Windows language), Français or English — on the very first welcome screen and in Settings → General. Applies instantly to every window, menu, dialog and error page.
+
 ## 1.13.0 — Communauté : rapport de bug, parrainage, Discord, admin en direct
 
 ### 🐞 Signaler un bug en un clic

@@ -6,7 +6,7 @@
 <title>DevGitBrowser • CodexHempreur INC</title>
 <link rel="icon" type="image/png" href="../assets/icon.png">
 <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="themes.css"><script defer src="x-catalog.js"></script><script defer src="world-map.js"></script><script defer src="renderer.js"></script>
-</head>
+<script src="i18n.js"></script></head>
 <body>
 <header id="chrome">
   <div class="tab-row">
@@ -332,6 +332,7 @@
   <div class="panel-wrap welcome-wrap">
     <div class="welcome-step" data-step="0">
       <img src="../assets/logo-mark.png" alt="" width="110" height="110" class="welcome-logo">
+      <div class="welcome-lang"><label for="welcome-language">🌐 Langue · Language</label><select id="welcome-language" class="compact-select"><option value="auto">Automatique (langue de Windows)</option><option value="fr" data-no-i18n>Français</option><option value="en" data-no-i18n>English</option></select></div>
       <h2>Bienvenue dans DevGitBrowser</h2>
       <p>Merci d’avoir installé le navigateur de CodexHempreur. En quelques secondes, personnalise-le : couleurs, coffre à mots de passe et moteur de recherche.</p>
       <div class="welcome-features"><span>🛡 Anti-pub YouTube &amp; Twitch</span><span>🌍 VPN gratuit</span><span>🔑 Coffre à mots de passe</span><span>📻 Radios du monde</span><span>🎮 Mode gaming</span><span>⚽ MatchPulse</span></div>
@@ -366,6 +367,7 @@
     <div class="panel-header"><div><span class="kicker">CONFIGURATION</span><h2>Paramètres</h2><p>Démarrage, confidentialité, performances, téléchargements et réseau.</p></div><button class="x" data-close="1" aria-label="Fermer">✕</button></div>
     <div class="section-card">
       <h3>Général</h3>
+      <div class="setting-line"><div><strong>🌐 Langue · Language</strong><p>Le changement de langue s’applique tout de suite ; les menus déjà ouverts changent à la prochaine ouverture.</p></div><select id="language" class="compact-select" aria-label="Langue de l’interface"><option value="auto">Automatique (langue de Windows)</option><option value="fr" data-no-i18n>Français</option><option value="en" data-no-i18n>English</option></select></div>
       <div class="setting-line"><div><strong>Moteur de recherche</strong><p>Utilisé quand le texte saisi n’est pas une adresse.</p></div><select id="search-engine" class="compact-select" aria-label="Moteur de recherche"></select></div>
       <div class="setting-line"><div><strong>Rouvrir les onglets au démarrage</strong><p>Restaure les fenêtres et onglets de la dernière session, y compris après une mise à jour.</p></div><label class="switch"><input type="checkbox" data-pref="restoreSession"><span></span></label></div>
       <div class="setting-line"><div><strong>Barre de favoris</strong><p>Afficher les favoris sous la barre d’adresse (Ctrl+Maj+B).</p></div><label class="switch"><input type="checkbox" data-pref="showBookmarksBar"><span></span></label></div>

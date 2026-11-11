@@ -22,7 +22,70 @@ const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
 const { BUILTIN_KEYS, bundledDescriptor, reservedGitHubKey } = require('./lib/bundled-extensions');
 const { BrowsingData } = require('./lib/browsing-data');
 const { UpdateService } = require('./lib/updater');
-const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage, warningPage, crashPage, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
+const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage: errorPageFr, warningPage: warningPageFr, crashPage: crashPageFr, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
+// ======================================================== Langue de l'interface (v1.14)
+const i18nCore = require('./ui/i18n.js');
+const LANGUAGES = ['auto','fr','en'];
+let i18nDict = null, i18nLang = 'fr', i18nTr = i18nCore.createTranslator({});
+function loadI18nDict() { if (!i18nDict) { try { i18nDict = JSON.parse(fs.readFileSync(path.join(__dirname,'i18n','en.json'),'utf8')); } catch { i18nDict = {}; } } return i18nDict; }
+function effectiveLang() {
+  const pref = settings?.language || 'auto';
+  if (pref === 'fr' || pref === 'en') return pref;
+  let loc = ''; try { loc = app.getPreferredSystemLanguages?.()[0] || app.getLocale(); } catch {}
+  return /^fr\b/i.test(String(loc)) ? 'fr' : 'en';
+}
+function applyLanguage() {
+  i18nLang = effectiveLang();
+  i18nTr = i18nCore.createTranslator(i18nLang === 'en' ? loadI18nDict() : {});
+}
+const T = s => (i18nLang === 'en' ? i18nTr.t(s) : s);
+const i18nPayload = () => ({lang: i18nLang, dict: i18nLang === 'en' ? loadI18nDict() : {}});
+function broadcastLanguage() {
+  const payload = i18nPayload();
+  for (const wc of allWebContents.getAllWebContents()) {
+    try { if (!wc.isDestroyed() && /^file:/i.test(wc.getURL())) wc.send('dgb-i18n:changed', payload); } catch {}
+  }
+}
+// Pages d'erreur générées (data:) : textes traduits, balisage intact.
+function translateDataPage(url) {
+  if (i18nLang !== 'en') return url;
+  const prefix = 'data:text/html;charset=utf-8,';
+  if (!url.startsWith(prefix)) return url;
+  return prefix + encodeURIComponent(i18nTr.html(decodeURIComponent(url.slice(prefix.length))));
+}
+const errorPage = o => translateDataPage(errorPageFr(o));
+const warningPage = o => translateDataPage(warningPageFr(o));
+const crashPage = o => translateDataPage(crashPageFr(o));
+// Menus natifs et boîtes de dialogue : libellés traduits au moment de leur création.
+function translateMenuTemplate(items) {
+  return (items || []).map(it => {
+    if (!it || typeof it !== 'object' || it instanceof Menu) return it;
+    const out = {...it};
+    if (typeof out.label === 'string') out.label = T(out.label);
+    if (typeof out.sublabel === 'string') out.sublabel = T(out.sublabel);
+    if (typeof out.toolTip === 'string') out.toolTip = T(out.toolTip);
+    if (Array.isArray(out.submenu)) out.submenu = translateMenuTemplate(out.submenu);
+    return out;
+  });
+}
+{
+  const build = Menu.buildFromTemplate.bind(Menu);
+  Menu.buildFromTemplate = tpl => build(i18nLang === 'en' ? translateMenuTemplate(tpl) : tpl);
+  const trOpts = o => {
+    if (i18nLang !== 'en' || !o || typeof o !== 'object') return o;
+    const c = {...o};
+    for (const k of ['title','message','detail','checkboxLabel','buttonLabel','nameFieldLabel']) if (typeof c[k] === 'string') c[k] = T(c[k]);
+    if (Array.isArray(c.buttons)) c.buttons = c.buttons.map(b => T(b));
+    if (Array.isArray(c.filters)) c.filters = c.filters.map(f => ({...f, name: T(f.name)}));
+    return c;
+  };
+  for (const fn of ['showMessageBox','showMessageBoxSync','showOpenDialog','showOpenDialogSync','showSaveDialog','showSaveDialogSync']) {
+    const orig = dialog[fn].bind(dialog);
+    dialog[fn] = (a, b) => (b === undefined ? orig(trOpts(a)) : orig(a, trOpts(b)));
+  }
+  const box = dialog.showErrorBox.bind(dialog);
+  dialog.showErrorBox = (title, content) => box(T(title), T(content));
+}
 const { PasswordVault, generatePassword } = require('./lib/vault');
 const importer = require('./lib/importer');
 const trackerDb = require('./lib/trackers');
@@ -99,7 +162,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, refCode:'', referredBy:'', dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, windowMaterial:'none', linkPreview:'shift', discordPresence:false, discordShowSite:false, language:'auto', refCode:'', referredBy:'', dismissedMessages:[], mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -122,6 +185,7 @@ function loadSettings() {
     if (VPN_COUNTRIES.some(c=>c.code===raw.vpnCountry)) p.vpnCountry=raw.vpnCountry;
     if (WINDOW_MATERIALS.includes(raw.windowMaterial)) p.windowMaterial=raw.windowMaterial;
     if (LINK_PREVIEW_MODES.includes(raw.linkPreview)) p.linkPreview=raw.linkPreview;
+    if (LANGUAGES.includes(raw.language)) p.language=raw.language;
     if (remoteLib.validRefCode(raw.refCode)) p.refCode=raw.refCode;
     if (remoteLib.validRefCode(raw.referredBy)) p.referredBy=raw.referredBy;
     if (Array.isArray(raw.dismissedMessages)) p.dismissedMessages=raw.dismissedMessages.filter(x=>typeof x==='string'&&/^[a-z0-9-]{4,40}$/.test(x)).slice(-50);
@@ -257,7 +321,8 @@ function publicState(s) {
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
       secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer,
       shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry,
-      windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview },
+      windowMaterial:settings.windowMaterial, linkPreview:settings.linkPreview, language:settings.language },
+    lang: i18nLang,
     materialSupported: materialSupported(),
     remote: remote ? {blocked: remote.state.kill.blocked, killMessage: remote.state.kill.message,
       disabled: remote.state.kill.features.map(f => remoteLib.FEATURES[f]),
@@ -304,12 +369,12 @@ function updateDiscord() {
   if (!discord) return;
   if (!settings.discordPresence) { discord.stop(); return; }
   const s = focusedState(); const t = s ? activeTab(s) : null;
-  let details = 'Navigue avec DevGitBrowser', state = 'Navigateur indépendant';
-  if (s?.xmode || t?.xTab || t?.private) state = 'Navigation privée';
-  else if (settings.discordShowSite && t?.url) { try { const h = new URL(t.url).hostname.replace(/^www\./, ''); if (h) state = 'Sur ' + h.slice(0, 60); } catch {} }
+  let details = T('Navigue avec DevGitBrowser'), state = T('Navigateur indépendant');
+  if (s?.xmode || t?.xTab || t?.private) state = T('Navigation privée');
+  else if (settings.discordShowSite && t?.url) { try { const h = new URL(t.url).hostname.replace(/^www\./, ''); if (h) state = T('Sur') + ' ' + h.slice(0, 60); } catch {} }
   discord.setActivity({details, state, timestamps: {start: discordStart},
     assets: {large_image: 'logo', large_text: 'DevGitBrowser ' + app.getVersion()},
-    buttons: [{label: 'Télécharger DevGitBrowser', url: 'https://hempreur.github.io/DevGitBrowser/'}]});
+    buttons: [{label: T('Télécharger DevGitBrowser'), url: 'https://hempreur.github.io/DevGitBrowser/'}]});
 }
 function notice(s, message, bad=false) {
   if (s && !s.win.isDestroyed() && !s.win.webContents.isDestroyed()) s.win.webContents.send('dgb:notice', {message:String(message).slice(0,300), bad:Boolean(bad)});
@@ -957,6 +1022,7 @@ function setPreference(key, value) {
   if (key==='vpnCountry' && !VPN_COUNTRIES.some(c=>c.code===value)) throw new Error('Pays inconnu.');
   if (key==='windowMaterial' && !WINDOW_MATERIALS.includes(value)) throw new Error('Effet inconnu.');
   if (key==='linkPreview' && !LINK_PREVIEW_MODES.includes(value)) throw new Error('Mode d’aperçu inconnu.');
+  if (key==='language' && !LANGUAGES.includes(value)) throw new Error('Langue inconnue.');
   if (key==='gamingMode') { setGamingMode(value); return; }
   settings[key]=value;
   if (key==='secureDns' || key==='dnsProvider') applySecureDns();
@@ -964,6 +1030,7 @@ function setPreference(key, value) {
   if (key==='theme' && radioWin && !radioWin.isDestroyed()) radioWin.webContents.send('dgb-radio:theme', value);
   if (key==='autoUpdate' && updater) updater.setAuto(value);
   if (key==='windowMaterial') for (const w of windows.values()) applyMaterial(w.win);
+  if (key==='language') { settings.language=value; applyLanguage(); broadcastLanguage(); updateDiscord(); }
   if (key==='discordPresence' || key==='discordShowSite') { settings[key]=value; updateDiscord(); }
   if (key==='linkPreview' && value==='off') closeLinkPreview();
   if (key==='shieldAnnoyances') adBlocker?.setAnnoyances(value).catch(()=>{});
@@ -2489,6 +2556,7 @@ function registerIpc(){
   });
   ipcMain.handle('dgb-radio:theme',event=>(radioWin&&event.sender===radioWin.webContents)?settings.theme:'');
   // Scriptlets anti-publicités synchrones, demandés par le preload des pages.
+  ipcMain.on('dgb-i18n:get',event=>{ event.returnValue=i18nPayload(); });
   ipcMain.on('dgb-shield:early',(event,url)=>{
     try{
       if(event.sender.session!==browsingSession){event.returnValue={enabled:false};return;}
@@ -2526,6 +2594,7 @@ else {
     Menu.setApplicationMenu(null);
     app.setAppUserModelId('inc.codexhempreur.devgitbrowser');
     settings=loadSettings();
+    applyLanguage();
     browsing=new BrowsingData({read:()=>readJson('browsing-data.json'),write:data=>writeAtomic(userDataFile('browsing-data.json'),JSON.stringify(data))});
     // Electron's userData path and persistent partition are isolated per OS user profile.
     browsingSession=session.fromPartition('persist:devgitbrowser-user');

@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // No Node.js, filesystem, token, or shell APIs are exposed to websites.
 const invoke = (channel,...args) => ipcRenderer.invoke(`dgb:${channel}`,...args);
 const listen = channel => cb => { const fn=(_event,value)=>cb(value); ipcRenderer.on(channel,fn); return()=>ipcRenderer.off(channel,fn); };
+contextBridge.exposeInMainWorld('DGBLang',Object.freeze({initial:(()=>{try{return ipcRenderer.sendSync('dgb-i18n:get');}catch{return {lang:'fr',dict:{}};}})(),onChange:fn=>{ipcRenderer.on('dgb-i18n:changed',(_e,v)=>fn(v));}}));
 contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   initial:()=>invoke('initial'),
   newTab:url=>invoke('tab:new',url||''),newTabMenu:()=>invoke('tab:new-menu'),newPrivateTab:url=>invoke('tab:new-private',url||''),selectTab:id=>invoke('tab:select',id),closeTab:id=>invoke('tab:close',id),

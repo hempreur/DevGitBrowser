@@ -487,3 +487,5 @@ html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrom
 .admin-msg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.admin-msg-row .compact-input{min-width:120px}.admin-msg-row .wide{flex:1;min-width:220px}
 .ak-features{display:flex;gap:16px;flex-wrap:wrap}
 @media (prefers-reduced-motion:reduce){.map-pulse,.admin-live i{animation:none}}
+/* v1.14 — langue */
+.welcome-lang{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:6px}.welcome-lang label{color:#b7c6ea;font-size:12px;margin:0}
