@@ -24,6 +24,7 @@ const { BrowsingData } = require('./lib/browsing-data');
 const { UpdateService } = require('./lib/updater');
 const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage, warningPage, crashPage, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
 const { PasswordVault, generatePassword } = require('./lib/vault');
+const importer = require('./lib/importer');
 const { TorService, COUNTRIES: VPN_COUNTRIES } = require('./lib/tor');
 const { PhishingGuard } = require('./lib/phishing');
 const logger = require('./lib/logger');
@@ -79,7 +80,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, vpnAtStartup:false, mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -113,7 +114,7 @@ function loadSettings() {
     if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','mediaPlayer']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','vpnAtStartup','mediaPlayer']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -230,7 +231,8 @@ function publicState(s) {
     preferences: { httpsOnly:settings.httpsOnly, gpc:settings.gpc, webrtcProtection:settings.webrtcProtection, restoreSession:settings.restoreSession,
       showBookmarksBar:settings.showBookmarksBar, recordHistory:settings.recordHistory, clearHistoryOnExit:settings.clearHistoryOnExit,
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
-      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer },
+      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer,
+      shieldAnnoyances:settings.shieldAnnoyances, shieldBoost:settings.shieldBoost, vpnAtStartup:settings.vpnAtStartup, vpnCountry:settings.vpnCountry },
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
     telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
@@ -829,6 +831,8 @@ function setPreference(key, value) {
   if (key==='phishingProtection' && phishing) { phishing.enabled=value; if (value) phishing.load(); }
   if (key==='theme' && radioWin && !radioWin.isDestroyed()) radioWin.webContents.send('dgb-radio:theme', value);
   if (key==='autoUpdate' && updater) updater.setAuto(value);
+  if (key==='shieldAnnoyances') adBlocker?.setAnnoyances(value).catch(()=>{});
+  if (key==='shieldBoost') adBlocker?.setBoost(value);
   if (key==='webrtcProtection') for (const s of windows.values()) for (const t of s.tabs.values()) { try { t.view.webContents.setWebRTCIPHandlingPolicy(value?'default_public_interface_only':'default'); } catch {} }
   saveSettings(); broadcast();
 }
@@ -902,6 +906,12 @@ function pageContextMenu(t, p) {
       {label:'Couper', role:'cut', enabled:p.editFlags.canCut},{label:'Copier', role:'copy', enabled:p.editFlags.canCopy},
       {label:'Coller', role:'paste', enabled:p.editFlags.canPaste},{label:'Coller en texte brut', role:'pasteAndMatchStyle', enabled:p.editFlags.canPaste},
       {label:'Tout sélectionner', role:'selectAll'},{type:'separator'});
+    // Remplissage des coordonnées depuis le coffre (jamais en navigation privée ni en DGBx).
+    if (vault && !t.private && !t.xTab && /^https:/i.test(String(p.frameURL||p.pageURL||'')) && p.frame) {
+      const profiles = vault.isUnlocked() ? vault.listProfiles() : [];
+      if (vault.isUnlocked() && profiles.length) items.push({label:'Remplir mes coordonnées', submenu:profiles.map(pr=>({label:pr.label, click:()=>{ try { p.frame.send('dgb-autofill:fill', pr); } catch {} }}))},{type:'separator'});
+      else if (!vault.isUnlocked() && vault.exists()) items.push({label:'Remplir mes coordonnées… (déverrouiller le coffre)', click:()=>{ s.win.webContents.send('dgb:command','unlock-fill'); }},{type:'separator'});
+    }
   } else if (p.selectionText) {
     const text = p.selectionText.trim().slice(0,200);
     items.push({label:'Copier', role:'copy'});
@@ -2187,7 +2197,27 @@ function registerIpc(){
     'pw:save':(_s,data)=>{const r=vault.save({origin:String(data?.origin||''),username:String(data?.username||''),password:String(data?.password||''),note:String(data?.note||'')});broadcast();return r;},
     'pw:update':(_s,id,data)=>{vault.update(String(id||''),{username:data?.username,password:data?.password,note:data?.note});broadcast();},
     'pw:delete':(_s,id)=>{vault.remove(String(id||''));broadcast();},
-    'pw:generate':(_s,len)=>generatePassword(Number(len)||20),
+    'pw:generate':(_s,len,opts)=>generatePassword(Number(len)||20,{symbols:opts?.symbols!==false,digits:opts?.digits!==false}),
+    'pw:breach':async()=>{const r=await vault.breachCheck(webFetch);broadcast();return r;},
+    'pw:import-csv':async(s,removeAfter)=>{
+      if(!vault.isUnlocked())throw new Error('Déverrouille d’abord le coffre.');
+      const pick=await dialog.showOpenDialog(s.win,{title:'Fichier CSV exporté depuis ton ancien navigateur',properties:['openFile'],filters:[{name:'Mots de passe (CSV)',extensions:['csv']}]});
+      if(pick.canceled||!pick.filePaths[0])return null;
+      const file=pick.filePaths[0];const st=fs.statSync(file);if(st.size>10*1024*1024)throw new Error('Fichier trop volumineux.');
+      const result=vault.importCsv(fs.readFileSync(file,'utf8'));
+      // Le CSV contient les mots de passe en clair : suppression sur demande de l'utilisateur.
+      if(removeAfter===true){try{fs.rmSync(file,{force:true});result.removed=true;}catch{result.removed=false;}}
+      logger.info('Import CSV mots de passe',result.added,result.updated,result.skipped);broadcast();return result;
+    },
+    'pw:profiles':()=>vault.listProfiles(),
+    'pw:profile-save':(_s,data)=>vault.saveProfile(data&&typeof data==='object'?data:{}),
+    'pw:profile-delete':(_s,id)=>{vault.removeProfile(String(id||''));return vault.listProfiles();},
+    'import:sources':()=>process.platform==='win32'?importer.detectSources().map(({id,kind,browser,profile})=>({id,kind,browser,profile,help:importer.PASSWORD_EXPORT_HELP[browser]||''})):[],
+    'import:run':(_s,id,opts)=>{
+      const src=importer.detectSources().find(x=>x.id===String(id||''));if(!src)throw new Error('Navigateur introuvable.');
+      const r=importer.importFrom(src,browsing,{bookmarks:opts?.bookmarks!==false,history:opts?.history!==false});browsing.flush?.();broadcast();
+      logger.info('Import',src.browser,r.bookmarks,r.history);return r;
+    },
     'pw:change-master':async(_s,oldMaster,newMaster)=>{const st=await vault.changeMaster(String(oldMaster||''),String(newMaster||''));broadcast();return st;},
     'pw:menu':s=>passwordMenu(s),
     'pw:fill':(s,id)=>{const t=activeTab(s);const e=vault.isUnlocked()&&vault.entries.find(x=>x.id===id);if(!t?.url||!e)throw new Error('Identifiant introuvable.');fillCredentials(t,e);},
@@ -2349,6 +2379,7 @@ else {
     await loadBundledExtensions();
     loadStoreExtensions().then(startStore).catch(e=>logger.warn('Store',e.message));
     restoreSession();
+    if(settings.vpnAtStartup&&tor?.state?.available){const first=windows.values().next().value;if(first)startVpn(first,settings.vpnCountry);}
     if(settings.gamingMode)applyProcessPriority();
     updater.start();
     if(token){api().getUser().then(u=>{account={id:u.id,login:u.login};broadcast();if(settings.github)syncGithub().catch(()=>{});})

@@ -425,3 +425,16 @@ body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
 /* 1.10 — onglets privés sous VPN */
 .tab.private{background:linear-gradient(140deg,#24124a,#16113a)!important;border-color:#6d4bd8!important}
 .tab-private{font-size:12px;margin-left:2px;flex:none;filter:drop-shadow(0 0 4px #9b6dff)}
+/* v1.11 — assistant de bienvenue, import, coffre */
+.welcome-choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+.welcome-choices .theme-card{padding:16px 12px;justify-content:center}
+.welcome-card{padding:4px 20px;margin:12px 0}.welcome-card .setting-line:last-child{border-bottom:0}
+.welcome-card select{width:auto;min-width:170px}
+#welcome-import{margin-top:12px}.small-note{font-size:12px!important;margin-top:14px}
+.section-card .check-line{display:flex!important;align-items:center;gap:9px;font-weight:600;margin:10px 0}
+.section-card .check-line input{width:auto;margin:0;accent-color:var(--mint)}
+.section-card input[type=range]{width:220px;padding:0;accent-color:var(--mint);background:none;border:0}
+.help-list{margin:6px 0 14px;padding-left:20px;line-height:1.9;color:#b7c6da;font-size:12px}.help-list b{color:var(--txt)}
+.vault-tools{margin:12px 0;align-items:center;flex-wrap:wrap}.vault-tools small{flex:1;min-width:200px}
+#gen-out{font-family:Consolas,'Cascadia Mono',monospace;letter-spacing:.5px}
+#profile-form{margin-top:14px}

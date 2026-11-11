@@ -1,3 +1,23 @@
+## 1.11.0 — Bienvenue : assistant de premier lancement, import, coffre enrichi
+
+### Assistant de premier lancement (5 étapes)
+- **Thème**, **moteur de recherche**, **protection** (DevGitShield, nuisances, mode renforcé YouTube/Twitch, VPN au démarrage avec choix du pays), **import** depuis l'ancien navigateur, **coffre à mots de passe**.
+- Chaque étape peut être passée (« Plus tard ») ; tout reste modifiable dans les Paramètres.
+- Nouveau réglage : Paramètres → VPN → « Connecter au démarrage ».
+- Les réglages « nuisances » et « mode renforcé » s'appliquent désormais immédiatement depuis les Paramètres.
+
+### Import depuis Chrome, Edge, Brave, Vivaldi, Opera, Opera GX et Firefox
+- Détection automatique des navigateurs et de leurs profils (avec leur nom).
+- Import des **favoris** et de l'**historique** (sans doublon), lus sur une copie : rien n'est modifié dans l'autre navigateur et rien n'est envoyé sur Internet.
+- Si l'historique ne s'importe pas, fermer l'autre navigateur puis réessayer.
+- Disponible dans l'assistant et dans Paramètres → « Importer depuis un autre navigateur ».
+- **Mots de passe** : via l'export CSV officiel de chaque navigateur (instructions affichées), puis coffre → « Importer un CSV ». Les identifiants existants sont mis à jour, jamais dupliqués. Option (cochée par défaut) pour **supprimer le fichier CSV** après l'import, car il contient les mots de passe en clair.
+
+### Coffre à mots de passe
+- **Vérifier les fuites** : chaque mot de passe est comparé à la base Have I Been Pwned par k-anonymat. Seuls les 5 premiers caractères de son empreinte SHA-1 sont envoyés ; le mot de passe ne quitte jamais le PC. Les mots de passe trouvés portent un badge 🚨.
+- **Générateur** : longueur de 12 à 64, chiffres et symboles au choix, bouton Copier.
+- **Mes coordonnées** : fiches (nom, e-mail, téléphone, société, adresse) **chiffrées dans le coffre**. Clic droit dans un champ d'un formulaire HTTPS → « Remplir mes coordonnées ». Jamais dans les onglets privés, ni sur les champs mot de passe, cachés ou déjà remplis.
+
 ## 1.10.0 — Netflix (Widevine), DevGitShield sans casse, onglets privés sous VPN, nouveaux thèmes
 
 ### Vidéos protégées (Netflix, Prime Video, Disney+, Canal+…)

@@ -45,7 +45,8 @@ async function showPanel(name){
   if(panel==='library')loadLibrary();
   if(panel==='about')loadAbout();
   if(panel==='extensions')loadStore(false);
-  if(panel==='passwords')loadVault();
+  if(panel==='passwords'){loadVault();if($('profiles-card').open)loadProfiles();}
+  if(panel==='settings')renderImportSources('settings-import');
   if(panel==='tasks')startPerf();else stopPerf();
   if(panel && current)render(current);
 }
@@ -698,7 +699,7 @@ async function loadVault(){
     const open=elem('button','item-open');open.type='button';
     const text=elem('span','item-text');
     const f=flags.get(e.id)||{};
-    text.append(elem('strong','',hostOf(e.origin)),elem('small','',(e.username||'(sans identifiant)')+(f.reused?' · ⚠ réutilisé':'')+(f.weak?' · ⚠ faible':'')+(e.note?' · '+e.note:'')));
+    text.append(elem('strong','',hostOf(e.origin)),elem('small','',(e.username||'(sans identifiant)')+(breaches?.[e.id]>0?` · 🚨 fuité (${breaches[e.id]} fois)`:'')+(f.reused?' · ⚠ réutilisé':'')+(f.weak?' · ⚠ faible':'')+(e.note?' · '+e.note:'')));
     open.append(letterIcon(e.origin,e.origin),text);
     open.addEventListener('click',()=>run(async()=>{await showPanel('');return api.openLink(e.origin,'tab');}));
     const pass=elem('code','secret','••••••••');
@@ -771,26 +772,81 @@ function startPerf(){refreshPerf();if(!perfTimerId)perfTimerId=setInterval(refre
 function stopPerf(){if(perfTimerId){clearInterval(perfTimerId);perfTimerId=null;}}
 $('gaming-toggle').addEventListener('change',()=>run(()=>api.gaming($('gaming-toggle').checked),$('gaming-toggle').checked?'🎮 Mode gaming activé.':'Mode gaming désactivé.').then(refreshPerf));
 $('perf-sleep-all').addEventListener('click',async()=>{const n=await run(()=>api.sleepAll());if(n!==null)notify(`${n} onglet(s) mis en veille.`);refreshPerf();});
+// ---------------------------------------------------------------- Import depuis un autre navigateur
+const BROWSER_ICONS={'Google Chrome':'🟡','Microsoft Edge':'🔷','Brave':'🦁','Vivaldi':'🔴','Opera':'⭕','Opera GX':'🎮','Mozilla Firefox':'🦊'};
+let importSourcesCache=null;
+async function renderImportSources(hostId){
+  const host=$(hostId);if(!host)return;
+  if(!importSourcesCache){host.replaceChildren(elem('div','empty-list','Recherche des navigateurs installés…'));importSourcesCache=await run(()=>api.importSources())||[];}
+  if(!importSourcesCache.length){host.replaceChildren(elem('div','empty-list','Aucun autre navigateur détecté sur ce PC.'));return;}
+  host.replaceChildren(...importSourcesCache.map(src=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',`${BROWSER_ICONS[src.browser]||'🌐'} ${src.browser}`),elem('small','',src.profile||'Profil par défaut'));
+    const go=elem('button','outline small-btn','Importer');go.type='button';
+    go.addEventListener('click',async()=>{
+      go.disabled=true;go.textContent='Import…';
+      const r=await run(()=>api.importRun(src.id,{bookmarks:true,history:true}));
+      if(r){go.textContent='✓ Importé';notify(`${src.browser} : ${r.bookmarks} favori(s) et ${r.history} page(s) d’historique importés.`+(r.history?'':' (Si l’historique manque, ferme ce navigateur puis réessaie.)'));}
+      else{go.disabled=false;go.textContent='Réessayer';}
+    });
+    row.append(text,go);return row;
+  }));
+}
 // ---------------------------------------------------------------- Bienvenue (première installation)
+const WELCOME_LAST=5;
 let welcomeStep=0;
 function startWelcome(){
   welcomeStep=0;showPanel('welcome');
-  const engine=$('welcome-engine');
-  if(!engine.options.length)for(const e of current?.searchEngines||[]){const o=elem('option','',e.name);o.value=e.id;engine.append(o);}
-  engine.value=current?.preferences?.searchEngine||'duckduckgo';
+  const p=current?.preferences||{};
+  $('welcome-adblock').checked=current?.adblock?.enabled!==false;
+  $('welcome-annoyances').checked=Boolean(p.shieldAnnoyances);
+  $('welcome-boost').checked=Boolean(p.shieldBoost);
+  $('welcome-vpn').checked=Boolean(p.vpnAtStartup);
+  const sel=$('welcome-vpn-country');
+  if(!sel.options.length)for(const c of current?.vpn?.countries||[]){const o=elem('option','',c.name);o.value=c.code;sel.append(o);}
+  sel.value=p.vpnCountry||'';
+  if(current?.vpn&&current.vpn.available===false){$('welcome-vpn').disabled=true;$('welcome-vpn-note').textContent='Composant VPN absent de cette installation.';}
   showWelcomeStep();
+}
+function renderWelcomeEngines(){
+  const host=$('welcome-engines');const active=current?.preferences?.searchEngine||'duckduckgo';
+  host.replaceChildren(...(current?.searchEngines||[]).map(e=>{
+    const b=elem('button','theme-card'+(e.id===active?' active':''));b.type='button';b.append(elem('b','',e.name));
+    b.addEventListener('click',async()=>{if(await run(()=>api.preference('searchEngine',e.id))===null)return;for(const x of host.children)x.classList.toggle('active',x===b);});
+    return b;
+  }));
 }
 function showWelcomeStep(){
   for(const el of document.querySelectorAll('.welcome-step'))el.classList.toggle('hidden',Number(el.dataset.step)!==welcomeStep);
-  $('welcome-dots').replaceChildren(...[0,1,2,3].map(i=>elem('i',i===welcomeStep?'on':'')));
-  $('welcome-next').textContent=welcomeStep===0?'Commencer':welcomeStep===3?'Terminer':'Continuer';
-  $('welcome-skip').textContent=welcomeStep===2?'Plus tard':'Passer';
+  $('welcome-dots').replaceChildren(...Array.from({length:WELCOME_LAST+1},(_,i)=>elem('i',i===welcomeStep?'on':'')));
+  $('welcome-next').textContent=welcomeStep===0?'Commencer':welcomeStep===WELCOME_LAST?'Terminer':'Continuer';
+  $('welcome-skip').textContent=welcomeStep===0?'Passer':'Plus tard';
   if(welcomeStep===1)renderThemes('welcome-themes',current?.theme);
-  if(welcomeStep===2&&current?.passwords?.exists){welcomeStep=3;showWelcomeStep();}
+  if(welcomeStep===2)renderWelcomeEngines();
+  if(welcomeStep===4)renderImportSources('welcome-import');
+  if(welcomeStep===WELCOME_LAST){
+    const exists=Boolean(current?.passwords?.exists);
+    $('welcome-vault-done').classList.toggle('hidden',!exists);
+    for(const id of ['welcome-master','welcome-master2'])$(id).disabled=exists;
+  }
 }
-async function finishWelcome(){await run(()=>api.preference('searchEngine',$('welcome-engine').value));await run(()=>api.welcomed());await showPanel('');notify('Bienvenue dans DevGitBrowser ! Bonne navigation.');}
+async function applyWelcomeProtection(){
+  const p=current?.preferences||{};
+  const ad=$('welcome-adblock').checked;
+  if(ad!==(current?.adblock?.enabled!==false))await run(()=>api.adblockToggle(ad));
+  for(const [key,id] of [['shieldAnnoyances','welcome-annoyances'],['shieldBoost','welcome-boost'],['vpnAtStartup','welcome-vpn']]){
+    const v=$(id).checked;if(v!==Boolean(p[key]))await run(()=>api.preference(key,v));
+  }
+  const country=$('welcome-vpn-country').value;
+  if(country!==(p.vpnCountry||''))await run(()=>api.preference('vpnCountry',country));
+}
+async function finishWelcome(){
+  await run(()=>api.welcomed());await showPanel('');
+  notify('Bienvenue dans DevGitBrowser ! Bonne navigation.'+($('welcome-vpn').checked?' Le VPN se connectera au prochain démarrage.':''));
+}
 $('welcome-next').addEventListener('click',async()=>{
-  if(welcomeStep===2){
+  if(welcomeStep===3)await applyWelcomeProtection();
+  if(welcomeStep===WELCOME_LAST&&!current?.passwords?.exists){
     const a=$('welcome-master').value,b=$('welcome-master2').value;
     if(a||b){
       if(a!==b){notify('Les deux mots de passe ne correspondent pas.',true);return;}
@@ -798,11 +854,78 @@ $('welcome-next').addEventListener('click',async()=>{
       $('welcome-master').value='';$('welcome-master2').value='';
     }
   }
-  if(welcomeStep>=3){finishWelcome();return;}
+  if(welcomeStep>=WELCOME_LAST){finishWelcome();return;}
   welcomeStep++;showWelcomeStep();
 });
-$('welcome-skip').addEventListener('click',()=>{if(welcomeStep===2){welcomeStep=3;showWelcomeStep();}else finishWelcome();});
+$('welcome-skip').addEventListener('click',async()=>{
+  if(welcomeStep===0||welcomeStep===WELCOME_LAST){finishWelcome();return;}
+  if(welcomeStep===3)await applyWelcomeProtection();
+  welcomeStep++;showWelcomeStep();
+});
 $('welcome-master').addEventListener('input',()=>showStrength($('welcome-master'),$('welcome-strength-bar'),$('welcome-strength')));
+
+// ---------------------------------------------------------------- Coffre : fuites, import CSV, générateur, coordonnées
+let breaches=null;
+$('vault-breach').addEventListener('click',async()=>{
+  const btn=$('vault-breach');btn.disabled=true;$('vault-breach-status').textContent='Vérification auprès de Have I Been Pwned…';
+  const r=await run(()=>api.pwBreach());btn.disabled=false;
+  if(!r){$('vault-breach-status').textContent='';return;}
+  breaches=r;const hits=Object.values(r).filter(n=>n>0).length;
+  $('vault-breach-status').textContent=hits?`⚠ ${hits} mot(s) de passe trouvé(s) dans des fuites de données : change-les.`:'✅ Aucun mot de passe trouvé dans les fuites connues.';
+  loadVault();
+});
+async function loadExportHelp(){
+  const list=$('vault-export-help');if(list.childElementCount)return;
+  const srcs=importSourcesCache||await run(()=>api.importSources())||[];importSourcesCache=srcs;
+  const seen=new Set();const items=[];
+  for(const s of srcs){if(seen.has(s.browser)||!s.help)continue;seen.add(s.browser);const li=elem('li');li.append(elem('b','',s.browser+' : '),document.createTextNode(s.help));items.push(li);}
+  if(!items.length)items.push(elem('li','','Chrome : chrome://password-manager/settings · Edge : edge://wallet/passwords · Firefox : about:logins → ⋯ → Exporter'));
+  list.replaceChildren(...items);
+}
+$('vault-import').addEventListener('click',()=>{const d=$('vault-import-card');d.open=true;loadExportHelp();d.scrollIntoView({behavior:'smooth'});});
+$('vault-import-card').addEventListener('toggle',()=>{if($('vault-import-card').open)loadExportHelp();});
+$('vault-import-go').addEventListener('click',async()=>{
+  const r=await run(()=>api.pwImportCsv($('vault-import-remove').checked));
+  if(!r)return;
+  notify(`Import terminé : ${r.added} ajouté(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s).`+(r.removed?' Fichier CSV supprimé.':r.removed===false?' ⚠ Le CSV n’a pas pu être supprimé : efface-le toi-même.':''));
+  $('vault-import-card').open=false;loadVault();
+});
+async function generateInto(){
+  const v=await run(()=>api.pwGenerate(Number($('gen-len').value),{digits:$('gen-digits').checked,symbols:$('gen-symbols').checked}));
+  if(v)$('gen-out').value=v;
+}
+$('gen-len').addEventListener('input',()=>{$('gen-len-value').textContent=$('gen-len').value;generateInto();});
+for(const id of ['gen-digits','gen-symbols','gen-new'])$(id).addEventListener(id==='gen-new'?'click':'change',generateInto);
+$('gen-copy').addEventListener('click',()=>{if($('gen-out').value)navigator.clipboard.writeText($('gen-out').value).then(()=>notify('Mot de passe copié.'),()=>notify('Copie impossible.',true));});
+const PF=['label','givenName','familyName','email','tel','organization','street','street2','postalCode','city','country'];
+async function loadProfiles(){
+  if(!current?.passwords?.unlocked)return;
+  const list=await run(()=>api.pwProfiles());if(!list)return;
+  const host=$('profile-list');
+  if(!list.length){host.replaceChildren(elem('div','empty-list','Aucun profil. Ajoute tes coordonnées pour remplir les formulaires en un clic.'));return;}
+  host.replaceChildren(...list.map(p=>{
+    const row=elem('div','item-row');const text=elem('span','item-text');
+    text.append(elem('strong','',p.label||[p.givenName,p.familyName].filter(Boolean).join(' ')||p.email||'Profil'),elem('small','',[p.email,p.city].filter(Boolean).join(' · ')));
+    const edit=elem('button','outline small-btn','Modifier');edit.type='button';edit.addEventListener('click',()=>openProfile(p));
+    const del=elem('button','icon-btn','✕');del.type='button';del.title='Supprimer';
+    del.addEventListener('click',async()=>{if(await run(()=>api.pwProfileDelete(p.id),'Profil supprimé.'))loadProfiles();});
+    row.append(text,edit,del);return row;
+  }));
+}
+function openProfile(p){
+  $('pf-id').value=p?.id||'';for(const k of PF)$('pf-'+k).value=p?.[k]||'';
+  $('profile-form').classList.remove('hidden');$('profile-add').classList.add('hidden');$('pf-label').focus();
+}
+function closeProfile(){$('profile-form').classList.add('hidden');$('profile-add').classList.remove('hidden');}
+$('profile-add').addEventListener('click',()=>openProfile(null));
+$('pf-cancel').addEventListener('click',closeProfile);
+$('profile-form').addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const data={};for(const k of PF)data[k]=$('pf-'+k).value.trim();if($('pf-id').value)data.id=$('pf-id').value;
+  const ok=await run(()=>api.pwProfileSave(data),'Coordonnées enregistrées dans le coffre.');
+  if(ok){closeProfile();loadProfiles();}
+});
+$('profiles-card').addEventListener('toggle',()=>{if($('profiles-card').open)loadProfiles();});
 
 // ======================================================================== Mode DGBx
 let xRendered=false;
