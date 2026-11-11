@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+<title>DevGitBrowser — Accès suspendu</title><link rel="stylesheet" href="lock.css"><script src="../i18n.js"></script></head>
+<body>
+<main>
+  <img src="../../assets/logo-mark.png" alt="" width="84" height="84" class="logo">
+  <div class="shield" aria-hidden="true">🔒</div>
+  <h1>Accès temporairement suspendu</h1>
+  <p class="lead">DevGitBrowser a été suspendu à distance par son éditeur. L’accès au navigateur et à ses fonctions reste bloqué, y compris après un redémarrage, tant que l’éditeur ne l’a pas rétabli.</p>
+  <div id="reason-box" class="reason hidden"><span class="reason-label">Motif</span><p id="reason" data-no-i18n></p></div>
+  <p id="status" class="status">Le navigateur se débloquera tout seul dès que l’accès sera rétabli.</p>
+  <div class="buttons">
+    <button id="retry" type="button" class="primary">Vérifier maintenant</button>
+    <button id="quit" type="button" class="ghost">Quitter</button>
+  </div>
+  <details id="admin-box" class="admin"><summary>Accès administrateur</summary>
+    <form id="admin-form"><input id="admin-key" type="password" autocomplete="off" spellcheck="false" placeholder="Clé admin (DGB-XXXX-XXXX-XXXX-XXXX)" aria-label="Clé admin"><button type="submit" class="ghost">Déverrouiller ce PC</button></form>
+    <p id="admin-status" class="status"></p>
+  </details>
+  <p class="foot">DevGitBrowser <span id="version" data-no-i18n>—</span> · CodexHempreur INC</p>
+</main>
+<script src="lock.js"></script>
+</body></html>

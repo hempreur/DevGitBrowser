@@ -43,7 +43,7 @@
     </div>
   </div>
   <nav id="bookmarks-bar" class="bookmarks-bar" aria-label="Barre de favoris"></nav>
-  <div id="kill-banner" class="pw-banner kill-banner hidden" role="alert"><span class="pw-ico">⛔</span><span id="kill-text">Cette version de DevGitBrowser a été désactivée à cause d’un problème important. Installe la mise à jour.</span><button id="kill-update" class="primary small-btn" type="button">Mettre à jour</button></div>
+  <div id="kill-banner" class="pw-banner kill-banner hidden" role="alert"><span class="pw-ico">⛔</span><span id="kill-text"></span><button id="kill-update" class="primary small-btn" type="button">Ouvrir l’admin</button></div>
   <div id="remote-banner" class="pw-banner remote-banner hidden" role="status"><span class="pw-ico" id="remote-ico">📣</span><span id="remote-text"></span><button id="remote-link" class="outline small-btn hidden" type="button">En savoir plus</button><button id="remote-close" class="icon-btn" type="button" aria-label="Fermer le message">✕</button></div>
   <div id="tm-banner" class="pw-banner tm-banner hidden" role="dialog" aria-label="Statistiques anonymes"><span class="pw-ico">📊</span><span>Aider à améliorer DevGitBrowser ? Envoi de <b>statistiques anonymes</b> : version, pays de Windows, temps d’utilisation et nombre de pages. Jamais les sites visités, ni ton adresse IP. Modifiable dans Paramètres → Confidentialité.</span><button id="tm-yes" class="primary small-btn" type="button">Oui, j’aide</button><button id="tm-no" class="outline small-btn" type="button">Non merci</button></div>
   <div id="pw-banner" class="pw-banner hidden" role="dialog" aria-label="Enregistrer le mot de passe"><span class="pw-ico">🔑</span><span id="pw-text">Enregistrer le mot de passe ?</span><input id="pw-master" type="password" class="hidden" placeholder="Mot de passe maître" aria-label="Mot de passe maître" autocomplete="off"><button id="pw-save" class="primary small-btn" type="button">Enregistrer</button><button id="pw-never" class="outline small-btn" type="button">Jamais pour ce site</button><button id="pw-dismiss" class="outline small-btn" type="button" aria-label="Fermer">✕</button></div>
@@ -139,19 +139,37 @@
       </div>
       <div class="section-card admin-bugs"><div class="store-head"><h3>🐞 Rapports de bug</h3><select id="admin-bug-filter" class="compact-select" aria-label="Filtre"><option value="open">À traiter</option><option value="all">Tous</option><option value="fixed">Corrigés</option></select></div>
         <div id="admin-bug-list" class="item-list"></div></div>
-      <div class="section-card admin-remote"><h3>📣 Messages ciblés et arrêt d’urgence</h3>
-        <p class="muted">Lus par tous les navigateurs toutes les 6 heures (et au démarrage). Versions : « * » (toutes), « 1.12.0 », « &lt;1.13.0 » ou « &gt;=1.10.0, &lt;1.12.0 ».</p>
-        <h4>Messages</h4><div id="admin-msg-list" class="item-list"></div>
+      <div class="section-card admin-messages" id="admin-messages-card">
+        <div class="store-head"><h3>📣 Messages en direct</h3><span id="admin-listening" class="admin-live"><i></i> 0 navigateur ouvert</span></div>
+        <p class="muted">Envoyé immédiatement aux navigateurs <b>ouverts</b> en ce moment, avec les statistiques activées ou non. Un navigateur fermé ou ouvert plus tard ne le recevra pas.</p>
         <form id="admin-msg-form" class="admin-msg-form">
-          <textarea id="am-text" rows="2" maxlength="400" placeholder="Texte du message (400 caractères max.)"></textarea>
-          <div class="admin-msg-row"><select id="am-level" class="compact-select" aria-label="Type"><option value="info">📣 Info</option><option value="warning">⚠️ Alerte</option></select>
-            <input id="am-versions" class="compact-input" placeholder="Versions (*)" aria-label="Versions"><input id="am-countries" class="compact-input" placeholder="Pays : FR, BE… (vide = tous)" aria-label="Pays">
-            <input id="am-until" class="compact-input" type="date" aria-label="Jusqu’au"><input id="am-url" class="compact-input wide" placeholder="Lien https:// (facultatif)" aria-label="Lien"><button class="outline" type="submit">＋ Ajouter</button></div>
+          <textarea id="am-text" rows="2" maxlength="400" placeholder="Ton message (400 caractères max.)"></textarea>
+          <div class="admin-msg-row">
+            <div class="level-pick" role="radiogroup" aria-label="Type de message"><label><input type="radio" name="am-level" value="info" checked> 📣 Info</label><label><input type="radio" name="am-level" value="alert"> ⚠️ Alerte <small>(+ notification Windows)</small></label></div>
+          </div>
+          <details class="admin-target"><summary>Cibler (facultatif)</summary>
+            <div class="admin-msg-row"><input id="am-versions" class="compact-input" placeholder="Versions : * (toutes)" aria-label="Versions"><input id="am-countries" class="compact-input" placeholder="Pays : FR, BE… (vide = tous)" aria-label="Pays"><input id="am-url" class="compact-input wide" placeholder="Lien https:// (facultatif)" aria-label="Lien"></div>
+          </details>
+          <div class="form-buttons"><button class="primary" type="submit">📤 Envoyer maintenant</button><span id="admin-msg-status" class="muted"></span></div>
         </form>
-        <h4>⛔ Arrêt d’urgence</h4>
-        <div class="admin-msg-row"><input id="ak-versions" class="compact-input" placeholder="Versions bloquées (vide = aucune)" aria-label="Versions bloquées"><input id="ak-message" class="compact-input wide" maxlength="300" placeholder="Raison affichée aux utilisateurs" aria-label="Raison"></div>
-        <p class="muted">Fonctions coupées pour tout le monde :</p><div id="ak-features" class="ak-features"></div>
-        <div class="form-buttons"><button id="admin-remote-save" class="primary" type="button">Publier les changements</button><span id="admin-remote-status" class="muted"></span></div></div>
+        <h4>Derniers messages</h4><div id="admin-msg-list" class="item-list"></div>
+      </div>
+      <div class="section-card admin-lockdown" id="admin-lockdown-card">
+        <h3>⛔ Arrêt d’urgence</h3>
+        <div id="ak-state" class="lock-state off"><b id="ak-state-title">Inactif</b><span id="ak-state-sub">Les navigateurs fonctionnent normalement.</span></div>
+        <p class="muted">Bloque <b>totalement</b> les navigateurs : ceux qui sont ouverts se bloquent en quelques secondes, ceux qui sont fermés au prochain lancement. Le blocage tient au redémarrage et hors connexion, jusqu’à ce que tu le lèves ici. Ce PC administrateur n’est jamais bloqué ; sur un autre PC, l’écran de blocage propose « Accès administrateur » avec ta clé.</p>
+        <div class="admin-msg-row"><input id="ak-versions" class="compact-input" placeholder="Versions (vide = toutes)" aria-label="Versions bloquées"><input id="ak-message" class="compact-input wide" maxlength="300" placeholder="Motif affiché sur l’écran de blocage (facultatif)" aria-label="Motif"></div>
+        <div class="form-buttons"><button id="ak-engage" class="danger-btn" type="button">⛔ Bloquer les navigateurs</button><button id="ak-lift" class="primary hidden" type="button">✅ Débloquer les navigateurs</button></div>
+        <div id="ak-confirm" class="ak-confirm hidden" role="alertdialog" aria-labelledby="ak-confirm-text">
+          <p id="ak-confirm-text"></p>
+          <div class="admin-msg-row"><input id="ak-confirm-input" class="compact-input" autocomplete="off" spellcheck="false" placeholder="BLOQUER" aria-label="Confirmation"><button id="ak-confirm-go" class="danger-btn" type="button" disabled>Confirmer le blocage</button><button id="ak-confirm-cancel" class="outline" type="button">Annuler</button></div>
+        </div>
+        <details class="admin-target"><summary>Couper seulement certaines fonctions</summary>
+          <p class="muted">Sans bloquer le navigateur : les fonctions cochées sont désactivées partout, immédiatement.</p>
+          <div id="ak-features" class="ak-features"></div>
+          <div class="form-buttons"><button id="ak-features-save" class="outline" type="button">Appliquer</button></div>
+        </details>
+      </div>
       <div class="section-card admin-store"><div class="store-head"><h3>🧩 Boutique d’extensions</h3><div class="inline-buttons"><input id="admin-store-id" class="compact-input" type="text" maxlength="40" placeholder="Identifiant (facultatif)" aria-label="Identifiant de l’extension"><button id="admin-store-publish" class="primary" type="button">Publier une extension…</button></div></div>
         <p class="muted">Choisis le dossier d’une extension (avec son manifest.json). Pour la mettre à jour, augmente la version dans manifest.json et publie à nouveau : les navigateurs se mettent à jour tout seuls.</p>
         <div id="admin-store-list" class="extension-list"></div></div>

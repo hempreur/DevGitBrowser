@@ -571,6 +571,8 @@ $('clear-sites').addEventListener('click',async()=>{
 
 // ---------------------------------------------------------------- Événements du processus principal
 api.onCommand(command=>{
+  // Déverrouillé avec la clé admin sur l'écran de blocage : tableau de bord directement.
+  if(command==='admin-dash'){showPanel('admin').then(()=>{$('admin-lock').classList.add('hidden');$('admin-dash').classList.remove('hidden');loadAdminStats();});return;}
   const value=String(command||'');
   if(value==='history')openLibrary('history');
   else if(value==='bookmarks')openLibrary('bookmarks');
@@ -786,18 +788,20 @@ $('perf-sleep-all').addEventListener('click',async()=>{const n=await run(()=>api
 let remoteShown='';
 function renderRemote(state){
   const r=state.remote||{};
-  $('kill-banner').classList.toggle('hidden',!r.blocked);
-  if(r.blocked){const why=(r.killMessage||'Cette version de DevGitBrowser a été désactivée à cause d’un problème important').trim();$('kill-text').textContent=why+(/[.!?…]$/.test(why)?' ':'. ')+'Installe la mise à jour pour continuer en toute sécurité.';}
-  const m=(r.messages||[])[0];
+  // PC administrateur : l'arrêt d'urgence ne le bloque pas, mais il doit le savoir.
+  $('kill-banner').classList.toggle('hidden',!r.lockdownAdmin);
+  if(r.lockdownAdmin)$('kill-text').textContent=`Arrêt d’urgence ACTIF : les navigateurs sont bloqués. Ce PC administrateur reste accessible.${r.killMessage?' Motif : '+r.killMessage:''}`;
+  const m=(r.messages||[]).at(-1);
   const box=$('remote-banner');box.classList.toggle('hidden',!m||Boolean(state.xmode));
-  if(!m)return;
-  box.classList.toggle('warning',m.level==='warning');$('remote-ico').textContent=m.level==='warning'?'⚠️':'📣';
+  if(!m){remoteShown='';return;}
+  if(remoteShown!==m.id&&!state.xmode)notify((m.level==='alert'?'⚠️ ':'📣 ')+m.text);
+  box.classList.toggle('warning',m.level==='alert');$('remote-ico').textContent=m.level==='alert'?'⚠️':'📣';
   $('remote-text').textContent=m.text;$('remote-link').classList.toggle('hidden',!m.url);
   remoteShown=m.id;box.dataset.url=m.url||'';
 }
-$('remote-close').addEventListener('click',()=>{if(remoteShown)run(()=>api.remoteDismiss(remoteShown));});
+$('remote-close').addEventListener('click',()=>{if(remoteShown!=='')run(()=>api.remoteDismiss(remoteShown));});
 $('remote-link').addEventListener('click',()=>{const u=$('remote-banner').dataset.url;if(u)run(()=>api.newTab(u));});
-$('kill-update').addEventListener('click',()=>showPanel('about').then(()=>$('about-check').click()));
+$('kill-update').addEventListener('click',()=>{if(current?.adminOpen){showPanel('admin').then(()=>{$('admin-lock').classList.add('hidden');$('admin-dash').classList.remove('hidden');loadAdminStats();});}else openAdmin();});
 // ---------------------------------------------------------------- Parrainage
 async function loadReferral(){
   const r=await run(()=>api.refInfo());if(!r)return;
@@ -1269,35 +1273,62 @@ $('admin-bug-filter').addEventListener('change',renderAdminBugs);
 // ---- Messages ciblés et arrêt d'urgence
 const KILL_FEATURES={store:'Boutique',preview:'Aperçu des liens',media:'Lecteur protégé',vpn:'VPN',import:'Import',telemetry:'Statistiques'};
 let adminConfig=null;
-async function loadAdminConfig(){
-  adminConfig=await run(()=>api.adminRemote('config'));if(!adminConfig)return;
-  $('ak-versions').value=adminConfig.kill?.versions||'';$('ak-message').value=adminConfig.kill?.message||'';
-  $('ak-features').replaceChildren(...Object.entries(KILL_FEATURES).map(([id,label])=>{const l=elem('label','check-line');const c=elem('input');c.type='checkbox';c.value=id;c.checked=(adminConfig.kill?.features||[]).includes(id);l.append(c,document.createTextNode(' '+label));return l;}));
-  renderAdminMessages();$('admin-remote-status').textContent='';
-}
-function renderAdminMessages(){
-  const msgs=adminConfig?.messages||[];
-  if(!msgs.length){$('admin-msg-list').replaceChildren(elem('div','empty-list','Aucun message actif.'));return;}
-  $('admin-msg-list').replaceChildren(...msgs.map((m,i)=>{
+function renderAdminRemote(){
+  const c=adminConfig;if(!c)return;
+  const n=c.listening||0;$('admin-listening').replaceChildren(elem('i'),document.createTextNode(` ${nf.format(n)} navigateur${n>1?'s':''} ouvert${n>1?'s':''}`));
+  // Messages récents
+  const recent=c.recent||[];
+  $('admin-msg-list').replaceChildren(...(recent.length?recent.map(m=>{
     const row=elem('div','item-row');const text=elem('span','item-text');
-    text.append(elem('strong','',(m.level==='warning'?'⚠️ ':'📣 ')+m.text),elem('small','',`versions ${m.versions}`+(m.countries?.length?` · pays ${m.countries.join(', ')}`:' · tous pays')+(m.until?` · jusqu’au ${m.until}`:'')+(m.url?' · '+m.url:'')));
-    const del=elem('button','icon-btn','✕');del.type='button';del.title='Retirer';del.addEventListener('click',()=>{adminConfig.messages.splice(i,1);renderAdminMessages();$('admin-remote-status').textContent='Modifications non publiées.';});
-    row.append(text,del);return row;
-  }));
+    text.append(elem('strong','',(m.level==='alert'?'⚠️ ':'📣 ')+m.text),elem('small','',`${new Date(m.at).toLocaleString(uiLocale())} · reçu par ${nf.format(m.delivered||0)} navigateur(s)`+(m.versions&&m.versions!=='*'?` · versions ${m.versions}`:'')+(m.countries?.length?` · ${m.countries.join(', ')}`:'')));
+    row.append(text);return row;
+  }):[elem('div','empty-list','Aucun message envoyé ces dernières 24 heures.')]));
+  // Arrêt d'urgence
+  const L=c.lockdown||{};const on=L.active===true;
+  $('ak-state').className='lock-state '+(on?'on':'off');
+  $('ak-state-title').textContent=on?'⛔ ACTIF — navigateurs bloqués':'Inactif';
+  $('ak-state-sub').textContent=on?`Depuis ${L.since?new Date(L.since).toLocaleString(uiLocale()):'—'} · versions : ${L.versions||'toutes'}${L.message?' · motif : '+L.message:''}`:'Les navigateurs fonctionnent normalement.';
+  $('ak-engage').classList.toggle('hidden',on);$('ak-lift').classList.toggle('hidden',!on);
+  for(const id of ['ak-versions','ak-message']){$(id).disabled=on;}
+  if(!on&&document.activeElement!==$('ak-versions')&&!$('ak-versions').value)$('ak-versions').value='';
+  if(on){$('ak-versions').value=L.versions||'';$('ak-message').value=L.message||'';}
+  $('ak-features').replaceChildren(...Object.entries(KILL_FEATURES).map(([id,label])=>{const l=elem('label','check-line');const cb=elem('input');cb.type='checkbox';cb.value=id;cb.checked=(c.features||[]).includes(id);l.append(cb,document.createTextNode(' '+label));return l;}));
 }
-$('admin-msg-form').addEventListener('submit',e=>{
-  e.preventDefault();if(!adminConfig)return;
+async function loadAdminConfig(){adminConfig=await run(()=>api.adminRemote('config'));renderAdminRemote();}
+$('admin-msg-form').addEventListener('submit',async e=>{
+  e.preventDefault();
   const text=$('am-text').value.trim();if(!text){notify('Écris le texte du message.',true);return;}
-  adminConfig.messages=[...(adminConfig.messages||[]),{text,level:$('am-level').value,versions:$('am-versions').value.trim()||'*',countries:$('am-countries').value,until:$('am-until').value,url:$('am-url').value.trim()}];
-  for(const id of ['am-text','am-versions','am-countries','am-until','am-url'])$(id).value='';
-  renderAdminMessages();$('admin-remote-status').textContent='Modifications non publiées.';
+  const level=document.querySelector('input[name="am-level"]:checked')?.value==='alert'?'alert':'info';
+  const btn=e.submitter||$('admin-msg-form').querySelector('button[type="submit"]');btn.disabled=true;
+  const r=await run(()=>api.adminRemote('message',{text,level,versions:$('am-versions').value.trim()||'*',countries:$('am-countries').value,url:$('am-url').value.trim()}));
+  btn.disabled=false;if(!r)return;
+  $('am-text').value='';$('admin-msg-status').textContent=`✅ Envoyé : reçu par ${r.delivered} navigateur(s) ouvert(s).`;
+  adminConfig=r;renderAdminRemote();
 });
-$('admin-remote-save').addEventListener('click',async()=>{
-  if(!adminConfig)return;
-  const body={messages:adminConfig.messages||[],kill:{versions:$('ak-versions').value.trim(),message:$('ak-message').value.trim(),features:[...$('ak-features').querySelectorAll('input:checked')].map(c=>c.value)}};
-  if((body.kill.versions||body.kill.features.length)&&!confirm('Activer l’arrêt d’urgence pour '+(body.kill.versions||'aucune version')+(body.kill.features.length?' et couper : '+body.kill.features.map(f=>KILL_FEATURES[f]).join(', '):'')+' ?'))return;
-  const r=await run(()=>api.adminRemote('config-save',body),'Configuration publiée : les navigateurs la reçoivent dans les 6 heures (immédiatement ici).');
-  if(r){adminConfig=r;renderAdminMessages();$('admin-remote-status').textContent='✅ Publié';}
+$('ak-engage').addEventListener('click',()=>{
+  const versions=$('ak-versions').value.trim();
+  $('ak-confirm-text').textContent=`Bloquer totalement ${versions?'les navigateurs en version '+versions:'TOUS les navigateurs'} ? Ceux qui sont ouverts se bloquent tout de suite, les autres au prochain lancement, même après un redémarrage, jusqu’à ce que tu les débloques ici. Tape BLOQUER pour confirmer.`;
+  $('ak-confirm-input').value='';$('ak-confirm-go').disabled=true;$('ak-confirm').classList.remove('hidden');$('ak-confirm-input').focus();
+});
+$('ak-confirm-input').addEventListener('input',()=>{$('ak-confirm-go').disabled=$('ak-confirm-input').value.trim().toUpperCase()!=='BLOQUER';});
+$('ak-confirm-cancel').addEventListener('click',()=>{$('ak-confirm').classList.add('hidden');notify('Arrêt d’urgence annulé.');});
+$('ak-confirm-go').addEventListener('click',async()=>{
+  if($('ak-confirm-input').value.trim().toUpperCase()!=='BLOQUER')return;
+  $('ak-confirm-go').disabled=true;
+  const r=await run(()=>api.adminRemote('lockdown',{active:true,versions:$('ak-versions').value.trim(),message:$('ak-message').value.trim()}),'⛔ Arrêt d’urgence activé.');
+  $('ak-confirm').classList.add('hidden');
+  if(r){adminConfig=r;renderAdminRemote();}
+});
+$('ak-lift').addEventListener('click',async()=>{
+  if(!confirm('Débloquer les navigateurs ? Ils retrouvent l’accès immédiatement (ou à leur prochain lancement).'))return;
+  const r=await run(()=>api.adminRemote('lockdown',{active:false}),'✅ Navigateurs débloqués.');
+  if(r){adminConfig=r;renderAdminRemote();}
+});
+$('ak-features-save').addEventListener('click',async()=>{
+  const list=[...$('ak-features').querySelectorAll('input:checked')].map(c=>c.value);
+  if(list.length&&!confirm('Couper pour tout le monde : '+list.map(f=>KILL_FEATURES[f]).join(', ')+' ?'))return;
+  const r=await run(()=>api.adminRemote('features',list),list.length?'Fonctions coupées.':'Toutes les fonctions sont rétablies.');
+  if(r){adminConfig=r;renderAdminRemote();}
 });
 async function loadAdminStats(){
   $('admin-updated').textContent='Chargement…';

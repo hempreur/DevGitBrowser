@@ -1,3 +1,32 @@
+## 1.17.0 — Messages en direct et arrêt d'urgence total, séparés
+
+### 📣 Messages en direct
+- Envoyés depuis le panneau admin, ils arrivent **immédiatement**, en moins d'une seconde, mais **uniquement dans les navigateurs ouverts** à ce moment-là. Un navigateur fermé, ou ouvert plus tard, ne les reçoit pas.
+- Deux types :
+  - **📣 Info** : bandeau et message dans le navigateur ;
+  - **⚠️ Alerte** : bandeau rouge et **notification Windows**.
+- Ciblage facultatif par version et par pays, lien facultatif.
+- L'admin indique combien de navigateurs sont ouverts et combien ont reçu chaque message.
+
+### ⛔ Arrêt d'urgence (séparé des messages)
+- **Bloque totalement** les navigateurs, toutes versions ou seulement certaines. Un écran « Accès temporairement suspendu » remplace le navigateur : plus d'onglets, plus de fonctions. Les onglets ouverts sont sauvegardés.
+  - Navigateurs **ouverts** : bloqués en moins d'une seconde.
+  - Navigateurs **fermés** : bloqués dès leur prochain lancement.
+- Le blocage **tient au redémarrage et hors connexion**, jusqu'au déblocage depuis l'admin. Le navigateur se débloque alors tout seul et rouvre ses onglets.
+- Activation protégée : il faut taper « BLOQUER » pour confirmer.
+- **L'administrateur n'est jamais enfermé dehors** :
+  - le PC qui possède le jeton du serveur n'est pas bloqué (un bandeau rouge rappelle que l'arrêt est actif) ;
+  - sur un autre PC, l'écran de blocage propose « Accès administrateur » avec la clé admin, puis ouvre directement le panneau admin.
+- « Couper seulement certaines fonctions » (boutique, VPN, aperçu des liens…) reste disponible dans la même carte, sans bloquer le navigateur.
+- Les versions 1.13 à 1.16 affichent un bandeau et se mettent à jour ; elles sont alors bloquées.
+
+### 🛠 Corrigé
+- Fermer une fenêtre contenant des onglets restaurés jamais ouverts provoquait une erreur interne.
+
+### Serveur (mise à jour du VPS nécessaire)
+- Nouvelles routes `/v1/live` (connexion d'écoute : messages et verrou instantanés), `/v1/admin/messages`, `/v1/admin/lockdown`, `/v1/admin/features`.
+- L'ancienne route `/v1/admin/config` (écriture) est remplacée.
+
 ## 1.16.0 — Mises à jour guidées, parrainage automatique, réglages corrigés
 
 ### 🔄 Mises à jour

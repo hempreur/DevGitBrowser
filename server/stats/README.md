@@ -24,11 +24,19 @@ Commandes utiles : `systemctl status devgit-stats` · `journalctl -u devgit-stat
 ## Boutique d'extensions (DevGit Store)
 Les extensions publiées depuis le panneau admin sont stockées dans `/opt/devgit-stats/data/store/`. Le catalogue public se trouve à `GET /v1/store/catalog`. La publication et le retrait demandent le jeton admin.
 
-## Configuration distante, bugs et parrainage (v1.13)
-- `GET /v1/config?v=1.13.0&cc=FR` : messages ciblés et arrêt d'urgence (public, rien n'est enregistré).
-- `POST /v1/bug` : rapports de bug (5 par heure et par IP, 500 conservés) dans `data/bugs.json`.
-- `POST /v1/referral/claim` et `GET /v1/referral/CODE` : parrainages (un par installation).
-- `/v1/admin/config`, `/v1/admin/bugs` : réservés au jeton admin, utilisés par le panneau admin.
+## Messages en direct, arrêt d'urgence, bugs et parrainage (v1.17)
+- `GET /v1/live?after=N&lock=0|1&v=…&cc=…` : connexion d'écoute des navigateurs ouverts (réponse dès qu'un message ou un changement de verrou arrive, sinon au bout de 25 s). Rien n'est enregistré.
+- `GET /v1/config?v=…&cc=…` : état de l'arrêt d'urgence et des fonctions coupées, lu au lancement.
+- `POST /v1/admin/messages` : envoie un message aux navigateurs ouverts (`{"text","level":"info|alert","versions","countries","url"}`).
+- `PUT /v1/admin/lockdown` : arrêt d'urgence (`{"active":true,"versions":"","message":"…"}` ; `{"active":false}` pour débloquer).
+- `PUT /v1/admin/features` : fonctions coupées (`{"features":["store","vpn",…]}`).
+- `POST /v1/bug`, `POST /v1/referral/claim`, `GET /v1/referral/CODE` : rapports de bug et parrainage.
+
+### Débloquer sans le navigateur (secours)
+Sur le VPS, avec le jeton admin :
+```bash
+curl -sk -X PUT https://127.0.0.1:8443/v1/admin/lockdown -H "Authorization: Bearer JETON" -H "Content-Type: application/json" -d '{"active":false}'
+```
 
 ## Mettre à jour le serveur
 Relancer la commande d'installation. Le jeton, le certificat (donc l'empreinte) et les données sont conservés.

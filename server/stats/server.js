@@ -170,14 +170,24 @@ function publish(bundle) {
 function publicCatalog() { return {extensions: Object.values(catalog.extensions).sort((a, b) => a.name.localeCompare(b.name))}; }
 
 
-// ------------------------------------------------- Configuration distante (v1.13)
-// Arrêt d'urgence par version et messages ciblés, lus par tous les navigateurs
-// (seule la version est envoyée ; rien n'est enregistré).
+// ------------------------------------------------- Configuration distante (v1.17)
+// Deux systèmes séparés :
+//  • ARRÊT D'URGENCE : verrouillage TOTAL des navigateurs ciblés (toutes versions par défaut).
+//    Enregistré ici, appliqué aux navigateurs ouverts (instantanément) et fermés (au lancement),
+//    conservé par chaque navigateur jusqu'au déblocage. + coupure facultative de fonctions.
+//  • MESSAGES EN DIRECT : envoyés immédiatement aux navigateurs OUVERTS (connexion d'écoute
+//    /v1/live) ; jamais conservés pour les navigateurs fermés (durée de vie 10 min).
+// Seuls la version et le pays de Windows sont reçus ; rien n'est enregistré sur les visiteurs.
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const FEATURES = ['store', 'preview', 'media', 'vpn', 'import', 'telemetry'];
 const VERSION_SPEC = /^(\*|(?:(?:<=|>=|<|>|=)?\d{1,3}\.\d{1,3}\.\d{1,3})(?:\s*,\s*(?:<=|>=|<|>|=)?\d{1,3}\.\d{1,3}\.\d{1,3})*)$/;
-let config = {kill: {versions: '', message: '', features: []}, messages: []};
-try { config = {...config, ...JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'))}; } catch {}
+let config = {lockdown: {active: false, versions: '', message: '', since: '', rev: 0}, features: []};
+try {
+  const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  if (raw.lockdown) config.lockdown = {...config.lockdown, ...raw.lockdown, active: raw.lockdown.active === true};
+  config.features = (Array.isArray(raw.features) ? raw.features : Array.isArray(raw.kill?.features) ? raw.kill.features : []).filter(f => FEATURES.includes(f));
+  // Ancienne configuration (1.13–1.16) : le blocage par version n'est PAS converti en verrouillage total.
+} catch {}
 const saveConfig = () => { const tmp = CONFIG_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(config, null, 1)); fs.renameSync(tmp, CONFIG_FILE); };
 function cmpVersion(a, b) {
   const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
@@ -196,33 +206,88 @@ function versionMatches(spec, v) {
     return {'<': c < 0, '<=': c <= 0, '>': c > 0, '>=': c >= 0, '=': c === 0, undefined: c === 0}[m[1]];
   });
 }
-function cleanConfig(input) {
-  const kill = input?.kill || {};
-  const versions = text(kill.versions, 120);
-  if (versions && !VERSION_SPEC.test(versions)) throw new Error('versions invalides (ex. « <1.13.0 » ou « 1.12.0, 1.12.1 »)');
-  const messages = (Array.isArray(input?.messages) ? input.messages : []).slice(0, 20).map(m => {
-    const spec = text(m.versions, 120) || '*';
-    if (!VERSION_SPEC.test(spec)) throw new Error('versions invalides pour un message');
-    const url = text(m.url, 300);
-    if (url && !/^https:\/\/[^\s]+$/.test(url)) throw new Error('le lien d’un message doit commencer par https://');
-    const countries = (Array.isArray(m.countries) ? m.countries : String(m.countries || '').split(','))
-      .map(c => String(c).trim().toUpperCase()).filter(c => /^[A-Z]{2}$/.test(c)).slice(0, 50);
-    const until = /^\d{4}-\d{2}-\d{2}$/.test(String(m.until || '')) ? String(m.until) : '';
-    const msg = text(m.text, 400);
-    if (!msg) throw new Error('message vide');
-    return {id: /^[a-z0-9-]{4,40}$/.test(String(m.id || '')) ? String(m.id) : crypto.randomBytes(6).toString('hex'),
-      text: msg, level: m.level === 'warning' ? 'warning' : 'info', versions: spec, countries, until, url};
-  });
-  return {kill: {versions, message: text(kill.message, 300), features: (Array.isArray(kill.features) ? kill.features : []).filter(f => FEATURES.includes(f))}, messages};
+const lockApplies = v => config.lockdown.active === true && (config.lockdown.versions ? versionMatches(config.lockdown.versions, v) : true);
+// rev : numéro de révision du verrou — le navigateur ignore une réponse plus ancienne que la dernière appliquée.
+function publicLockdown(v) { const on = lockApplies(v); return {blocked: on, message: on ? config.lockdown.message : '', since: on ? config.lockdown.since : '', rev: Number(config.lockdown.rev) || 0}; }
+function cleanLockdown(input) {
+  const versions = text(input?.versions, 120);
+  if (versions && !VERSION_SPEC.test(versions)) throw new Error('versions invalides (ex. « <1.17.0 » ou vide pour toutes)');
+  const active = input?.active === true;
+  // Révision basée sur l'horloge : toujours croissante, même si config.json est perdu.
+  const rev = Math.max((Number(config.lockdown.rev) || 0) + 1, Date.now());
+  return {active, versions, message: text(input?.message, 300), since: active ? (config.lockdown.active ? config.lockdown.since : new Date().toISOString()) : '', rev};
 }
+// Réponse de /v1/config. « kill » et « messages » restent pour les navigateurs 1.13–1.16 :
+// ils affichent un bandeau et lancent la mise à jour, qui leur apporte le verrouillage total.
 function publicConfig(v, cc) {
   v = clean.ver(v); cc = clean.cc(cc);
-  const t = today();
-  return {
-    kill: {blocked: versionMatches(config.kill.versions, v), message: config.kill.message, features: config.kill.features},
-    messages: config.messages.filter(m => versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)) && (!m.until || m.until >= t))
-      .map(({id, text: body, level, url}) => ({id, text: body, level, url}))
-  };
+  const lock = publicLockdown(v);
+  return {lockdown: lock, features: config.features,
+    kill: {blocked: lock.blocked, message: lock.message, features: config.features}, messages: []};
+}
+
+// ---- Messages en direct (connexions d'écoute)
+const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
+let liveSeq = Date.now(); // croissant même après un redémarrage du serveur
+let liveItems = [];
+const waiters = new Set();
+function cleanMessage(m) {
+  const msg = text(m?.text, 400); if (!msg) throw new Error('message vide');
+  const versions = text(m?.versions, 120) || '*';
+  if (!VERSION_SPEC.test(versions)) throw new Error('versions invalides pour le message');
+  const url = text(m?.url, 300);
+  if (url && !/^https:\/\/[^\s]+$/.test(url)) throw new Error('le lien du message doit commencer par https://');
+  const countries = (Array.isArray(m?.countries) ? m.countries : String(m?.countries || '').split(','))
+    .map(c => String(c).trim().toUpperCase()).filter(c => /^[A-Z]{2}$/.test(c)).slice(0, 50);
+  return {text: msg, level: m?.level === 'alert' || m?.level === 'warning' ? 'alert' : 'info', versions, countries, url};
+}
+function messagesFor(after, v, cc) {
+  const now = Date.now();
+  return liveItems.filter(m => m.id > after && now - m.at < LIVE_TTL && versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)))
+    .map(({id, text: body, level, url, at}) => ({id, text: body, level, url, at}));
+}
+function liveBody(w) {
+  return {cursor: liveSeq, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), lockdown: publicLockdown(w.v), features: config.features};
+}
+function releaseWaiter(w, body) {
+  if (!waiters.has(w)) return false;
+  waiters.delete(w); clearTimeout(w.timer);
+  try { send(w.res, 200, body || liveBody(w)); } catch {}
+  return true;
+}
+// Réveille les navigateurs en écoute concernés ; renvoie le nombre de messages remis.
+function wakeWaiters({force = false} = {}) {
+  let delivered = 0;
+  for (const w of [...waiters]) {
+    const body = liveBody(w);
+    const lockChanged = body.lockdown.blocked !== w.lock;
+    if (force || lockChanged || body.messages.length) { if (body.messages.length) delivered++; releaseWaiter(w, body); }
+  }
+  return delivered;
+}
+function liveRequest(req, res, ip) {
+  const q = new URLSearchParams(req.url.split('?')[1] || '');
+  const w = {res, ip, after: /^\d{1,16}$/.test(q.get('after') || '') ? Number(q.get('after')) : -1,
+    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null};
+  const body = liveBody(w);
+  // Réponse immédiate : premier appel (curseur de départ), message en attente, ou verrou différent.
+  if (w.after < 0 || body.messages.length || body.lockdown.blocked !== w.lock) return send(res, 200, body);
+  let perIp = 0; for (const x of waiters) if (x.ip === ip) perIp++;
+  if (waiters.size >= MAX_WAITERS || perIp >= MAX_WAITERS_PER_IP) return send(res, 200, body);
+  waiters.add(w);
+  w.timer = setTimeout(() => releaseWaiter(w), LIVE_HOLD);
+  res.on('close', () => { waiters.delete(w); clearTimeout(w.timer); });
+}
+function postMessage(input) {
+  const m = {...cleanMessage(input), id: ++liveSeq, at: Date.now()};
+  liveItems = [...liveItems.filter(x => Date.now() - x.at < 24 * 3_600_000), m].slice(-100);
+  const listening = waiters.size;
+  m.delivered = wakeWaiters();
+  return {id: m.id, delivered: m.delivered, listening};
+}
+function adminConfig() {
+  return {lockdown: config.lockdown, features: config.features, listening: waiters.size,
+    recent: [...liveItems].reverse().slice(0, 30).map(({id, text: body, level, versions, countries, url, at, delivered}) => ({id, text: body, level, versions, countries, url, at, delivered}))};
 }
 
 // ------------------------------------------------- Rapports de bug (v1.13, avec accord)
@@ -291,6 +356,7 @@ const handler = async (req, res) => {
       const q = new URLSearchParams(req.url.split('?')[1] || '');
       return send(res, 200, publicConfig(q.get('v'), q.get('cc')));
     }
+    if (req.method === 'GET' && url === '/v1/live') return liveRequest(req, res, ipOf());
     if (req.method === 'POST' && url === '/v1/bug') {
       if (limitedBug(ipOf())) return send(res, 429, {error: 'trop de rapports, réessaie plus tard'});
       let body; try { body = await readBody(req, 80 * 1024); } catch { return send(res, 413, {error: 'rapport trop gros'}); }
@@ -304,9 +370,17 @@ const handler = async (req, res) => {
     if (req.method === 'GET' && (m = url.match(/^\/v1\/referral\/([A-Z2-9]{8})$/))) return send(res, 200, {count: referralCount(m[1])});
     if (url.startsWith('/v1/admin/')) {
       if (!authorized(req)) return send(res, 401, {error: 'unauthorized'});
-      if (req.method === 'GET' && url === '/v1/admin/config') return send(res, 200, config);
-      if (req.method === 'PUT' && url === '/v1/admin/config') {
-        try { config = cleanConfig(await readBody(req, 64 * 1024)); saveConfig(); return send(res, 200, config); } catch (e) { return send(res, 400, {error: e.message}); }
+      if (req.method === 'GET' && url === '/v1/admin/config') return send(res, 200, adminConfig());
+      if (req.method === 'PUT' && url === '/v1/admin/lockdown') {
+        try { config.lockdown = cleanLockdown(await readBody(req, 16 * 1024)); saveConfig(); wakeWaiters(); return send(res, 200, adminConfig()); } catch (e) { return send(res, 400, {error: e.message}); }
+      }
+      if (req.method === 'PUT' && url === '/v1/admin/features') {
+        const b = await readBody(req, 16 * 1024);
+        config.features = (Array.isArray(b?.features) ? b.features : []).filter(f => FEATURES.includes(f)); saveConfig(); wakeWaiters({force: true});
+        return send(res, 200, adminConfig());
+      }
+      if (req.method === 'POST' && url === '/v1/admin/messages') {
+        try { const r = postMessage(await readBody(req, 16 * 1024)); return send(res, 200, {...adminConfig(), ...r}); } catch (e) { return send(res, 400, {error: e.message}); }
       }
       if (req.method === 'GET' && url === '/v1/admin/bugs') return send(res, 200, {bugs});
       if ((m = url.match(/^\/v1\/admin\/bugs\/([a-f0-9]{16})$/))) {
@@ -336,4 +410,4 @@ const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync
 const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
 if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanConfig, publicConfig, addBug, claimReferral, _db: () => db, _setConfig: c => { config = c; }};
+module.exports = {server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};
