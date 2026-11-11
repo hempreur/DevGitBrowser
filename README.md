@@ -23,7 +23,7 @@ Le navigateur Windows tout-en-un de **CodexHempreur INC** : bloqueur de publicit
 
 ## ✨ Ce qui le rend différent
 
-| | |
+| Fonction | En bref |
 |---|---|
 | 🛡️ **DevGitShield** | Bloqueur de publicités et de pisteurs intégré, compatible avec les listes uBlock Origin et EasyList, mises à jour chaque jour. Pause possible site par site. |
 | 🕵️ **Qui me piste ?** | Pour chaque page, la liste des entreprises (Google, Meta, Amazon, TikTok, Criteo…) qui ont tenté de suivre ta navigation, avec leur rôle. |
