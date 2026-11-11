@@ -32,3 +32,9 @@ console.log('OK — configuration de mise à jour automatique présente (app-upd
 const torExe=path.join(resources,'tor','tor','tor.exe');
 if(fs.existsSync(torExe)) console.log('OK — VPN DevGit : tor.exe présent dans les ressources.');
 else console.warn('::warning::tor.exe absent : le VPN DevGit sera indisponible dans cet installateur.');
+
+// Lecteur protégé (Netflix & co) : moteur castLabs d'origine + signature VMP.
+const unpacked=path.join(__dirname,'..','dist','win-unpacked');
+assert.ok(fs.existsSync(path.join(unpacked,'DevGitMedia.exe')),'DevGitMedia.exe (lecteur protégé) absent du paquet.');
+if(fs.existsSync(path.join(unpacked,'DevGitMedia.exe.sig'))) console.log('OK — lecteur protégé DevGitMedia.exe signé VMP (Netflix).');
+else console.warn('::warning::DevGitMedia.exe.sig absent : Netflix refusera la lecture (secrets EVS manquants ?).');

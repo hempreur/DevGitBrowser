@@ -1,9 +1,15 @@
 ## 1.10.0 — Netflix (Widevine), DevGitShield sans casse, onglets privés sous VPN, nouveaux thèmes
 
-### Vidéos protégées (Netflix, Prime Video, Disney+, Spotify…)
+### Vidéos protégées (Netflix, Prime Video, Disney+, Canal+…)
 - Le navigateur passe à **Electron for Content Security (castLabs) 45.2.1**, la même version d'Electron avec en plus le module DRM **Widevine**, installé et mis à jour automatiquement en arrière-plan. Son état est visible dans À propos.
-- La permission `mediaKeySystem` est autorisée. Elle était refusée par la politique de permissions, d'où l'erreur M7701-1003 de Netflix.
-- La compilation est découpée en trois étapes : dossier, signature **VMP** (castLabs EVS), puis installateur. C'est obligatoire pour Netflix, qui exige un exécutable signé VMP. La signature utilise les secrets GitHub `EVS_ACCOUNT_NAME` et `EVS_PASSWD`.
+- Nouveau **lecteur protégé DevGit** (`DevGitMedia.exe`).
+  - Netflix, Disney+, Prime Video, Max, Canal+, Apple TV+, Paramount+ et Crunchyroll s'y ouvrent automatiquement, dans une fenêtre séparée avec son propre profil.
+  - C'est le moteur castLabs d'origine, **signé VMP** par castLabs EVS, comme ces plateformes l'exigent.
+  - Le navigateur principal garde **tous ses fusibles de sécurité** : castLabs refuse de signer un moteur modifié, d'où ce lecteur séparé.
+  - Les liens hors streaming sont renvoyés vers DevGitBrowser.
+  - Réglage : Paramètres → Général → « Lecteur protégé ».
+- La permission `mediaKeySystem` est autorisée. Elle était refusée par la politique de permissions, d'où l'erreur M7701-1003.
+- La compilation se fait en plusieurs étapes : dossier, lecteur signé, installateur. La signature utilise les secrets GitHub `EVS_ACCOUNT_NAME` et `EVS_PASSWD`.
 
 ### DevGitShield : fin des sites bloqués
 - Les scriptlets uBlock Origin étaient injectés **deux fois** (préchargement DevGitShield + moteur Ghostery). C'était la cause des blocages complets de YouTube et Twitch. Ils ne sont plus injectés qu'une fois, au plus tôt.

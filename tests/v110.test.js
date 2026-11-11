@@ -58,6 +58,23 @@ test('Netflix : Widevine (castLabs) et permission DRM',()=>{
   assert.match(pkg.build.electronVersion,/^45\./);
   const main=read('main.js');assert.match(main,/permission==='mediaKeySystem'\)return true/);assert.match(main,/permission==='mediaKeySystem'\)\{callback\(true\)/);
   const wf=read('.github/workflows/windows-installer.yml');
-  assert.match(wf,/build:win:dir[\s\S]*castlabs_evs\.vmp sign-pkg dist\/win-unpacked[\s\S]*build:win:installer/);
+  assert.match(wf,/build:win:dir[\s\S]*Rename-Item media-stage\/electron\.exe DevGitMedia\.exe[\s\S]*castlabs_evs\.vmp sign-pkg media-stage[\s\S]*build:win:installer/);
+  assert.match(wf,/node node_modules\/electron\/install\.js/);
+  assert.doesNotMatch(wf,/sign-pkg dist\/win-unpacked/,'le navigateur verrouillé n\'est pas envoyé à la signature');
 });
 test('météo : nom de la ville affiché',()=>{assert.match(read('ui/index.html'),/id="weather-place"/);assert.match(read('ui/renderer.js'),/\$\('weather-place'\)\.textContent=w\.city/);});
+
+test('lecteur protégé : séparé, limité au streaming, navigateur toujours verrouillé',()=>{
+  const m=require('../lib/media-player');const pkg=require('../package.json');
+  assert.ok(pkg.build.electronFuses.runAsNode===false && pkg.build.electronFuses.enableCookieEncryption===true,'fusibles conservés');
+  assert.ok(m.isStreamingEntry('https://www.netflix.com/browse')&&m.isStreamingEntry('https://www.disneyplus.com/')&&!m.isStreamingEntry('http://www.netflix.com/')&&!m.isStreamingEntry('https://netflix.com.evil.net/'));
+  assert.ok(m.isAllowedInPlayer('https://assets.nflxext.com/a.js')&&!m.isAllowedInPlayer('https://example.com/'));
+  assert.ok(m.isMediaExecutable('C:\\Program Files\\DevGitBrowser\\DevGitMedia.exe')&&!m.isMediaExecutable('C:\\x\\DevGitBrowser.exe'));
+  let spawned=null;const fake=(exe,args)=>{spawned=[exe,args];return {unref(){}};};
+  assert.equal(m.openInMediaPlayer('https://www.netflix.com/','/nowhere/DevGitBrowser.exe',fake),false,'sans DevGitMedia.exe : navigation normale');
+  assert.equal(spawned,null);
+  const main=read('main.js');
+  assert.match(main,/^'use strict';\s*\/\/[^\n]*\n\{\s*const media = require\('\.\/lib\/media-player'\);/);
+  assert.match(main,/if \(!isRedirect && sendToMediaPlayer\(t, url\)\)/);
+  assert.match(main,/settings\.mediaPlayer \|\| t\?\.private/);
+});
