@@ -1,5 +1,11 @@
 'use strict';
 
+// Lecteur protégé (DevGitMedia.exe) : même code d'application, mode dédié au streaming.
+{
+  const media = require('./lib/media-player');
+  if (media.isMediaExecutable(process.execPath) || process.argv.includes('--devgit-media')) { media.run(); return; }
+}
+
 const { app, BrowserWindow, WebContentsView, session, ipcMain, dialog, Menu, safeStorage, desktopCapturer, screen, shell, clipboard, powerMonitor, webContents: allWebContents } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -16,7 +22,7 @@ const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
 const { BUILTIN_KEYS, bundledDescriptor, reservedGitHubKey } = require('./lib/bundled-extensions');
 const { BrowsingData } = require('./lib/browsing-data');
 const { UpdateService } = require('./lib/updater');
-const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage, warningPage, crashPage, THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
+const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage, warningPage, crashPage, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
 const { PasswordVault, generatePassword } = require('./lib/vault');
 const { TorService, COUNTRIES: VPN_COUNTRIES } = require('./lib/tor');
 const { PhishingGuard } = require('./lib/phishing');
@@ -24,6 +30,7 @@ const logger = require('./lib/logger');
 const admin = require('./lib/admin');
 const weather = require('./lib/weather');
 const store = require('./lib/store');
+const mediaPlayer = require('./lib/media-player');
 const {VideoLocal, validateRequest: validateVideoRequest, isYoutubeWatchUrl} = require('./lib/video-local');
 const { Telemetry, newId: newTelemetryId, validId: validTelemetryId } = require('./lib/telemetry');
 const STATS_URL = String(require('./package.json').devgitStats?.url || '');
@@ -72,7 +79,7 @@ function defaultSettings() {
     downloads:{folder:'',askEachTime:true}, zoomByOrigin:{}, popupTopmost:{}, legacyTrustedOrigins:{}, adblockEnabled:true, adblockAllowlist:[],
     httpsOnly:true, gpc:true, webrtcProtection:true, restoreSession:true, showBookmarksBar:true, recordHistory:true, clearHistoryOnExit:false,
     autoUpdate:true, searchEngine:'duckduckgo', theme:'neon', welcomed:false, vpnCountry:'', secureDns:'automatic', dnsProvider:'cloudflare',
-    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
+    phishingProtection:true, gamingMode:false, savePasswords:true, xmodeAge:false, xmodeCode:'', adminKey:'', store:{}, weatherCity:null, showClock:true, shieldAnnoyances:false, shieldBoost:false, mediaPlayer:true, telemetry:false, telemetryAsked:false, telemetryId:'', rating:0 };
 }
 function loadSettings() {
   const fallback = defaultSettings;
@@ -90,7 +97,8 @@ function loadSettings() {
     if (Array.isArray(raw.adblockAllowlist)) p.adblockAllowlist=raw.adblockAllowlist.filter(h=>typeof h==='string' && /^[a-z0-9.-]{1,253}$/.test(h)).slice(0,300);
     // Une installation existante (mise à jour) ne revoit pas l'accueil de bienvenue.
     p.welcomed = typeof raw.welcomed==='boolean' ? raw.welcomed : true;
-    if (THEMES.some(t=>t.id===raw.theme)) p.theme=raw.theme;
+    const savedTheme = LEGACY_THEMES[raw.theme] || raw.theme;
+    if (THEMES.some(t=>t.id===savedTheme)) p.theme=savedTheme;
     if (VPN_COUNTRIES.some(c=>c.code===raw.vpnCountry)) p.vpnCountry=raw.vpnCountry;
     if (['off','automatic','secure'].includes(raw.secureDns)) p.secureDns=raw.secureDns;
     if (Object.hasOwn(DNS_PROVIDERS, raw.dnsProvider)) p.dnsProvider=raw.dnsProvider;
@@ -105,7 +113,7 @@ function loadSettings() {
     if (Number.isInteger(raw.rating) && raw.rating>=1 && raw.rating<=5) p.rating=raw.rating;
     if (weather.validCity(raw.weatherCity)) p.weatherCity={name:raw.weatherCity.name,country:String(raw.weatherCity.country||'').slice(0,40),lat:raw.weatherCity.lat,lon:raw.weatherCity.lon};
     if (typeof raw.xmodeCode==='string' && /^scrypt\$[A-Za-z0-9+/=]{20,}\$[A-Za-z0-9+/=]{40,}$/.test(raw.xmodeCode)) p.xmodeCode=raw.xmodeCode;
-    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock']) {
+    for (const key of ['httpsOnly','gpc','webrtcProtection','restoreSession','showBookmarksBar','recordHistory','clearHistoryOnExit','autoUpdate','phishingProtection','gamingMode','savePasswords','showClock','shieldAnnoyances','shieldBoost','mediaPlayer']) {
       if (typeof raw[key]==='boolean') p[key]=raw[key];
     }
     if (Object.hasOwn(SEARCH_ENGINES, raw.searchEngine)) p.searchEngine=raw.searchEngine;
@@ -194,7 +202,7 @@ function tabState(t) {
   if (t.engine==='mshtml') { back = true; forward = true; }
   return { id: t.id, title: t.title, url: t.url, loading: t.loading, back, forward, engine:t.engine||'chromium',
     favicon: t.favicon||'', audible: Boolean(t.audible), muted, pinned:false, secure: /^https:/.test(t.url),
-    blocked: adBlocker && !wc.isDestroyed() ? adBlocker.blockedFor(wc.id) : 0, error: t.loadError||'', sleeping: Boolean(t.sleeping), xTab: Boolean(t.xTab) };
+    blocked: adBlocker && !wc.isDestroyed() ? adBlocker.blockedFor(wc.id) : 0, error: t.loadError||'', sleeping: Boolean(t.sleeping), xTab: Boolean(t.xTab), private: Boolean(t.private) };
 }
 function currentOrigin(s) { return siteOrigin(activeTab(s)?.url || ''); }
 function currentHost(s) { try { return new URL(activeTab(s)?.url||'').hostname.replace(/^www\./,''); } catch { return ''; } }
@@ -222,13 +230,13 @@ function publicState(s) {
     preferences: { httpsOnly:settings.httpsOnly, gpc:settings.gpc, webrtcProtection:settings.webrtcProtection, restoreSession:settings.restoreSession,
       showBookmarksBar:settings.showBookmarksBar, recordHistory:settings.recordHistory, clearHistoryOnExit:settings.clearHistoryOnExit,
       autoUpdate:settings.autoUpdate, searchEngine:settings.searchEngine, theme:settings.theme, phishingProtection:settings.phishingProtection,
-      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock },
+      secureDns:settings.secureDns, dnsProvider:settings.dnsProvider, gamingMode:settings.gamingMode, savePasswords:settings.savePasswords, showClock:settings.showClock, mediaPlayer:settings.mediaPlayer },
     weather: {city: settings.weatherCity ? settings.weatherCity.name + (settings.weatherCity.country ? ', ' + settings.weatherCity.country : '') : '', now: weatherNow},
     adminOpen: Boolean(s.adminOpen),
     telemetry: {available: Boolean(telemetry?.available), enabled: Boolean(telemetry?.enabled), asked: settings.telemetryAsked, rating: settings.rating},
     searchEngines: Object.entries(SEARCH_ENGINES).map(([id,e])=>({id,name:e.name})),
     themes: THEMES, theme: settings.theme, welcomed: settings.welcomed,
-    vpn: tor ? {...tor.state, countries: VPN_COUNTRIES} : {status:'off', available:false, countries: VPN_COUNTRIES},
+    vpn: tor ? {...tor.state, status: vpnGlobal ? tor.state.status : 'off', error: vpnGlobal ? tor.state.error : '', privateTunnel: !vpnGlobal ? tor.state.status : '', countries: VPN_COUNTRIES} : {status:'off', available:false, countries: VPN_COUNTRIES},
     gaming: settings.gamingMode, xmode: Boolean(s.xmode), xmodeSetup: {age: settings.xmodeAge, code: Boolean(settings.xmodeCode)}, radio: {open: Boolean(radioWin && !radioWin.isDestroyed()), now: radioNow},
     passwords: vault ? {...vault.status(), here: {form: Boolean(t?.loginForm), count: t?.url ? vault.forOrigin(t.url).length : 0, never: Boolean(t?.url && vault.isUnlocked() && vault.isNever(t.url))},
       offer: pendingPassword && pendingPassword.windowId===s.id ? {origin: pendingPassword.origin, username: pendingPassword.username, update: pendingPassword.update} : null} : null,
@@ -359,7 +367,7 @@ function attachPageHandlers(t) {
   wc.on('page-title-updated', (_event, title) => {
     if (String(wc.getURL()).startsWith('data:')) return;
     t.title = String(title).slice(0,90); sendState(t.owner);
-    if (settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium') browsing?.updateTitle(t.url, t.title);
+    if (settings.recordHistory && !t.owner.xmode && !t.xTab && !t.private && t.engine==='chromium') browsing?.updateTitle(t.url, t.title);
   });
   wc.on('page-favicon-updated', (_event, icons) => {
     const icon = (icons||[]).find(u => /^https:\/\//i.test(u) || /^data:image\//i.test(u));
@@ -371,8 +379,8 @@ function attachPageHandlers(t) {
   wc.on('did-navigate', (_event, url, httpCode) => {
     if (isWebUrl(url)) { t.loadError=''; t.favicon=''; t.upgradeHits=null; if (/^https:/i.test(url)) t.httpsUpgradedFrom=''; }
     update(); applySiteZoom(t);
-    if (isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
-    if (isWebUrl(url) && !t.owner.xmode && !t.xTab) telemetry?.countPage();
+    if (isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && !t.private && t.engine==='chromium' && !(httpCode>=400)) browsing?.record(url, wc.getTitle());
+    if (isWebUrl(url) && !t.owner.xmode && !t.xTab && !t.private) telemetry?.countPage();
   });
   wc.on('did-finish-load',async()=>{
     if(!isWebUrl(wc.getURL()) || wc.isDestroyed())return;
@@ -386,7 +394,7 @@ function attachPageHandlers(t) {
       }
     }catch{}
   });
-  wc.on('did-navigate-in-page', (_e, url, isMainFrame) => { update(); if (isMainFrame && isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && t.engine==='chromium') browsing?.record(url, wc.getTitle()); });
+  wc.on('did-navigate-in-page', (_e, url, isMainFrame) => { update(); if (isMainFrame && isWebUrl(url) && settings.recordHistory && !t.owner.xmode && !t.xTab && !t.private && t.engine==='chromium') browsing?.record(url, wc.getTitle()); });
   wc.setBackgroundThrottling(true);
   if(typeof wc.setZoomMode==='function')wc.setZoomMode('isolated');
   if (settings.webrtcProtection) { try { wc.setWebRTCIPHandlingPolicy('default_public_interface_only'); } catch {} }
@@ -412,6 +420,7 @@ function attachPageHandlers(t) {
     if (handleInternalLink(t, url)) { event.preventDefault(); return; }
     const dangerous = settings.phishingProtection && phishing ? phishing.match(url) : '';
     if (dangerous) { event.preventDefault(); showPhishingWarning(t, url, dangerous); return; }
+    if (!isRedirect && sendToMediaPlayer(t, url)) { event.preventDefault(); return; }
     if (!isWebUrl(url)) {
       if (String(url).startsWith('data:') && !isRedirect) return; // pages d'erreur internes
       event.preventDefault(); return;
@@ -468,7 +477,7 @@ function attachPageHandlers(t) {
 }
 function newTab(s, url = '', options = {}) {
   if (s.tabs.size >= MAX_TABS) throw new Error(`Maximum de ${MAX_TABS} onglets par fenêtre.`);
-  const t = { id:++nextTabId, owner:s, view:null, xTab:Boolean(s.xmode), url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false,favicon:'',audible:false,loadError:'',httpsUpgradedFrom:'' };
+  const t = { id:++nextTabId, owner:s, view:null, xTab:Boolean(s.xmode), private:Boolean(options.private), url:'', title:'Nouvel onglet', loading:false,legacy:{likely:false,hints:[]},engine:'chromium',legacyHost:null,legacyError:'',legacyBits:'',legacyPluginInfo:'',forceModern:false,favicon:'',audible:false,loadError:'',httpsUpgradedFrom:'' };
   createTabView(t);
   if (Number.isInteger(options.index)) insertInMap(s.tabs, t.id, t, options.index); else s.tabs.set(t.id, t);
   if (options.lazy && isWebUrl(url)) {
@@ -483,14 +492,15 @@ function newTab(s, url = '', options = {}) {
 }
 function createTabView(t) {
   const view = new WebContentsView({ webPreferences: {
-    session: browsingSession, nodeIntegration:false, contextIsolation:true, sandbox:true,
+    session: t.private ? ensurePrivateSession() : browsingSession, nodeIntegration:false, contextIsolation:true, sandbox:true,
     webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true,
     spellcheck:true, safeDialogs:true, disableDialogs:false, navigateOnDragDrop:false
   }});
   view.setBackgroundColor('#ffffff');
   t.view = view;
   attachPageHandlers(t);
-  if (tor?.state.status==='on') { try { view.webContents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp'); } catch {} }
+  // Onglet privé : WebRTC ne peut jamais contourner le VPN (fuite d'adresse IP).
+  if (t.private || vpnActive()) { try { view.webContents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp'); } catch {} }
   return view;
 }
 // Mise en veille d'un onglet : son processus est libéré (RAM/CPU), l'adresse est conservée.
@@ -521,6 +531,7 @@ function closeTab(s,id) {
   stopEmbeddedLegacy(t,false);
   s.tabs.delete(t.id);
   if (!t.view.webContents.isDestroyed()) t.view.webContents.close();
+  if (t.private) setTimeout(cleanupPrivateSession, 500);
   if (!s.tabs.size) {
     // Fermer le dernier onglet ferme la fenêtre s'il en reste une autre.
     if (windows.size>1) { s.activeId=null; s.win.close(); return; }
@@ -539,6 +550,7 @@ function navigateTab(t,text) {
   stopEmbeddedLegacy(t,false);
   t.forceModern=false; t.loadError=''; t.httpsUpgradedFrom=''; t.httpsAllowedHttp=''; t.upgradeHits=null; t.sleeping=false; t.loginForm=false;
   if (settings.httpsOnly) { const upgraded=httpsUpgrade(url); if (upgraded) { t.httpsUpgradedFrom=url; url=upgraded; } }
+  if (sendToMediaPlayer(t, url)) { if (!t.view.webContents.getURL()) { sendState(s); } return; }
   t.url=url; t.title=(new URL(url)).hostname; t.legacy={likely:false,hints:[]}; t.favicon='';
   const dangerous = settings.phishingProtection && phishing ? phishing.match(url) : '';
   if (dangerous) { if (s.activeId===t.id) showView(s,t); showPhishingWarning(t, url, dangerous); return; }
@@ -571,6 +583,28 @@ function exitXmode(s) {
   for (const t of [...s.tabs.values()]) if (t.xTab) closeTab(s, t.id);
   if (s.activeId === null && !s.win.isDestroyed()) { try { newTab(s); } catch {} }
   broadcast();
+}
+// ---- Lecteur protégé : Netflix & co s'ouvrent dans DevGitMedia.exe (signé VMP).
+function sendToMediaPlayer(t, url) {
+  if (!settings.mediaPlayer || t?.private || !mediaPlayer.isStreamingEntry(url)) return false;
+  if (!mediaPlayer.openInMediaPlayer(url)) return false;
+  notice(t.owner, 'Ouvert dans le lecteur protégé DevGit (vidéos Netflix, Disney+, Prime Video…).');
+  logger.info('Lecteur protégé', new URL(url).hostname);
+  return true;
+}
+// ---- Widevine (vidéos protégées)
+let widevineStatus = {available: false, state: 'absent'};
+function initWidevine() {
+  const components = require('electron').components;
+  if (!components || typeof components.whenReady !== 'function') { widevineStatus = {available: false, state: 'absent'}; return; }
+  widevineStatus = {available: true, state: 'installation'};
+  components.whenReady().then(() => {
+    const st = components.status?.() || {};
+    const cdm = Object.values(st).find(c => /widevine/i.test(String(c?.name || ''))) || Object.values(st)[0] || {};
+    widevineStatus = {available: true, state: 'prêt', version: String(cdm.version || '')};
+    logger.info('Widevine prêt', widevineStatus.version);
+    broadcast();
+  }).catch(err => { widevineStatus = {available: true, state: 'erreur', error: String(err?.message || err).slice(0, 160)}; logger.warn('Widevine', widevineStatus.error); broadcast(); });
 }
 // ---- Météo (barre d'outils) : Open-Meteo, rafraîchie toutes les 20 minutes.
 let weatherNow = null, weatherTimer = null;
@@ -749,6 +783,7 @@ function handleShortcut(s, input, where) {
   if (mod && /^[1-9]$/.test(key)) { const keys=[...s.tabs.keys()]; const id = key==='9' ? keys.at(-1) : keys[Number(key)-1]; if (id) selectTab(s,id); return true; }
   if (mod && key === 'l') { ui.send('dgb:focus-address'); return true; }
   if (mod && key === 't') { try { newTab(s); ui.send('dgb:focus-address'); } catch (e) { notice(s,e.message,true); } return true; }
+  if (mod && input.shift && key === 'n') { openPrivateTab(s).catch(e=>notice(s,e.message,true)); return true; }
   if (mod && key === 'n') { createWindow(); return true; }
   if (mod && key === 'w') { if (s.activeId) closeTab(s,s.activeId); return true; }
   if (mod && key === 'h') { ui.send('dgb:command','history'); return true; }
@@ -943,7 +978,8 @@ function mainMenu(s) {
     {type:'separator'},
     {label:'Mots de passe', click:panel('passwords')},
     {label:'Radio', click:()=>openRadio()},
-    {label:tor?.state.status==='on'?'VPN DevGit (connecté)':'VPN DevGit', click:()=>vpnMenu(s)},
+    {label:vpnActive()?'VPN DevGit (connecté)':'VPN DevGit', click:()=>vpnMenu(s)},
+    {label:'Nouvel onglet privé (VPN)', accelerator:'CmdOrCtrl+Shift+N', click:()=>openPrivateTab(s).catch(e=>notice(s,e.message,true))},
     {label:'Mode gaming', type:'checkbox', checked:settings.gamingMode, click:()=>setGamingMode(!settings.gamingMode)},
     {label:'Gestionnaire de tâches', accelerator:'Shift+Esc', click:panel('tasks')},
     {label:'Thème', submenu:THEMES.map(th=>({label:th.name, type:'radio', checked:settings.theme===th.id, click:()=>setPreference('theme',th.id)}))},
@@ -977,9 +1013,20 @@ function shieldMenu(s) {
     {label:host ? `Protéger ${host}` : 'Protéger ce site', type:'checkbox', checked:!allowed, enabled:Boolean(host) && Boolean(state?.enabled), click:()=>{
       try { adBlocker.setAllowed(host, !allowed); saveSettings(); t.view.webContents.reload(); broadcast(); notice(s, !allowed ? `DevGitShield en pause sur ${host}.` : `DevGitShield réactivé sur ${host}.`); } catch(e) { notice(s,e.message,true); }
     }},
+    {label:host ? `🔧 ${host} ne fonctionne pas ? Mettre la protection en pause ici` : '🔧 Le site ne fonctionne pas ?', enabled:Boolean(host) && Boolean(state?.enabled) && !allowed, click:()=>{
+      try { adBlocker.setAllowed(host, true); saveSettings(); t.view.webContents.reload(); broadcast(); notice(s, `DevGitShield en pause sur ${host} : le site se recharge normalement.`); } catch(e) { notice(s,e.message,true); }
+    }},
+    {type:'separator'},
     {label:'Protection sur tous les sites', type:'checkbox', checked:Boolean(state?.enabled), click:()=>{
       settings.adblockEnabled=!settings.adblockEnabled; adBlocker?.setEnabled(settings.adblockEnabled); saveSettings(); broadcast();
       if (t?.url) t.view.webContents.reload();
+    }},
+    {label:'Bloquer aussi les nuisances (cookies, pop-ups) · peut gêner certains sites', type:'checkbox', checked:Boolean(settings.shieldAnnoyances), click:()=>{
+      settings.shieldAnnoyances=!settings.shieldAnnoyances; saveSettings(); notice(s,'Mise à jour des listes de filtres…');
+      adBlocker?.setAnnoyances(settings.shieldAnnoyances).then(()=>{ if (t?.url) t.view.webContents.reload(); notice(s,'Filtres DevGitShield : '+(adBlocker.state().error||adBlocker.state().quality)); }).catch(()=>{});
+    }},
+    {label:'Mode renforcé YouTube/Twitch (expérimental, peut ralentir ces sites)', type:'checkbox', checked:Boolean(settings.shieldBoost), click:()=>{
+      settings.shieldBoost=!settings.shieldBoost; saveSettings(); adBlocker?.setBoost(settings.shieldBoost); if (t?.url) t.view.webContents.reload(); broadcast();
     }},
     {label:state?.updating ? 'Mise à jour des filtres en cours…' : 'Mettre à jour les filtres maintenant', enabled:!state?.updating, click:()=>adBlocker?.refresh().then(()=>notice(s,'Filtres DevGitShield : '+(adBlocker.state().error||adBlocker.state().quality))).catch(()=>{})},
     {type:'separator'},
@@ -1032,17 +1079,18 @@ function permissionDialog(wc, options) {
   const win=dialogParentFor(wc);
   return win?dialog.showMessageBox(win,options):dialog.showMessageBox(options);
 }
-function configurePermissionPolicy() {
-  browsingSession.setPermissionCheckHandler((wc,permission,origin,details={})=>{
+function configurePermissionPolicy(ses = browsingSession) {
+  ses.setPermissionCheckHandler((wc,permission,origin,details={})=>{
     if(permission==='media')return mediaPermissionCheck(wc,origin,details);
     if(permission==='display-capture')return Boolean(siteOrigin(origin)); // picker still must ask explicitly
-    if(permission==='clipboard-sanitized-write'||permission==='fullscreen')return true;
+    // Lecture de vidéos protégées (Netflix, Prime Video, Disney+, Spotify…) via Widevine.
+    if(permission==='clipboard-sanitized-write'||permission==='fullscreen'||permission==='mediaKeySystem')return true;
     if(permission==='notifications' && bundledExtensionOrigin(origin))return true;
     if(permission==='notifications'||permission==='geolocation')return Boolean(privacyOriginAllowed(wc,siteOrigin(origin),permission));
     return false;
   });
-  browsingSession.setPermissionRequestHandler((wc,permission,callback,details={})=>{
-    if(permission==='clipboard-sanitized-write'||permission==='fullscreen'){callback(true);return;}
+  ses.setPermissionRequestHandler((wc,permission,callback,details={})=>{
+    if(permission==='clipboard-sanitized-write'||permission==='fullscreen'||permission==='mediaKeySystem'){callback(true);return;}
     if(permission==='notifications' && bundledExtensionOrigin(details.requestingUrl||wc?.getURL?.())){callback(true);return;}
     if(permission==='openExternal'){
       const target=String(details.externalURL||'');
@@ -1085,7 +1133,7 @@ function configurePermissionPolicy() {
       }).catch(()=>callback(false));
   });
   // No screen, window or tab is shared without a deliberate system-side choice.
-  browsingSession.setDisplayMediaRequestHandler((request,callback)=>{
+  ses.setDisplayMediaRequestHandler((request,callback)=>{
     const origin=siteOrigin(request.securityOrigin||'');
     if(!origin || !request.userGesture || !request.videoRequested){callback(null);return;}
     desktopCapturer.getSources({types:['screen','window'],thumbnailSize:{width:0,height:0}})
@@ -1099,10 +1147,10 @@ function configurePermissionPolicy() {
       }).catch(()=>callback(null));
   });
 }
-function configurePrivacyHeaders() {
+function configurePrivacyHeaders(ses = browsingSession) {
   // Global Privacy Control + Do Not Track. onBeforeSendHeaders n'est pas utilisé
   // par DevGitShield (qui occupe onBeforeRequest/onHeadersReceived).
-  browsingSession.webRequest.onBeforeSendHeaders((details,callback)=>{
+  ses.webRequest.onBeforeSendHeaders((details,callback)=>{
     if(!settings.gpc){callback({});return;}
     const headers={...details.requestHeaders,'Sec-GPC':'1','DNT':'1'};
     callback({requestHeaders:headers});
@@ -1189,8 +1237,8 @@ function setZoom(s,direction) {
   saveSettings();sendState(s);
   notice(s,`Zoom ${Math.round(value*100)} %`);
 }
-function configureDownloads() {
-  browsingSession.on('will-download',(_event,item,wc)=>{
+function configureDownloads(ses = browsingSession) {
+  ses.on('will-download',(_event,item,wc)=>{
     const folder=settings.downloads.folder || app.getPath('downloads');
     const safeName=path.basename(item.getFilename()||'telechargement').replace(/[\u0000-\u001f<>:"|?*]+/g,'_').slice(0,180)||'telechargement';
     const owner=[...windows.values()].find(s=>[...s.tabs.values()].some(t=>t.view.webContents===wc))||focusedState();
@@ -1230,7 +1278,7 @@ function uniquePath(folder,name) {
 // ---- Restauration de la session (après une mise à jour ou un redémarrage)
 function sessionSnapshot() {
   return {version:1, savedAt:Date.now(), windows:[...windows.values()].filter(s=>!s.win.isDestroyed()).map(s=>{
-    const kept=[...s.tabs.values()].filter(t=>isWebUrl(t.url) && !t.xTab);
+    const kept=[...s.tabs.values()].filter(t=>isWebUrl(t.url) && !t.xTab && !t.private);
     const tabs=kept.map(t=>t.url);
     const keys=kept.map(t=>t.id);
     const bounds=s.win.isMaximized()||s.win.isFullScreen() ? {...s.win.getNormalBounds(),maximized:true} : s.win.getBounds();
@@ -1266,7 +1314,7 @@ function resetSyncTimer() {
 async function configureProxy(proxy) {
   const safe=normalizeProxy(proxy);
   // Le VPN reste prioritaire : le réglage sera appliqué à sa déconnexion.
-  if(tor?.state.status!=='on' && tor?.state.status!=='starting') await browsingSession.setProxy(proxyForElectron(safe));
+  if(!vpnGlobal || (tor?.state.status!=='on' && tor?.state.status!=='starting')) await browsingSession.setProxy(proxyForElectron(safe));
   if(typeof browsingSession.closeAllConnections==='function') await browsingSession.closeAllConnections();
   settings.proxy=safe;saveSettings();broadcast();
 }
@@ -1732,37 +1780,104 @@ function openRadio() {
   broadcast();
 }
 // ======================================================== VPN
+// Le tunnel Tor sert à deux usages : le VPN global (bouton 🌐, toute la navigation)
+// et les onglets privés (clic droit sur +). Les onglets privés passent TOUJOURS
+// par le VPN : tant qu'il n'est pas prêt, leur proxy est volontairement invalide
+// (aucune connexion directe possible, donc aucune fuite d'adresse IP).
+let vpnGlobal = false, vpnRules = '', privateSession = null;
+const PRIVATE_FAIL_CLOSED = {proxyRules: 'socks5://127.0.0.1:9', proxyBypassRules: '<-loopback>'};
+const vpnActive = () => vpnGlobal && tor?.state.status === 'on';
+const allTabs = () => [...windows.values()].flatMap(s => [...s.tabs.values()]);
+const privateTabCount = () => allTabs().filter(t => t.private).length;
 async function applyVpnProxy(proxyRules) {
+  vpnRules = proxyRules;
+  if (privateSession) { await privateSession.setProxy({proxyRules, proxyBypassRules: '<-loopback>'}); if (typeof privateSession.closeAllConnections === 'function') await privateSession.closeAllConnections(); }
+  if (!vpnGlobal) return;
   await browsingSession.setProxy({proxyRules, proxyBypassRules: '<-loopback>'});
   if (typeof browsingSession.closeAllConnections === 'function') await browsingSession.closeAllConnections();
-  for (const s of windows.values()) for (const t of s.tabs.values()) { try { t.view.webContents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp'); } catch {} }
+  for (const t of allTabs()) { try { t.view.webContents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp'); } catch {} }
 }
-async function restoreDirectProxy() {
+async function restoreBrowsingDirect() {
   await browsingSession.setProxy(proxyForElectron(settings.proxy));
   if (typeof browsingSession.closeAllConnections === 'function') await browsingSession.closeAllConnections();
-  for (const s of windows.values()) for (const t of s.tabs.values()) { try { t.view.webContents.setWebRTCIPHandlingPolicy(settings.webrtcProtection ? 'default_public_interface_only' : 'default'); } catch {} }
+  for (const t of allTabs()) if (!t.private) { try { t.view.webContents.setWebRTCIPHandlingPolicy(settings.webrtcProtection ? 'default_public_interface_only' : 'default'); } catch {} }
+}
+async function restoreDirectProxy() {
+  vpnRules = '';
+  if (privateSession) await privateSession.setProxy(PRIVATE_FAIL_CLOSED).catch(() => {});
+  await restoreBrowsingDirect();
+}
+// Déconnexion du VPN global : le tunnel reste ouvert tant que des onglets privés l'utilisent.
+async function disconnectVpn() {
+  vpnGlobal = false;
+  if (privateTabCount() && tor.state.status === 'on') { await restoreBrowsingDirect(); broadcast(); return; }
+  await tor.stop();
+}
+function ensurePrivateSession() {
+  if (privateSession) return privateSession;
+  // Partition en mémoire (sans « persist: ») : rien n'est écrit sur le disque.
+  const ses = session.fromPartition('devgit-private-' + crypto.randomBytes(6).toString('hex'));
+  privateSession = ses;
+  ses.setUserAgent(browsingSession.getUserAgent());
+  try { ses.setSpellCheckerLanguages(['fr', 'en-US']); } catch {}
+  try { ses.registerPreloadScript({type: 'frame', id: 'devgitshield-early', filePath: path.join(__dirname, 'lib', 'shield-preload.js')}); } catch {}
+  configurePermissionPolicy(ses); configureDownloads(ses); configurePrivacyHeaders(ses);
+  adBlocker?.attachSession(ses);
+  ses.setProxy(vpnRules && tor?.state.status === 'on' ? {proxyRules: vpnRules, proxyBypassRules: '<-loopback>'} : PRIVATE_FAIL_CLOSED).catch(() => {});
+  return ses;
+}
+// Dernier onglet privé fermé : cookies, cache et stockage effacés, tunnel arrêté s'il ne sert plus.
+async function cleanupPrivateSession() {
+  if (privateTabCount() || !privateSession) return;
+  const ses = privateSession; privateSession = null;
+  try { await ses.clearStorageData(); await ses.clearCache(); await ses.clearAuthCache(); } catch {}
+  if (!vpnGlobal && tor && ['on', 'starting'].includes(tor.state.status)) tor.stop().catch(() => {});
+  broadcast();
+}
+async function openPrivateTab(s, url = '') {
+  if (!tor?.state.available) { notice(s, 'Navigation privée indisponible : composant VPN (Tor) absent.', true); return null; }
+  const id = newTab(s, '', {private: true});
+  const t = s.tabs.get(id);
+  const go = () => { if (t && s.tabs.has(id)) { if (url) navigateTab(t, url); else sendState(s); } };
+  if (tor.state.status === 'on') { go(); return id; }
+  notice(s, 'Onglet privé : connexion au VPN… (10 à 40 secondes)');
+  try {
+    if (tor.state.status !== 'starting') await tor.start(settings.vpnCountry);
+    else await new Promise((resolve, reject) => { const iv = setInterval(() => { if (tor.state.status === 'on') { clearInterval(iv); resolve(); } else if (tor.state.status !== 'starting') { clearInterval(iv); reject(new Error(tor.state.error || 'VPN indisponible.')); } }, 300); });
+    notice(s, 'Onglet privé prêt : navigation via le VPN, rien n’est conservé à la fermeture.');
+    go();
+  } catch (e) { notice(s, 'VPN indisponible : ' + (e.message || e) + ' L’onglet privé reste bloqué (aucune connexion directe).', true); }
+  return id;
+}
+function newTabMenu(s) {
+  popupMenu(s, [
+    {label: 'Nouvel onglet', accelerator: 'CmdOrCtrl+T', click: () => { try { newTab(s); } catch (e) { notice(s, e.message, true); } }},
+    {label: 'Naviguer en mode privé (onglet sous VPN)', accelerator: 'CmdOrCtrl+Shift+N', click: () => openPrivateTab(s).catch(e => notice(s, e.message, true))}
+  ]);
 }
 function vpnMenu(s) {
   const st = tor.state;
-  const on = st.status === 'on', busy = st.status === 'starting';
+  const on = vpnGlobal && st.status === 'on', busy = vpnGlobal && st.status === 'starting';
   const country = VPN_COUNTRIES.find(c => c.code === (on || busy ? st.country : settings.vpnCountry))?.name || 'Automatique';
   popupMenu(s, [
     {label: on ? `VPN connecté · sortie : ${country}` : busy ? `Connexion au VPN… ${st.progress} %` : st.available ? 'VPN déconnecté' : 'VPN indisponible (composant absent)', enabled: false},
     {type: 'separator'},
-    on || busy ? {label: 'Déconnecter le VPN', click: () => tor.stop().then(() => notice(s, 'VPN déconnecté : connexion directe.')).catch(e => notice(s, e.message, true))}
+    on || busy ? {label: 'Déconnecter le VPN', click: () => disconnectVpn().then(() => notice(s, privateTabCount() ? 'VPN déconnecté pour la navigation normale (les onglets privés restent protégés).' : 'VPN déconnecté : connexion directe.')).catch(e => notice(s, e.message, true))}
       : {label: `Connecter (${country})`, enabled: st.available, click: () => startVpn(s, settings.vpnCountry)},
     {label: 'Pays de sortie', enabled: st.available, submenu: VPN_COUNTRIES.map(c => ({label: c.name, type: 'radio', checked: (on || busy ? st.country : settings.vpnCountry) === c.code,
       click: () => { settings.vpnCountry = c.code; saveSettings(); if (on || busy) startVpn(s, c.code); else broadcast(); }}))},
-    {label: 'Nouvelle adresse IP', enabled: on, click: () => tor.newIdentity().then(() => notice(s, 'Nouvelle identité : les prochaines connexions changent d’adresse IP.')).catch(e => notice(s, e.message, true))},
+    {label: 'Ouvrir un onglet privé sous VPN', enabled: st.available, click: () => openPrivateTab(s).catch(e => notice(s, e.message, true))},
+    {label: 'Nouvelle adresse IP', enabled: st.status === 'on', click: () => tor.newIdentity().then(() => notice(s, 'Nouvelle identité : les prochaines connexions changent d’adresse IP.')).catch(e => notice(s, e.message, true))},
     {label: 'Vérifier mon adresse IP', click: () => { try { newTab(s, 'https://check.torproject.org/'); } catch {} }},
     {type: 'separator'},
     {label: 'À propos du VPN DevGit…', click: () => s.win.webContents.send('dgb:command', 'vpn-info')}
   ]);
 }
 function startVpn(s, country) {
+  vpnGlobal = true;
   notice(s, 'Connexion au VPN… (10 à 40 secondes)');
   tor.start(country).then(() => notice(s, `VPN connecté · sortie : ${VPN_COUNTRIES.find(c => c.code === country)?.name || 'automatique'}.`))
-    .catch(e => { notice(s, e.message, true); restoreDirectProxy().catch(() => {}); });
+    .catch(e => { notice(s, e.message, true); vpnGlobal = false; restoreDirectProxy().catch(() => {}); });
 }
 // ======================================================== DNS sécurisé
 function applySecureDns() {
@@ -1809,7 +1924,7 @@ function perfMetrics() {
   const total = {memory: metrics.reduce((a, m) => a + mb(m), 0), cpu: Math.round(metrics.reduce((a, m) => a + (m.cpu?.percentCPUUsage || 0), 0) * 10) / 10,
     systemFreeMB: Math.round(os.freemem() / 1048576), systemTotalMB: Math.round(os.totalmem() / 1048576)};
   return {tabs, groups: Object.values(groups).map(g => ({...g, cpu: Math.round(g.cpu * 10) / 10})), total, gaming: settings.gamingMode, mode: settings.performance.mode,
-    radio: Boolean(radioNow), vpn: tor?.state.status || 'off'};
+    radio: Boolean(radioNow), vpn: vpnGlobal ? (tor?.state.status || 'off') : 'off'};
 }
 
 function activeOriginRequired(s){const value=currentOrigin(s);if(!value)throw new Error('Ouvre un site HTTPS avant de modifier ses autorisations.');return value;}
@@ -1822,7 +1937,7 @@ function aboutInfo() {
     packaged:app.isPackaged, userData:app.getPath('userData'), executable:process.execPath, repository:REPOSITORY_URL,
     userAgent:browsingSession?.getUserAgent?.()||'', extensions:bundled, shield:adBlocker?.state()||null,
     update:updater?.state||null, history:browsing?.history.length||0, bookmarks:browsing?.bookmarks.length||0,
-    gpu:settings.performance.hardwareAcceleration, uptime:Math.round(process.uptime())
+    gpu:settings.performance.hardwareAcceleration, uptime:Math.round(process.uptime()), widevine:widevineStatus
   };
 }
 function bookmarkContextMenu(s, id) {
@@ -2096,7 +2211,9 @@ function registerIpc(){
     'radio:open':()=>openRadio(),
     'vpn:menu':s=>vpnMenu(s),
     'vpn:connect':(s,country='')=>{if(!VPN_COUNTRIES.some(c=>c.code===country))throw new Error('Pays inconnu.');settings.vpnCountry=country;saveSettings();startVpn(s,country);},
-    'vpn:disconnect':()=>tor.stop(),
+    'vpn:disconnect':()=>disconnectVpn(),
+    'tab:new-menu':s=>newTabMenu(s),
+    'tab:new-private':(s,url='')=>openPrivateTab(s,typeof url==='string'?url:''),
     'perf:metrics':()=>perfMetrics(),
     'perf:gaming':(_s,value)=>setGamingMode(Boolean(value)),
     'perf:sleep-tab':(_s,id)=>{const t=findTab(id);if(!t||!sleepTab(t))throw new Error('Impossible de mettre cet onglet en veille (onglet actif, son en cours ou mode IE).');},
@@ -2202,6 +2319,7 @@ else {
     // The separate Windows MSHTML host cannot share Electron's request hooks.
     adBlocker=new AdBlockService({webSession:browsingSession,dataFolder:app.getPath('userData'),
       enabled:settings.adblockEnabled,allowlist:settings.adblockAllowlist,onState:()=>broadcast(),
+      annoyances:settings.shieldAnnoyances,boost:settings.shieldBoost,
       fetcher:(url,opts)=>(typeof browsingSession.fetch==='function'?browsingSession.fetch(url,opts):fetch(url,opts)),
       resolveTopUrl:id=>{try{const wc=allWebContents.fromId(Number(id));return wc&&!wc.isDestroyed()?wc.getURL():'';}catch{return '';}}});
     try{await adBlocker.start();}catch(err){console.error('DevGitShield:',err?.message||err);}
@@ -2219,6 +2337,9 @@ else {
       if(state.status==='downloaded')for(const s of windows.values())notice(s,`Mise à jour ${state.version} prête : redémarre DevGitBrowser pour l’installer.`);
     }});
     startWeather();
+    // Module DRM Widevine (Electron castLabs) : installé et mis à jour en arrière-plan
+    // par le Component Updater, sans retarder l'ouverture du navigateur.
+    initWidevine();
     telemetry=new Telemetry({url:STATS_URL,pin:STATS_PIN,fetcher:webFetch,getSettings:()=>settings,version:app.getVersion(),
       country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},platform:process.platform,
       isActive:()=>Boolean(BrowserWindow.getFocusedWindow())});

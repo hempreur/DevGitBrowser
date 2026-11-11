@@ -18,6 +18,12 @@ jobs:
           node-version: '22'
       - name: Installer les dépendances
         run: npm install --no-audit --no-fund
+      - name: Installer Electron castLabs (Widevine)
+        shell: pwsh
+        run: |
+          node node_modules/electron/install.js
+          if (!(Test-Path node_modules/electron/dist/electron.exe)) { throw 'Binaires Electron castLabs absents (node_modules/electron/dist).' }
+          Write-Host "Electron castLabs : $((Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version)"
       - name: Exécuter les tests
         run: npm test
       - name: Vérifier le vrai moteur de filtrage DevGitShield
@@ -68,8 +74,44 @@ jobs:
       - name: Télécharger et vérifier les outils vidéo locaux
         shell: pwsh
         run: ./scripts/fetch-video-tools.ps1
-      - name: Compiler DevGitBrowser pour Windows x64
-        run: npm run build:win
+      - name: Préparer DevGitBrowser pour Windows x64 (dossier)
+        run: npm run build:win:dir
+      # Lecteur protégé (Netflix, Disney+, Prime Video…) : DevGitMedia.exe est le
+      # moteur castLabs d'ORIGINE (seuls l'icône et le nom changent), signé VMP par
+      # castLabs EVS. DevGitBrowser.exe garde ses fusibles de sécurité : castLabs
+      # refuse de signer un moteur modifié, d'où ce lecteur séparé.
+      - name: Lecteur protégé DevGitMedia.exe + signature VMP (castLabs EVS)
+        shell: pwsh
+        env:
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+        run: |
+          New-Item -ItemType Directory -Force media-stage | Out-Null
+          robocopy node_modules/electron/dist media-stage /E /NFL /NDL /NJH /NJS /NP | Out-Null
+          if ($LASTEXITCODE -ge 8) { throw 'Copie du moteur castLabs impossible.' }
+          Rename-Item media-stage/electron.exe DevGitMedia.exe
+          npm install --no-save --no-audit --no-fund rcedit@4
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          node -e "(require('rcedit').rcedit||require('rcedit'))('media-stage/DevGitMedia.exe',{icon:'assets/icon.ico','file-version':'$version','product-version':'$version','version-string':{ProductName:'DevGitBrowser Media',FileDescription:'Lecteur protégé DevGit',CompanyName:'CodexHempreur INC',LegalCopyright:'CodexHempreur INC',OriginalFilename:'DevGitMedia.exe'}}).then(()=>console.log('DevGitMedia.exe prêt'))"
+          if ($LASTEXITCODE -ne 0) { throw 'Préparation de DevGitMedia.exe impossible.' }
+          if ([string]::IsNullOrEmpty($env:EVS_ACCOUNT_NAME) -or [string]::IsNullOrEmpty($env:EVS_PASSWD)) {
+            Write-Host "::warning::Secrets EVS_ACCOUNT_NAME / EVS_PASSWD absents : lecteur protégé non signé, Netflix refusera la lecture."
+          } else {
+            python -m pip install --upgrade --quiet castlabs-evs
+            $env:EVS_NO_ASK = '1'
+            python -m castlabs_evs.account refresh
+            if ($LASTEXITCODE -ne 0) { python -m castlabs_evs.account reauth }
+            if ($LASTEXITCODE -ne 0) { throw 'Connexion au compte castLabs EVS impossible (vérifie les secrets EVS_ACCOUNT_NAME / EVS_PASSWD).' }
+            python -m castlabs_evs.vmp sign-pkg media-stage
+            if ($LASTEXITCODE -ne 0) { throw 'Signature VMP du lecteur protégé impossible.' }
+            python -m castlabs_evs.vmp verify-pkg media-stage
+            if ($LASTEXITCODE -ne 0) { throw 'Signature VMP du lecteur protégé invalide.' }
+            Copy-Item media-stage/DevGitMedia.exe.sig dist/win-unpacked/
+          }
+          Copy-Item media-stage/DevGitMedia.exe dist/win-unpacked/
+          $global:LASTEXITCODE = 0
+      - name: Construire l'installateur depuis le dossier signé
+        run: npm run build:win:installer
       - name: Vérifier les exécutables vidéo dans le paquet Windows
         shell: pwsh
         run: |

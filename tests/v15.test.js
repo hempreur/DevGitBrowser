@@ -88,9 +88,9 @@ test('Pages internes et thèmes',()=>{
   assert.match(page,/Site dangereux bloqué/);assert.doesNotMatch(page,/<script>/);
   assert.match(page,new RegExp(U.INTERNAL_HOST.replace('.','\\.')+'/back'));
   assert.match(decodeURIComponent(U.crashPage({url:'https://x.example/',reason:'oom'}).split(',')[1]),/planté/);
-  assert.ok(U.THEMES.length>=6 && U.THEMES.some(t=>t.id==='clair'));
+  assert.ok(U.THEMES.length>=6 && ['noir','blanc','nature','sable'].every(id=>U.THEMES.some(t=>t.id===id)));
   assert.ok(Object.values(U.DNS_PROVIDERS).every(d=>d.url.startsWith('https://')));
-  const css=fs.readFileSync(path.join(__dirname,'..','ui','style.css'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','ui','themes.css'),'utf8');
   for(const t of U.THEMES.filter(t=>t.id!=='neon'))assert.match(css,new RegExp(`:root\\[data-theme="${t.id}"\\]`));
 });
 test('MatchPulse : panier avant validation et probabilité estimée',()=>{

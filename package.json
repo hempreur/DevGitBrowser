@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "devgitStats": {
     "url": "https://devgit-15-235-120-182.sslip.io:8443",
     "pin": "c7358541ccc940ef89a1f27c1bcfc87355f1b3a9ebe00ee986f7d63d45476b0f"
@@ -16,13 +16,15 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.js",
-    "build:win": "electron-builder --win nsis --x64 --publish never"
+    "build:win": "electron-builder --win nsis --x64 --publish never",
+    "build:win:dir": "electron-builder --win dir --x64 --publish never && node scripts/write-app-update.js",
+    "build:win:installer": "electron-builder --win nsis --x64 --publish never --prepackaged dist/win-unpacked"
   },
   "engines": {
     "node": ">=22.12.0"
   },
   "devDependencies": {
-    "electron": "45.2.3",
+    "electron": "https://github.com/castlabs/electron-releases#v45.2.1+wvcus",
     "electron-builder": "26.18.1"
   },
   "build": {
@@ -108,7 +110,9 @@
           "*.exe"
         ]
       }
-    ]
+    ],
+    "electronVersion": "45.2.1",
+    "electronDist": "node_modules/electron/dist"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "2.20.3",
