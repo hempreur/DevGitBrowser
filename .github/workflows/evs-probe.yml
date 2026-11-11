@@ -16,22 +16,17 @@ jobs:
         shell: pwsh
         run: |
           node node_modules/electron/install.js
-          if (!(Test-Path node_modules/electron/dist/electron.exe)) { throw 'Binaires Electron castLabs absents (node_modules/electron/dist).' }
-          Write-Host "Electron castLabs : $((Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version)"
-      - name: Préparer trois variantes
+          if (!(Test-Path node_modules/electron/dist/electron.exe)) { throw 'Binaires castLabs absents.' }
+      - name: Une variante par fusible
         shell: pwsh
         run: |
-          Get-ChildItem node_modules/electron | Format-Table -AutoSize | Out-String | Write-Host
-          Get-ChildItem node_modules/electron/dist -ErrorAction Continue | Select-Object -First 8 | Format-Table -AutoSize | Out-String | Write-Host
-          foreach ($v in 'origine','fusibles','icone') {
+          New-Item -ItemType Directory -Force probe | Out-Null
+          foreach ($v in 'RunAsNode','EnableCookieEncryption','EnableNodeOptionsEnvironmentVariable','EnableNodeCliInspectArguments','OnlyLoadAppFromAsar') {
             robocopy node_modules/electron/dist "probe/$v" /E /NFL /NDL /NJH /NJS /NP | Out-Null
-            if ($LASTEXITCODE -ge 8) { throw "copie $v impossible ($LASTEXITCODE)" }
-            Write-Host "copie $v OK : $((Get-ChildItem "probe/$v").Count) éléments"
+            $val = if ($v -eq 'EnableCookieEncryption' -or $v -eq 'OnlyLoadAppFromAsar') { 'true' } else { 'false' }
+            node -e "const f=require('@electron/fuses');f.flipFuses('probe/$v/electron.exe',{version:f.FuseVersion.V1,[f.FuseV1Options.$v]:$val}).then(()=>console.log('fusible $v = $val'))"
           }
           $global:LASTEXITCODE = 0
-          node -e "require('@electron/fuses').flipFuses('probe/fusibles/electron.exe',{version:require('@electron/fuses').FuseVersion.V1,[require('@electron/fuses').FuseV1Options.RunAsNode]:false,[require('@electron/fuses').FuseV1Options.EnableCookieEncryption]:true,[require('@electron/fuses').FuseV1Options.EnableNodeOptionsEnvironmentVariable]:false,[require('@electron/fuses').FuseV1Options.EnableNodeCliInspectArguments]:false,[require('@electron/fuses').FuseV1Options.OnlyLoadAppFromAsar]:true}).then(()=>console.log('fusibles OK'))"
-          npm install --no-save --no-audit --no-fund rcedit@4
-          node -e "(require('rcedit').rcedit||require('rcedit'))('probe/icone/electron.exe',{icon:'assets/icon.ico','version-string':{ProductName:'DevGitBrowser'}}).then(()=>console.log('icone OK'))"
       - name: Signer chaque variante
         shell: pwsh
         env:
@@ -41,8 +36,8 @@ jobs:
         run: |
           python -m pip install --upgrade --quiet castlabs-evs
           python -m castlabs_evs.account refresh
-          foreach ($v in 'origine','fusibles','icone') {
-            Write-Host "===== VARIANTE $v ====="
+          foreach ($v in 'RunAsNode','EnableCookieEncryption','EnableNodeOptionsEnvironmentVariable','EnableNodeCliInspectArguments','OnlyLoadAppFromAsar') {
+            Write-Host "===== FUSIBLE $v ====="
             python -m castlabs_evs.vmp sign-pkg "probe/$v"
             Write-Host "===== RESULTAT $v : $LASTEXITCODE ====="
           }
