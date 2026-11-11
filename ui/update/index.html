@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'">
+<title>Mise à jour de DevGitBrowser</title><link rel="stylesheet" href="update.css"><script src="../i18n.js"></script></head>
+<body>
+<main>
+  <img src="../../assets/logo-mark.png" alt="" width="76" height="76" class="logo">
+  <span class="kicker">MISE À JOUR</span>
+  <h1>Une nouvelle version est disponible</h1>
+  <p class="versions"><span id="from">—</span> <b>→</b> <span id="to" class="to">—</span></p>
+  <div class="progress"><i id="bar"></i></div>
+  <p id="status" class="status">Préparation…</p>
+  <details id="notes-box" class="hidden"><summary>Voir les nouveautés</summary><pre id="notes" data-no-i18n></pre></details>
+  <div class="buttons"><button id="later" type="button" class="ghost">Plus tard</button><button id="now" type="button" class="primary" disabled>Installer maintenant</button></div>
+  <p class="foot">Tes onglets seront rouverts après la mise à jour. Avec « Plus tard », elle s’installera à la prochaine fermeture du navigateur.</p>
+</main>
+<script src="update.js"></script>
+</body></html>
