@@ -50,3 +50,15 @@
     $$('.card,.layer,.step,.head,.reassure,.spec,.store-mock,.faq-list,.comm-cards').forEach(n => { n.classList.add('rv'); io.observe(n); });
   }
 })();
+
+// Lien de parrainage : https://hempreur.github.io/DevGitBrowser/?ref=CODE8
+(() => {
+  const code = String(new URLSearchParams(location.search).get('ref') || '').toUpperCase();
+  if (!/^[A-Z2-9]{8}$/.test(code)) return;
+  const box = document.getElementById('ref-invite'); if (!box) return;
+  document.getElementById('ref-value').textContent = code;
+  box.hidden = false;
+  const btn = document.getElementById('ref-copy'), label = btn.querySelector('small');
+  btn.addEventListener('click', () => navigator.clipboard?.writeText(code).then(() => { label.textContent = 'Copié ✓'; setTimeout(() => { label.textContent = 'Copier'; }, 1800); }, () => {}));
+  try { sessionStorage.setItem('dgb-ref', code); } catch {}
+})();
