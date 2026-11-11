@@ -1,0 +1,35 @@
+name: Diagnostic signature VMP (temporaire)
+on:
+  push:
+    branches: [devgitbrowser-1.10.0]
+jobs:
+  probe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dépendances
+        run: npm install --no-audit --no-fund
+      - name: Préparer trois variantes
+        shell: pwsh
+        run: |
+          foreach ($v in 'origine','fusibles','icone') { Copy-Item -Recurse node_modules/electron/dist "probe/$v" }
+          node -e "require('@electron/fuses').flipFuses('probe/fusibles/electron.exe',{version:require('@electron/fuses').FuseVersion.V1,[require('@electron/fuses').FuseV1Options.RunAsNode]:false,[require('@electron/fuses').FuseV1Options.EnableCookieEncryption]:true,[require('@electron/fuses').FuseV1Options.EnableNodeOptionsEnvironmentVariable]:false,[require('@electron/fuses').FuseV1Options.EnableNodeCliInspectArguments]:false,[require('@electron/fuses').FuseV1Options.OnlyLoadAppFromAsar]:true}).then(()=>console.log('fusibles OK'))"
+          npx --yes rcedit@4 probe/icone/electron.exe --set-icon assets/icon.ico --set-version-string ProductName DevGitBrowser
+      - name: Signer chaque variante
+        shell: pwsh
+        env:
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+          EVS_NO_ASK: '1'
+        run: |
+          python -m pip install --upgrade --quiet castlabs-evs
+          python -m castlabs_evs.account refresh
+          foreach ($v in 'origine','fusibles','icone') {
+            Write-Host "===== VARIANTE $v ====="
+            python -m castlabs_evs.vmp sign-pkg "probe/$v"
+            Write-Host "===== RESULTAT $v : $LASTEXITCODE ====="
+          }
+          exit 0
