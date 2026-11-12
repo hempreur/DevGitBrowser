@@ -1625,7 +1625,7 @@ function bundledExtensionOrigin(origin) {
   return Boolean(id && match && match[1] === id);
 }
 function dialogParentFor(wc) {
-  for(const s of windows.values())if([...s.tabs.values()].some(t=>t.view.webContents===wc))return s.win;
+  for(const s of windows.values())if([...s.tabs.values()].some(t=>t.view?.webContents===wc))return s.win;
   try {return BrowserWindow.fromWebContents(wc)||undefined;} catch {return undefined;}
 }
 function permissionDialog(wc, options) {
@@ -1685,19 +1685,61 @@ function configurePermissionPolicy(ses = browsingSession) {
         callback(response===1||response===2);broadcast();
       }).catch(()=>callback(false));
   });
-  // No screen, window or tab is shared without a deliberate system-side choice.
+  // Rien n'est partagé sans un choix explicite dans le sélecteur (fenêtre façon Chrome, avec aperçus).
   ses.setDisplayMediaRequestHandler((request,callback)=>{
     const origin=siteOrigin(request.securityOrigin||'');
     if(!origin || !request.userGesture || !request.videoRequested){callback(null);return;}
-    desktopCapturer.getSources({types:['screen','window'],thumbnailSize:{width:0,height:0}})
-      .then(sources=>{
-        const options=sources.slice(0,15);
-        if(!options.length){callback(null);return;}
-        return permissionDialog(request.frame?.webContents,{type:'question',title:'Partager un écran ou une fenêtre',
-          message:`${origin} souhaite afficher ton écran. Choisis explicitement ce que tu souhaites partager :`,
-          buttons:['Annuler',...options.map((s,i)=>`${i+1}. ${String(s.name).slice(0,65)}`)],defaultId:0,cancelId:0,noLink:true})
-          .then(({response})=>callback(response>0?{video:options[response-1]}:null));
-      }).catch(()=>callback(null));
+    openSharePicker(request.frame?.webContents,origin,request.audioRequested===true).then(choice=>callback(choice||null)).catch(()=>callback(null));
+  });
+}
+// ---- Sélecteur de partage d'écran (v1.18.3) : onglets Fenêtre / Écran complet, aperçus, audio système (Windows).
+let sharePicker=null;
+async function shareSources(thumbs=true){
+  const sources=await desktopCapturer.getSources({types:['window','screen'],thumbnailSize:thumbs?{width:320,height:200}:{width:0,height:0},fetchWindowIcons:true});
+  const own=sharePicker&&!sharePicker.win.isDestroyed()?sharePicker.win.getMediaSourceId():'';
+  return sources.filter(s=>s.id!==own).slice(0,40);
+}
+const sourceView=s=>({id:s.id,name:String(s.name||'').slice(0,120),
+  thumb:s.thumbnail&&!s.thumbnail.isEmpty()?'data:image/jpeg;base64,'+s.thumbnail.toJPEG(72).toString('base64'):'',
+  icon:s.appIcon&&!s.appIcon.isEmpty()?s.appIcon.resize({width:16,height:16}).toDataURL():''});
+function openSharePicker(wc,origin,audioRequested){
+  if(sharePicker&&!sharePicker.win.isDestroyed()){sharePicker.finish(null);}
+  return new Promise(resolve=>{
+    const parent=dialogParentFor(wc);
+    const win=new BrowserWindow({parent,modal:Boolean(parent),width:640,height:600,minWidth:520,minHeight:460,resizable:true,minimizable:false,maximizable:false,
+      title:T('Partager l’écran'),icon:path.join(__dirname,'assets','icon.png'),backgroundColor:'#202124',show:false,autoHideMenuBar:true,
+      webPreferences:{preload:path.join(__dirname,'ui','share','preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+    win.setMenu(null);
+    win.webContents.on('will-navigate',e=>e.preventDefault());win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+    let offered=new Map(),done=false,timer=null;
+    const audio=audioRequested&&process.platform==='win32';
+    const picker={win,finish(choice){
+      if(done)return;done=true;clearInterval(timer);if(sharePicker===picker)sharePicker=null;
+      try{if(!win.isDestroyed())win.destroy();}catch{}
+      resolve(choice);
+    }};
+    sharePicker=picker;
+    // 1er envoi immédiat sans aperçus (la liste s'affiche tout de suite), puis aperçus rafraîchis toutes les 3 s.
+    const push=async(thumbs=true)=>{
+      if(done||win.isDestroyed())return;
+      try{
+        const list=await shareSources(thumbs);if(done||win.isDestroyed())return;
+        offered=new Map(list.map(x=>[x.id,x]));
+        const views=list.map(sourceView),screens=views.filter(v=>v.id.startsWith('screen:'));
+        // Noms d'écrans en français : « Écran entier » s'il n'y en a qu'un, sinon « Écran 1 », « Écran 2 »…
+        screens.forEach((v,i)=>{v.name=screens.length>1?T('Écran')+' '+(i+1):T('Écran entier');});
+        win.webContents.send('dgb-share:sources',{origin:origin.replace(/^https?:\/\//,''),audio,
+          windows:views.filter(v=>v.id.startsWith('window:')),screens});
+      }catch{}
+    };
+    win.webContents.once('did-finish-load',()=>{push(false).then(()=>push(true));timer=setInterval(push,3000);});
+    win.once('ready-to-show',()=>{win.show();win.focus();});
+    win.on('closed',()=>picker.finish(null));
+    picker.onChoose=(id,withAudio)=>{
+      const src=offered.get(id);
+      picker.finish(src?{video:src,...(withAudio&&audio?{audio:'loopback'}:{})}:null);
+    };
+    win.loadFile(path.join(__dirname,'ui','share','index.html'));
   });
 }
 function configurePrivacyHeaders(ses = browsingSession) {
@@ -2931,6 +2973,11 @@ function registerIpc(){
   ipcMain.handle('dgb-support:end',async event=>{
     const o=supportOf(event);if(!o||o.mode!=='admin')throw new Error('Action réservée au support.');
     return {mode:'admin',...await adminSupportCall(o.bugId,'close')};
+  });
+  ipcMain.on('dgb-share:choose',(event,id,audio)=>{
+    if(!sharePicker||sharePicker.win.isDestroyed()||event.sender!==sharePicker.win.webContents)return;
+    if(!id){sharePicker.finish(null);return;}
+    sharePicker.onChoose(String(id),audio===true);
   });
   ipcMain.on('dgb-lock:get',event=>{ event.returnValue={message:lockInfo.message, version:app.getVersion()}; });
   ipcMain.on('dgb-lock:action',(event,action,arg)=>{
