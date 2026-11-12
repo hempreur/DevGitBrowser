@@ -638,7 +638,7 @@ function publicState(s) {
     popupOverrideHere:origin ? settings.popupModes[origin]||'default':'default',
     popupDefaultBabel: Boolean(origin && !Object.hasOwn(settings.popupModes,origin) && popupMode(origin)==='allow'),
     popupTopmostHere:origin ? nativePopupTopmost(origin):false, popupTopmostOverride:origin && Object.hasOwn(settings.popupTopmost,origin)?(settings.popupTopmost[origin]?'yes':'no'):'default',
-    legacyHere:{...(t?.legacy||{likely:false,hints:[]}), engine:t?.engine||'chromium', trusted:settings.legacyTrustedOrigins[origin]===true, error:t?.legacyError||'', hostBits:t?.legacyBits||'', pluginDiagnostic:t?.legacyPluginInfo||''},
+    legacyHere:{...(t?.legacy||{likely:false,hints:[]}), engine:t?.engine||'chromium', modernOnly:Boolean(t?.url&&requiresModernVideo(t.url)), trusted:settings.legacyTrustedOrigins[origin]===true, error:t?.legacyError||'', hostBits:t?.legacyBits||'', pluginDiagnostic:t?.legacyPluginInfo||''},
     performance: settings.performance, downloads: {folder: settings.downloads.folder || app.getPath('downloads'), askEachTime: settings.downloads.askEachTime,
       active: downloads.filter(d=>d.state==='progressing').length, recent: downloads.slice(0,8).map(d=>({id:d.id,name:d.name,state:d.state,progress:d.progress}))},
     zoom:t?.url && !t.view.webContents.isDestroyed() ? t.view.webContents.getZoomFactor():1,

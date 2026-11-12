@@ -174,11 +174,14 @@ function updateToolbar(state){
   $('extension-counter').classList.toggle('hidden',exts.length<2&&!exts.some(e=>e.error));
   $('extensions-button').classList.toggle('attention',exts.some(e=>e.error));
   const legacy=state.legacyHere||{};
-  const showIE=state.platform==='win32' && hasPage && (legacy.likely||legacy.trusted||legacy.engine!=='chromium');
+  // Bouton IE toujours disponible sur une page web (Windows) ; il s'illumine quand un ancien site est détecté.
+  const showIE=state.platform==='win32' && hasPage;
   $('legacy-button').classList.toggle('hidden',!showIE);
-  $('legacy-button').textContent=legacy.engine==='mshtml-pending'?'IE …':legacy.engine==='mshtml'?'IE ✓':'IE';
+  $('legacy-button').querySelector('.ie-ico').textContent=legacy.engine==='mshtml-pending'?'IE…':legacy.engine==='mshtml'?'IE✓':'IE';
+  $('legacy-button').classList.toggle('on',legacy.engine==='mshtml');
+  $('legacy-button').disabled=Boolean(legacy.modernOnly)&&legacy.engine==='chromium';
   $('legacy-button').classList.toggle('attention',legacy.engine!=='chromium'||legacy.likely);
-  $('legacy-button').title=legacy.engine==='mshtml'?'Revenir au moteur moderne':legacy.engine==='mshtml-pending'?'Annuler le chargement IE':'Ancienne page détectée : ouvrir dans le moteur IE intégré';
+  $('legacy-button').title=legacy.modernOnly&&legacy.engine==='chromium'?'Mode IE indisponible ici : ce site utilise les webcams modernes (WebRTC), que le moteur IE ne gère pas.':legacy.engine==='mshtml'?'Revenir au moteur moderne':legacy.engine==='mshtml-pending'?'Annuler le chargement IE':(legacy.likely?'Ancienne page détectée : ouvrir dans le moteur IE intégré':'Ouvrir ce site dans le moteur IE intégré (anciens sites ActiveX / VBScript)');
   const upd=state.update||{};
   $('menu-dot').classList.toggle('hidden',upd.status!=='downloaded');
   const banner=$('update-banner');
