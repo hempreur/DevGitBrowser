@@ -158,7 +158,7 @@ test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>
   assert.match(r,/\$\('admin-outdated'\)\.classList\.toggle\('hidden',Number\(c\.api\)>=18\)/);
   assert.match(main,/async function outdatedServer\(e, token\)/);
   assert.match(sh,/api\.github\.com\/repos\/hempreur\/DevGitBrowser\/contents\/server\/stats\/server\.js/,'installation sans cache');
-  assert.match(sh,/node --check "\$APP_DIR\/server\.js\.new" && mv -f/);
+  assert.match(sh,/if ! node --check "\$APP_DIR\/server\.new\.js"; then/,'extension .js obligatoire pour node --check');
 });
 
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
