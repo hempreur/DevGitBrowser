@@ -1,0 +1,18 @@
+{
+  "name": "devgitbrowser-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot communautaire DevGitBrowser : support privé, suggestions, rôles et accueil",
+  "main": "bot.js",
+  "engines": {
+    "node": ">=24.17.0"
+  },
+  "scripts": {
+    "start": "node bot.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check bot.js"
+  },
+  "dependencies": {
+    "discord.js": "14.27.0"
+  }
+}
