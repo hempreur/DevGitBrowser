@@ -138,9 +138,9 @@ test('interface 1.18 : accueil, bouton des succès, plus de prompt()',()=>{
   assert.match(html,/<div class="status-cluster">\s*<button id="trophy-btn"[^>]*><svg class="trophy-ico"/,'icône neutre collée à l’heure');
   assert.ok(!html.includes('🏆</span>'));
   for(const id of ['start-search','start-address','open-babel','home-sites','home-sites-section','card-history','card-bookmarks','card-security','card-network','hp-greet'])assert.ok(html.includes(`id="${id}"`),id);
-  assert.match(html,/href="home\.css"/);assert.match(html,/<div class="bv-shot"><img src="\.\.\/assets\/babelvisio-salon\.webp" alt="[^"]+"/);
-  assert.ok(fs.statSync(path.join(root,'assets','babelvisio-salon.webp')).size<200_000,'image légère');
-  assert.match(css,/\.bv-shot img\{[^}]*transform:rotateY\(-9deg\)/);assert.match(css,/\.bv-shot:after\{/);
+  assert.match(html,/href="home\.css"/);assert.match(html,/<button id="open-babel" class="bv-banner" type="button"[^>]*><img src="\.\.\/assets\/babelvisio-banniere\.webp" alt="[^"]+"/);
+  assert.ok(fs.statSync(path.join(root,'assets','babelvisio-banniere.webp')).size<250_000,'image légère');
+  assert.match(css,/\.bv-banner:after\{/);assert.ok(!html.includes('actifs sur 30 jours</span>'),'légende de la carte retirée');
   // les anciennes classes de l'accueil ne sont plus dans les feuilles de style
   for(const f of ['ui/style.css','ui/themes.css'])for(const c of ['.intro-panel','.promo-babel','.quick-item','.hero-hologram'])assert.ok(!read(f).includes(c),f+' '+c);
   const en=JSON.parse(read('i18n/en.json'));for(const k of ['Bonsoir','Raccourcis','Découvrir BabelVisio','Terminer la discussion','Discussion terminée'])assert.ok(en[k],k);
@@ -152,8 +152,17 @@ test('serveur : X-Forwarded-For ignoré sans proxy déclaré',()=>{
   assert.match(s,/\(TRUST_PROXY && req\.headers\['x-forwarded-for'\]\)/);
 });
 
+test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>{
+  assert.equal((await j('/health')).body.api,18);assert.equal((await j('/v1/admin/config',{headers:AUTH})).body.api,18);
+  const r=read('ui/renderer.js'),main=read('main.js'),sh=read('server/stats/install.sh');
+  assert.match(r,/\$\('admin-outdated'\)\.classList\.toggle\('hidden',Number\(c\.api\)>=18\)/);
+  assert.match(main,/async function outdatedServer\(e, token\)/);
+  assert.match(sh,/api\.github\.com\/repos\/hempreur\/DevGitBrowser\/contents\/server\/stats\/server\.js/,'installation sans cache');
+  assert.match(sh,/node --check "\$APP_DIR\/server\.js\.new" && mv -f/);
+});
+
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
   const pkg=JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('!assets/brand-source.png'));assert.ok(pkg.build.files.includes('!assets/generate-icon.py'));
-  assert.equal(pkg.version,'1.18.0');assert.match(read('CHANGELOG.md'),/^## 1\.18\.0/);
+  assert.equal(pkg.version,'1.18.1');assert.match(read('CHANGELOG.md'),/^## 1\.18\.1/);
 });

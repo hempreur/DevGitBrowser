@@ -566,3 +566,4 @@ body.x-mode .status-cluster .trophy-btn{border-color:#4a1030;background:#14050e}
 .admin-bugs .small-btn,.admin-messages .small-btn{padding:7px 11px;font-size:12px;border-radius:8px}
 .admin-messages .store-head h4{margin:14px 0 4px}
 .x-code-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}.x-code-form input{padding:7px 10px;border-radius:8px;border:1px solid #5a1a3e;background:#14050e;color:#ffe9f3;min-width:160px}
+.admin-outdated{margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid #8a5a1f;background:#2b1f0e;color:#ffd9a3;line-height:1.6}.admin-outdated code{display:block;margin-top:6px;font-size:11.5px;color:#fff;word-break:break-all;user-select:all}

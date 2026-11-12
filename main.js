@@ -229,10 +229,19 @@ function onSupportView(v) {
   // Discussion close : la fenêtre affiche la fin ; on arrête d'écouter ce signalement.
   if (!v.open && v.messages.some(m => m.from === 'system' && m.text === 'close')) { settings.supportChats = supportChatList().filter(c => c.bugId !== v.bugId); saveSettings(); }
 }
+// Route inconnue du serveur : on vérifie sa version pour donner une erreur claire (serveur pas mis à jour).
+async function outdatedServer(e, token) {
+  if (/not found|: 404$/.test(e.message)) {
+    let api = 0; try { api = Number((await telemetry.api('/v1/admin/config', {token, timeout: 10_000}))?.api) || 0; } catch {}
+    if (api < 18) throw new Error('Ton serveur n’est pas à jour : relance la commande d’installation sur le VPS.');
+  }
+  throw e;
+}
 async function adminSupportCall(bugId, action = '', body) {
   const token = readStatsToken(); if (!token || !telemetry?.available) throw new Error('Enregistre d’abord le jeton du serveur.');
   const p = '/v1/admin/support/' + bugId + (action ? '/' + action : '');
-  return telemetry.api(p, {method: action ? 'POST' : 'GET', body: action ? (body || {}) : undefined, token, timeout: 20_000, maxBytes: 2 * 1024 * 1024});
+  return telemetry.api(p, {method: action ? 'POST' : 'GET', body: action ? (body || {}) : undefined, token, timeout: 20_000, maxBytes: 2 * 1024 * 1024})
+    .catch(e => outdatedServer(e, token));
 }
 async function refreshAdminSupport(bugId) {
   try { const v = await adminSupportCall(bugId); sendSupport('admin', bugId, v); const w = supportWins.get('admin:' + bugId); if (w && !w.isDestroyed() && w.isFocused()) adminSupportCall(bugId, 'read').catch(() => {}); } catch (e) { sendSupport('admin', bugId, {error: e.message}); }
@@ -2685,7 +2694,7 @@ function registerIpc(){
     'admin:remote':async(s,action,arg,arg2)=>{
       if(!s.adminOpen)throw new Error('Panneau admin verrouillé.');
       const token=readStatsToken();if(!token||!telemetry?.available)throw new Error('Enregistre d’abord le jeton du serveur.');
-      const call=(p,o={})=>telemetry.api(p,{...o,token,timeout:20_000,maxBytes:20*1024*1024});
+      const call=(p,o={})=>telemetry.api(p,{...o,token,timeout:20_000,maxBytes:20*1024*1024}).catch(e=>outdatedServer(e,token));
       if(action==='config')return call('/v1/admin/config');
       if(action==='lockdown'){const r=await call('/v1/admin/lockdown',{method:'PUT',body:{active:arg?.active===true,versions:String(arg?.versions||''),message:String(arg?.message||'')}});remote?.refresh().catch(()=>{});return r;}
       if(action==='features'){const r=await call('/v1/admin/features',{method:'PUT',body:{features:Array.isArray(arg)?arg:[]}});return r;}

@@ -486,7 +486,6 @@ $('card-security').addEventListener('click',()=>showPanel('security'));
 $('address-form').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('address').value);});
 $('start-search').addEventListener('submit',ev=>{ev.preventDefault();submitNavigation($('start-address').value);});
 $('open-babel').addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
-document.querySelector('.bv-shot')?.addEventListener('click',()=>submitNavigation('https://www.BabelVisio.com'));
 // Suggestions : favoris puis historique (liste native affichée au-dessus des pages).
 function suggest(input){
   clearTimeout(suggestTimer);
@@ -1292,7 +1291,7 @@ function renderAdminBugs(){
       chat.title=b.chatOpen?'Rouvre la fenêtre de discussion':'Ouvre une discussion de support : une fenêtre s’ouvre ici et chez la personne';
       chat.addEventListener('click',async()=>{if(b.chatOpen)await run(()=>api.adminRemote('support-window',b.id));else if(await run(()=>api.adminRemote('support-open',b.id,'Bonjour ! Merci pour ton signalement. Je regarde ton problème avec toi.'))){b.chatOpen=true;b.status='support';renderAdminBugs();}});
       actions.append(chat);
-    }else actions.append(elem('span','muted small-note','Discussion impossible : rapport envoyé par une version antérieure à la 1.18.'));
+    }else actions.append(elem('span','muted small-note',b.canChat===undefined?'Tchat indisponible : ton serveur n’est pas à jour (relance la commande d’installation sur le VPS).':'Tchat impossible : ce rapport vient d’un navigateur antérieur à la 1.18 (seuls les rapports envoyés depuis la 1.18 ont le tchat).'));
     for(const [st,label] of [['seen','Marquer vu'],['fixed','Marquer corrigé'],['new','Remettre à traiter']])if(b.status!==st){const btn=elem('button','outline small-btn',label);btn.type='button';btn.addEventListener('click',async()=>{if(await run(()=>api.adminRemote('bug-status',b.id,st))){b.status=st;renderAdminBugs();}});actions.append(btn);}
     const del=elem('button','outline small-btn danger','Supprimer');del.type='button';confirmClick(del,'Confirmer ?',async()=>{if(await run(()=>api.adminRemote('bug-delete',b.id))){adminBugs=adminBugs.filter(x=>x!==b);renderAdminBugs();}});
     actions.append(del);box.append(actions);return box;
@@ -1306,6 +1305,7 @@ const KILL_FEATURES={store:'Boutique',preview:'Aperçu des liens',media:'Lecteur
 let adminConfig=null;
 function renderAdminRemote(){
   const c=adminConfig;if(!c)return;
+  $('admin-outdated').classList.toggle('hidden',Number(c.api)>=18);
   const n=c.listening||0;$('admin-listening').replaceChildren(elem('i'),document.createTextNode(` ${nf.format(n)} navigateur${n>1?'s':''} ouvert${n>1?'s':''}`));
   // Messages récents
   const recent=c.recent||[];
