@@ -164,5 +164,13 @@ test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
   const pkg=JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('!assets/brand-source.png'));assert.ok(pkg.build.files.includes('!assets/generate-icon.py'));
-  assert.equal(pkg.version,'1.18.1');assert.match(read('CHANGELOG.md'),/^## 1\.18\.1/);
+  assert.equal(pkg.version,'1.18.2');assert.match(read('CHANGELOG.md'),/^## 1\.18\.2/);
+});
+
+test('1.18.2 : bouton Mode IE toujours disponible dans la barre (Windows)',()=>{
+  const html=read('ui/index.html'),r=read('ui/renderer.js'),main=read('main.js');
+  assert.match(html,/<div class="nav-tools">\s*<button id="legacy-button" class="nav-tool icon legacy-button hidden"/);
+  assert.match(r,/const showIE=state\.platform==='win32' && hasPage;/);
+  assert.match(r,/\$\('legacy-button'\)\.disabled=Boolean\(legacy\.modernOnly\)&&legacy\.engine==='chromium';/);
+  assert.match(main,/modernOnly:Boolean\(t\?\.url&&requiresModernVideo\(t\.url\)\)/);
 });

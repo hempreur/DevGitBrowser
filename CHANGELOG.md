@@ -1,3 +1,9 @@
+## 1.18.2 — Bouton Mode IE de retour dans la barre
+
+- Le bouton **IE** est de nouveau **toujours disponible** à droite de la barre d'adresse sur Windows, sur n'importe quel site (et plus seulement quand un ancien site est détecté). Il s'illumine quand une page ActiveX / VBScript est détectée, et indique « IE✓ » quand le moteur IE est actif.
+- Sur les sites de webcams modernes (WebRTC), comme BabelVisio, le bouton est grisé avec une explication : le moteur IE ne gère pas ces webcams.
+- Le lancement automatique des sites déjà approuvés est inchangé.
+
 ## 1.18.1 — Nouvelle bannière BabelVisio, panneau admin plus clair
 
 - **Accueil** : la nouvelle bannière BabelVisio (salons live, webcams, jeux, traduction) s'affiche en grand, avec une ombre portée ; un clic ouvre le site. Les raccourcis passent sur une seule ligne.

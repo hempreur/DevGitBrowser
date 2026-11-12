@@ -101,3 +101,4 @@
 
 
 
+:root[data-theme]:not([data-theme="neon"]) body:not(.x-mode) .legacy-button.on{border-color:var(--t-accent)!important;color:var(--t-accent)!important}
