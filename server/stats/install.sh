@@ -49,9 +49,10 @@ echo "==> Application"
 id devgitstats >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin devgitstats
 mkdir -p "$APP_DIR/data" "$APP_DIR/tls"
 # Toujours la toute dernière version : l'API GitHub n'a pas le cache de quelques minutes de raw.githubusercontent.com.
-curl -fsSL -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/hempreur/DevGitBrowser/contents/server/stats/server.js?ref=${BRANCH}" -o "$APP_DIR/server.js.new" \
-  || curl -fsSL "$REPO_RAW/server.js?nocache=$(date +%s)" -o "$APP_DIR/server.js.new"
-node --check "$APP_DIR/server.js.new" && mv -f "$APP_DIR/server.js.new" "$APP_DIR/server.js"
+curl -fsSL -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/hempreur/DevGitBrowser/contents/server/stats/server.js?ref=${BRANCH}" -o "$APP_DIR/server.new.js" \
+  || curl -fsSL "$REPO_RAW/server.js?nocache=$(date +%s)" -o "$APP_DIR/server.new.js"
+if ! node --check "$APP_DIR/server.new.js"; then echo "❌ Fichier du serveur téléchargé invalide : l'ancienne version est conservée."; rm -f "$APP_DIR/server.new.js"; exit 1; fi
+mv -f "$APP_DIR/server.new.js" "$APP_DIR/server.js"
 echo "    version du serveur : $(grep -o "API_VERSION = [0-9]*" "$APP_DIR/server.js" | grep -o "[0-9]*$" || echo "ancienne")"
 TOKEN=""
 [ -f "$ENV_FILE" ] && TOKEN="$(grep '^ADMIN_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)"
