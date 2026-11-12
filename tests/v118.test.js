@@ -164,7 +164,7 @@ test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
   const pkg=JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('!assets/brand-source.png'));assert.ok(pkg.build.files.includes('!assets/generate-icon.py'));
-  assert.equal(pkg.version,'1.18.2');assert.match(read('CHANGELOG.md'),/^## 1\.18\.2/);
+  assert.equal(pkg.version,'1.18.3');assert.match(read('CHANGELOG.md'),/^## 1\.18\.3/);
 });
 
 test('1.18.2 : bouton Mode IE toujours disponible dans la barre (Windows)',()=>{

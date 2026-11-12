@@ -1,3 +1,10 @@
+## 1.18.3 — Nouvelle fenêtre de partage d'écran
+
+- Quand un site demande à partager ton écran (BabelVisio, Discord, Meet…), une vraie fenêtre de choix s'ouvre, comme dans Chrome : onglets **Fenêtre** et **Écran complet**, aperçus des fenêtres avec leur icône, rafraîchis toutes les 3 secondes.
+- Option **Partager l'audio système** (Windows) quand le site demande aussi le son.
+- Double-clic sur un aperçu ou touche Entrée pour partager, Échap pour annuler. Rien n'est partagé sans ton choix.
+- Remplace l'ancienne boîte qui affichait toutes les fenêtres en une longue rangée de boutons.
+
 ## 1.18.2 — Bouton Mode IE de retour dans la barre
 
 - Le bouton **IE** est de nouveau **toujours disponible** à droite de la barre d'adresse sur Windows, sur n'importe quel site (et plus seulement quand un ancien site est détecté). Il s'illumine quand une page ActiveX / VBScript est détectée, et indique « IE✓ » quand le moteur IE est actif.

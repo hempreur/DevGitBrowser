@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src data:">
+<title>Partager l’écran</title><link rel="stylesheet" href="share.css"><script src="../i18n.js"></script></head>
+<body>
+<h1>Choisir les éléments à partager avec <b id="origin" data-no-i18n></b></h1>
+<div class="tabs" role="tablist">
+  <button id="tab-window" class="tab on" role="tab" type="button" aria-selected="true">Fenêtre</button>
+  <button id="tab-screen" class="tab" role="tab" type="button" aria-selected="false">Écran complet</button>
+</div>
+<main id="grid" class="grid" role="listbox" aria-label="Éléments à partager"><p class="empty">Recherche des fenêtres et des écrans…</p></main>
+<label id="audio-row" class="audio hidden"><span class="audio-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></svg></span><span class="audio-text">Partager l’audio système</span><input id="audio" type="checkbox" role="switch"><i class="switch" aria-hidden="true"></i></label>
+<footer><button id="share" class="primary" type="button" disabled>Partager</button><button id="cancel" class="ghost" type="button">Annuler</button></footer>
+<script src="share.js"></script>
+</body></html>
