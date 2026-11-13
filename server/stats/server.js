@@ -229,7 +229,7 @@ function publicConfig(v, cc) {
 // ---- Messages en direct (connexions d'écoute)
 const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
 // Version de l'API, lue par le navigateur pour signaler un serveur pas à jour (18 = DevGitBrowser 1.18).
-const API_VERSION = 18;
+const API_VERSION = 19;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 let liveSeq = Date.now(); // croissant même après un redémarrage du serveur
 let liveItems = [];
@@ -249,8 +249,27 @@ function messagesFor(after, v, cc) {
   return liveItems.filter(m => m.id > after && now - m.at < LIVE_TTL && versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)))
     .map(({id, text: body, level, url, at}) => ({id, text: body, level, url, at}));
 }
+// ---- Nouvelle version publiée (v1.18.5) : le serveur surveille la dernière release GitHub (toutes les 2 min,
+// requêtes conditionnelles ETag qui ne consomment pas le quota) et la pousse aussitôt aux navigateurs ouverts.
+let latestRelease = '', latestEtag = '';
+const RELEASES_URL = process.env.RELEASES_URL || 'https://api.github.com/repos/hempreur/DevGitBrowser/releases/latest';
+function setLatestRelease(raw) {
+  const v = String(raw?.tag_name || '').replace(/^v/, '');
+  const ready = !raw?.draft && !raw?.prerelease && (Array.isArray(raw?.assets) ? raw.assets : []).some(a => a?.name === 'latest.yml');
+  if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(v) || !ready || v === latestRelease) return false;
+  latestRelease = v; wakeWaiters({force: true}); bumpAdmin('config');
+  return true;
+}
+async function pollLatestRelease() {
+  try {
+    const r = await fetch(RELEASES_URL, {headers: {'user-agent': 'DevGit-Stats', accept: 'application/vnd.github+json', ...(latestEtag ? {'if-none-match': latestEtag} : {})}, signal: AbortSignal.timeout(15_000)});
+    if (r.status === 304 || !r.ok) return;
+    latestEtag = r.headers.get('etag') || '';
+    setLatestRelease(await r.json());
+  } catch {}
+}
 function liveBody(w) {
-  return {cursor: liveSeq, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), retracted: retractedSince(w.after),
+  return {cursor: liveSeq, latest: latestRelease, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), retracted: retractedSince(w.after),
     lockdown: publicLockdown(w.v), features: config.features, support: supportFor(w.chats)};
 }
 function releaseWaiter(w, body) {
@@ -324,7 +343,7 @@ function adminWatch(req, res) {
 let lastListening = 0;
 setInterval(() => { if (waiters.size !== lastListening) { lastListening = waiters.size; bumpAdmin('listening'); } }, 5_000).unref();
 function adminConfig() {
-  return {api: API_VERSION, lockdown: config.lockdown, features: config.features, listening: waiters.size,
+  return {api: API_VERSION, latest: latestRelease, lockdown: config.lockdown, features: config.features, listening: waiters.size,
     recent: [...liveItems].reverse().slice(0, 30).map(({id, text: body, level, versions, countries, url, at, delivered}) => ({id, text: body, level, versions, countries, url, at, delivered}))};
 }
 
@@ -533,5 +552,8 @@ const handler = async (req, res) => {
 const TLS = process.env.TLS_CERT && process.env.TLS_KEY ? {cert: fs.readFileSync(process.env.TLS_CERT), key: fs.readFileSync(process.env.TLS_KEY)} : null;
 const server = TLS ? https.createServer(TLS, handler) : http.createServer(handler);
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
-if (require.main === module) server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-module.exports = {_adminWaiters: () => adminWaiters, server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};
+if (require.main === module) {
+  server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
+  if (process.env.RELEASES_POLL !== '0') { pollLatestRelease(); setInterval(pollLatestRelease, 2 * 60_000).unref(); }
+}
+module.exports = {_setLatestRelease: setLatestRelease, _adminWaiters: () => adminWaiters, server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};

@@ -34,19 +34,21 @@ test('parrainage automatique : marque du web de l’installateur, puis presse-pa
 
 test('mises à jour : fenêtre au lancement, notifications pendant l’utilisation, une seule fois',()=>{
   let now=0;const events=[];
-  const f=new UpdateFlow({now:()=>now,notify:(k,s)=>events.push(k+':'+s.version),openWindow:s=>events.push('window:'+s.version)});
-  // au lancement : la fenêtre s'ouvre et suit le téléchargement, sans notifications en double
+  const f=new UpdateFlow({now:()=>now,notify:(k,s)=>events.push(k+':'+s.version),openWindow:(s,o)=>events.push('window:'+s.version+(o.autoInstall?':auto':':manuel'))});
+  // au lancement : la fenêtre s'ouvre et installe toute seule après le compte à rebours
   now=5_000;assert.equal(f.handle({status:'downloading',version:'1.16.0'}),'window');
   assert.equal(f.handle({status:'downloaded',version:'1.16.0'}),null);
   f.setWindowOpen(false);f.postpone('1.16.0');assert.equal(f.handle({status:'downloaded',version:'1.16.0'}),null,'« Plus tard » respecté');
-  // pendant l'utilisation (plus tard dans la journée) : notifications, une fois chacune
+  // pendant l'utilisation (1.18.5) : la fenêtre s'ouvre aussi tout de suite, sans installation automatique, + notification
   now=4*3_600_000;
-  assert.equal(f.handle({status:'downloading',version:'1.17.0'}),'available');
+  assert.equal(f.handle({status:'downloading',version:'1.17.0'}),'window');
   assert.equal(f.handle({status:'downloading',version:'1.17.0',progress:50}),null);
-  assert.equal(f.handle({status:'downloaded',version:'1.17.0'}),'ready');
+  assert.equal(f.handle({status:'downloaded',version:'1.17.0'}),null,'la fenêtre suit le téléchargement');
+  f.setWindowOpen(false);
+  assert.equal(f.handle({status:'downloaded',version:'1.17.0'}),'ready','fenêtre fermée sans « Plus tard » : notification « prête »');
   assert.equal(f.handle({status:'downloaded',version:'1.17.0'}),null);
   assert.equal(f.handle({status:'none'}),null);assert.equal(f.handle({status:'error',version:'1.17.0'}),null);
-  assert.deepEqual(events,['window:1.16.0','available:1.17.0','ready:1.17.0']);
+  assert.deepEqual(events,['window:1.16.0:auto','window:1.17.0:manuel','available:1.17.0','ready:1.17.0']);
   const main=read('main.js');
   assert.match(main,/settings\.restoreAfterUpdate=true; saveSettings\(\); saveSessionNow\(\); updater\.install\(\);/,'onglets rouverts après la mise à jour');
   assert.match(main,/settings\.restoreSession \|\| afterUpdate \? readJson\('session\.json'\)/);
