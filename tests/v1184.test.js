@@ -9,3 +9,8 @@ test('fenêtre réduite puis rétablie : la page garde sa taille et est redessin
   assert.match(main,/if\(process\.platform==='win32'\)app\.commandLine\.appendSwitch\('disable-features','CalculateNativeWinOcclusion'\);/);
   assert.ok(main.indexOf("appendSwitch('disable-features'")<main.indexOf('app.requestSingleInstanceLock()'),'avant le démarrage de l’app');
 });
+
+test('nouvel onglet : la barre d’adresse ne garde pas l’adresse de l’onglet précédent',()=>{
+  const r=fs.readFileSync(path.join(__dirname,'..','ui','renderer.js'),'utf8');
+  assert.match(r,/if\(document\.activeElement!==address\|\|address\.dataset\.tab!==shown\)\{address\.value=t\?\.url\|\|'';address\.dataset\.tab=shown;\}/);
+});

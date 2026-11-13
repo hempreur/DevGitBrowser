@@ -148,7 +148,10 @@ function updateTabs(state){
 function updateToolbar(state){
   const t=activeTab();
   const address=$('address');
-  if(document.activeElement!==address)address.value=t?.url||'';
+  // Ce que l'utilisateur tape est conservé, sauf si on a changé d'onglet : la barre montre alors l'adresse
+  // du nouvel onglet (vide pour un nouvel onglet), même si elle a encore le focus.
+  const shown=String(t?.id??'');
+  if(document.activeElement!==address||address.dataset.tab!==shown){address.value=t?.url||'';address.dataset.tab=shown;}
   $('back').disabled=!t?.back;$('forward').disabled=!t?.forward;
   $('reload').classList.toggle('is-loading',Boolean(t?.loading));
   $('reload').title=t?.loading?'Arrêter le chargement':'Actualiser (F5)';
