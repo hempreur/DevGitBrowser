@@ -1,3 +1,9 @@
+## 1.18.4 — Retour depuis la barre des tâches corrigé
+
+- Quand le navigateur était réduit dans la barre des tâches puis rouvert, certains sites voyaient leur page redimensionnée à une taille minuscule : les webcams flottantes (BabelVisio…) et autres éléments se retrouvaient déplacés. La page garde maintenant sa taille pendant la réduction.
+- Corrige l'écran noir qui pouvait apparaître au retour (il fallait déplacer la fenêtre pour que tout revienne) : la page est replacée et redessinée automatiquement, et le calcul d'occultation de Windows responsable de ce bug est désactivé.
+- Un nouvel onglet affichait encore l'adresse du site de l'onglet précédent dans la barre d'adresse : elle est maintenant vide, et chaque onglet retrouve bien sa propre adresse quand on passe de l'un à l'autre.
+
 ## 1.18.3 — Nouvelle fenêtre de partage d'écran
 
 - Quand un site demande à partager ton écran (BabelVisio, Discord, Meet…), une vraie fenêtre de choix s'ouvre, comme dans Chrome : onglets **Fenêtre** et **Écran complet**, aperçus des fenêtres avec leur icône, rafraîchis toutes les 3 secondes.

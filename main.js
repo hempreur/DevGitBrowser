@@ -743,13 +743,30 @@ function nativeBounds(s) {
 }
 function layout(s) {
   if (s.win.isDestroyed()) return;
+  // Fenêtre réduite dans la barre des tâches : Windows annonce une taille minuscule. Redimensionner la page à
+  // cette taille déplaçait les éléments positionnés (webcams flottantes…) et pouvait laisser un écran noir.
+  if (s.win.isMinimized() || !s.win.isVisible()) return;
   const t = activeTab(s);
   if (!t || !t.url) return;
   const [w,h] = s.win.getContentSize();
+  if (w < 50 || h < 50) return;
   const top=chromeHeight(s);
   const width=Math.max(1,w-RAIL_WIDTH),height=Math.max(1,h-top-statusHeight(s));
   t.view.setBounds({ x:RAIL_WIDTH, y:top, width, height });
   hostCommand(t,'BOUNDS',nativeBounds(s).join(','));
+}
+// Retour depuis la barre des tâches : on replace la page puis on force un nouveau dessin (sinon Windows peut
+// laisser la zone de la page noire jusqu'à ce que la fenêtre soit déplacée).
+function refreshAfterRestore(s) {
+  const repaint = () => {
+    if (s.win.isDestroyed()) return;
+    layout(s);
+    const t = activeTab(s);
+    try { if (t?.url && t.view && !t.view.webContents.isDestroyed()) t.view.webContents.invalidate(); } catch {}
+    try { s.win.webContents.invalidate(); } catch {}
+  };
+  repaint();
+  for (const ms of [60, 250, 700]) setTimeout(repaint, ms).unref?.();
 }
 function showView(s, t) {
   if (!t?.url || s.win.isDestroyed()) return;
@@ -1235,9 +1252,11 @@ function createWindow({initialTab=true, bounds=null, tabs=null, activeIndex=0}={
   win.on('move',()=>{ layout(s); if (preview?.s===s) closeLinkPreview(); });
   win.on('focus',()=>{ const t=activeTab(s); if (t?.url && !s.panelOpen && !t.view.webContents.isDestroyed()) {/* keep page focus */} });
   win.on('hide',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
-  win.on('show',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
+  win.on('show',()=>{const t=activeTab(s);if(t)syncNativeHost(t);refreshAfterRestore(s);});
   win.on('minimize',()=>{const t=activeTab(s);if(t)hostCommand(t,'HIDE');});
-  win.on('restore',()=>{const t=activeTab(s);if(t)syncNativeHost(t);});
+  win.on('restore',()=>{const t=activeTab(s);if(t)syncNativeHost(t);refreshAfterRestore(s);});
+  win.on('maximize',()=>layout(s));
+  win.on('unmaximize',()=>layout(s));
   win.on('leave-full-screen',()=>{ if (s.htmlFullscreen) { s.htmlFullscreen=false; const t=activeTab(s); try{t?.view.webContents.executeJavaScript('document.fullscreenElement&&document.exitFullscreen()',true).catch(()=>{});}catch{} layout(s); sendState(s); } });
   win.on('close',()=>{ if (!quitting && windows.size===1) saveSessionNow(); });
   win.on('closed',()=>{
@@ -3009,6 +3028,9 @@ try {
   const early=JSON.parse(fs.readFileSync(userDataFile('preferences.json'),'utf8'));
   if(early.performance?.hardwareAcceleration===false)app.disableHardwareAcceleration();
 } catch {}
+// Windows : le calcul d'occultation native peut laisser la page noire au retour de la barre des tâches
+// (jusqu'à ce qu'on déplace la fenêtre). On le désactive, comme le font de nombreuses applis Electron.
+if(process.platform==='win32')app.commandLine.appendSwitch('disable-features','CalculateNativeWinOcclusion');
 if(!app.requestSingleInstanceLock()){app.quit();}
 else {
   app.on('second-instance',(_e,argv)=>{
