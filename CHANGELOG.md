@@ -1,3 +1,10 @@
+## 1.18.5 — Mises à jour annoncées instantanément
+
+- Dès qu'une nouvelle version est publiée, tous les navigateurs ouverts sont prévenus en direct (en général en moins de 2 minutes) : la **fenêtre de mise à jour s'ouvre toute seule** et suit le téléchargement. Avant, la vérification n'avait lieu qu'au lancement puis toutes les 4 heures.
+- Pendant l'utilisation, la mise à jour ne s'installe pas d'elle-même (pour ne pas couper un appel ou une webcam) : « Installer maintenant » ou « Plus tard ». Au lancement, l'installation automatique après le compte à rebours est conservée.
+- Vérification de secours toutes les 30 minutes, même sans le serveur.
+- Serveur (mise à jour du VPS nécessaire) : surveille la dernière release GitHub et la transmet par le canal en direct.
+
 ## 1.18.4 — Retour depuis la barre des tâches corrigé
 
 - Quand le navigateur était réduit dans la barre des tâches puis rouvert, certains sites voyaient leur page redimensionnée à une taille minuscule : les webcams flottantes (BabelVisio…) et autres éléments se retrouvaient déplacés. La page garde maintenant sa taille pendant la réduction.

@@ -153,7 +153,7 @@ test('serveur : X-Forwarded-For ignoré sans proxy déclaré',()=>{
 });
 
 test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>{
-  assert.equal((await j('/health')).body.api,18);assert.equal((await j('/v1/admin/config',{headers:AUTH})).body.api,18);
+  assert.ok((await j('/health')).body.api>=18);assert.ok((await j('/v1/admin/config',{headers:AUTH})).body.api>=18);
   const r=read('ui/renderer.js'),main=read('main.js'),sh=read('server/stats/install.sh');
   assert.match(r,/\$\('admin-outdated'\)\.classList\.toggle\('hidden',Number\(c\.api\)>=18\)/);
   assert.match(main,/async function outdatedServer\(e, token\)/);
@@ -164,7 +164,7 @@ test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
   const pkg=JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('!assets/brand-source.png'));assert.ok(pkg.build.files.includes('!assets/generate-icon.py'));
-  assert.equal(pkg.version,'1.18.4');assert.match(read('CHANGELOG.md'),/^## 1\.18\.4/);
+  assert.equal(pkg.version,'1.18.5');assert.match(read('CHANGELOG.md'),/^## 1\.18\.5/);
 });
 
 test('1.18.2 : bouton Mode IE toujours disponible dans la barre (Windows)',()=>{

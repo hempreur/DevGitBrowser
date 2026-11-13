@@ -24,7 +24,8 @@ function render(st) {
   } else if (st.status === 'downloaded') {
     $('bar').style.width = '100%';
     $('now').disabled = installing;
-    if (!timer && !installing) {
+    if (st.autoInstall === false) { if (!installing) status.textContent = tr('Prête ! Clique sur « Installer maintenant » quand tu veux.'); }
+    else if (!timer && !installing) {
       left = COUNTDOWN;
       const tick = () => { status.textContent = tr(`Prête ! Installation automatique dans ${left} s`); if (left-- <= 0) install(); };
       tick(); timer = setInterval(tick, 1000);

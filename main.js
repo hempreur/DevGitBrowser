@@ -285,8 +285,10 @@ async function adminWatchLoop() {
 }
 // ======================================================== Mises à jour : notification et fenêtre (v1.16)
 let updateWin = null, updateFlow = null;
-function sendUpdateState() { if (updateWin && !updateWin.isDestroyed() && updater) updateWin.webContents.send('dgb-update:state', updater.state); }
-function openUpdateWindow() {
+function sendUpdateState() { if (updateWin && !updateWin.isDestroyed() && updater) updateWin.webContents.send('dgb-update:state', {...updater.state, autoInstall: updateAutoInstall}); }
+let updateAutoInstall = true;
+function openUpdateWindow(opts = {}) {
+  if (typeof opts.autoInstall === 'boolean') updateAutoInstall = opts.autoInstall;
   if (updateWin && !updateWin.isDestroyed()) { updateWin.show(); updateWin.focus(); return; }
   const parent = focusedState()?.win || windows.values().next().value?.win;
   updateWin = new BrowserWindow({width: 470, height: 520, resizable: false, minimizable: true, maximizable: false, fullscreenable: false,
@@ -3091,7 +3093,7 @@ else {
     try{await browsingSession.setProxy(proxyForElectron(settings.proxy));}
     catch{settings.proxy={...DEFAULT_PROXY};}
     const fakeUpdate=!app.isPackaged&&/^\d+\.\d+\.\d+$/.test(process.env.DGB_TEST_UPDATER||'')?process.env.DGB_TEST_UPDATER:'';
-    updateFlow=new UpdateFlow({notify:notifyUpdate,openWindow:()=>openUpdateWindow()});
+    updateFlow=new UpdateFlow({notify:notifyUpdate,openWindow:(_st,opts)=>openUpdateWindow(opts||{})});
     updater=new UpdateService({app,enabled:settings.autoUpdate,force:Boolean(fakeUpdate),...(fakeUpdate?{loadUpdater:()=>testUpdater(fakeUpdate)}:{}),onState:state=>{
       broadcast(); sendUpdateState();
       updateFlow.handle(state);
@@ -3113,7 +3115,7 @@ else {
     remote=new remoteLib.RemoteConfig({telemetry,version:app.getVersion(),country:()=>{try{return app.getLocaleCountryCode();}catch{return '';}},
       initialLock:startupLock,
       onLock:(lock,{reached})=>{ if(lock.blocked)engageLockdown(lock); else if(reached)liftLockdown(); },
-      onMessage:onLiveMessage,onRetract:onLiveRetract,onSupport:onSupportView,getChats:supportChatList,
+      onMessage:onLiveMessage,onRetract:onLiveRetract,onLatest:v=>{if(updater?.checkFor(v))logger.info('Nouvelle version annoncée par le serveur',v);},onSupport:onSupportView,getChats:supportChatList,
       onFeatures:list=>{ if(list.includes('preview'))closeLinkPreview(); broadcast(); }});
     remote.start();
     setTimeout(()=>autoReferral().catch(e=>logger.warn('Parrainage auto',e.message)),3_000).unref?.();
