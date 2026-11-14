@@ -1,3 +1,10 @@
+## 2.0.1 — Bêta : vidéos en http sur les sites https
+
+- Certains lecteurs en ligne (pages en https) lisent des flux vidéo envoyés en http. Par sécurité, ce « contenu non chiffré » est bloqué, comme dans Chrome, et la vidéo ne démarrait pas.
+- Quand cela arrive, un **bandeau propose « Autoriser pour ce site »** : la page se recharge et la vidéo fonctionne. Le choix est mémorisé pour ce site uniquement.
+- Réglage aussi disponible dans ☰ → Sécurité et autorisations → **Contenu non chiffré (http)**, pour l'autoriser ou le rebloquer.
+- L'autorisation ne suit jamais l'onglet vers un autre site : tous les autres sites restent protégés.
+
 ## 2.0.0 — Version 2.0 Bêta
 
 DevGitBrowser passe en **2.0 Bêta** : une version complète, en phase de test. Tout ce qui a été ajouté depuis la 1.0 est inclus ; cette version apporte un audit général et les dernières optimisations.

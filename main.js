@@ -551,6 +551,7 @@ function loadSettings() {
         for(const key of ['camera','microphone','notifications','geolocation']) {
           if(['allow','block','ask'].includes(values[key]))p.sitePrivacy[origin][key]=values[key];
         }
+        if(values.insecure==='allow')p.sitePrivacy[origin].insecure='allow';
       }
     }
     // Opt-in consent remembered separately for each legacy origin.
@@ -645,6 +646,7 @@ function publicState(s) {
       active: downloads.filter(d=>d.state==='progressing').length, recent: downloads.slice(0,8).map(d=>({id:d.id,name:d.name,state:d.state,progress:d.progress}))},
     zoom:t?.url && !t.view.webContents.isDestroyed() ? t.view.webContents.getZoomFactor():1,
     privacyHere:origin ? sitePermissions(origin) : sitePermissions(''),
+    mixedHere:Boolean(t?.mixedBlocked && !t.mixedDismissed && !t.insecureView && origin),
     adblock: shield, shieldHere: { host: currentHost(s), allowed: Boolean(t?.url && adBlocker?.isAllowlisted(t.url)), blocked: t && !t.view.webContents.isDestroyed() && adBlocker ? adBlocker.blockedFor(t.view.webContents.id) : 0 },
     currentOrigin: origin, blockedPopups: s.blockedPopups,
     mediaHere: { camera:origin?mediaGranted(origin,'camera'):false, microphone:origin?mediaGranted(origin,'microphone'):false },
@@ -822,6 +824,13 @@ function isAdDestination(url, sourceUrl) {
 }
 function attachPageHandlers(t) {
   const wc = t.view.webContents;
+  // Contenu http bloqué dans une page https : on propose de l'autoriser pour ce site (bandeau).
+  wc.on('console-message', (event, _level, text) => {
+    const message = String(typeof text === 'string' ? text : event?.message || '');
+    if (t.mixedBlocked || t.insecureView || !message.startsWith('Mixed Content:') || !/blocked/i.test(message)) return;
+    t.mixedBlocked = true; sendState(t.owner);
+  });
+  wc.on('did-navigate', () => { if (t.mixedBlocked || t.mixedDismissed) { t.mixedBlocked = false; t.mixedDismissed = false; } });
   const update = () => {
     if (wc.isDestroyed() || !findTab(t.id)) return;
     const value = wc.getURL(); if (isWebUrl(value)) t.url = value;
@@ -902,6 +911,8 @@ function attachPageHandlers(t) {
         return;
       }
     }
+    // Le droit « contenu non chiffré » ne suit jamais l'onglet vers un autre site (et inversement).
+    if (event?.isMainFrame !== false && viewMismatch(t, url)) { event.preventDefault(); setImmediate(() => swapTabView(t, url)); return; }
     // Site d'une extension officielle pas encore démarrée (MatchPulse) : on la charge avant d'ouvrir la page.
     if (bundledFor(url)) { event.preventDefault(); loadWhenReady(wc, url).catch(()=>{}); }
   };
@@ -960,7 +971,7 @@ function newTab(s, url = '', options = {}) {
 function createTabView(t) {
   const view = new WebContentsView({ webPreferences: {
     session: t.private ? ensurePrivateSession() : browsingSession, nodeIntegration:false, contextIsolation:true, sandbox:true,
-    webSecurity:true, allowRunningInsecureContent:false, webviewTag:false, backgroundThrottling:true,
+    webSecurity:true, allowRunningInsecureContent:Boolean(t.insecureView), webviewTag:false, backgroundThrottling:true,
     spellcheck:true, safeDialogs:true, disableDialogs:false, navigateOnDragDrop:false
   }});
   view.setBackgroundColor('#ffffff');
@@ -969,6 +980,28 @@ function createTabView(t) {
   // Onglet privé : WebRTC ne peut jamais contourner le VPN (fuite d'adresse IP).
   if (t.private || vpnActive()) { try { view.webContents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp'); } catch {} }
   return view;
+}
+// ---- Contenu non chiffré (http) dans une page chiffrée (https) — 2.0.1.
+// Bloqué par défaut. Autorisable site par site (Sécurité et autorisations), comme dans Chrome : l'onglet du
+// site autorisé est alors recréé avec ce droit, et le perd dès qu'il va sur un autre site.
+function insecureAllowed(url) {
+  if (!/^https:/i.test(String(url||''))) return false;
+  const origin = siteOrigin(url);
+  return Boolean(origin && settings.sitePrivacy[origin]?.insecure === 'allow');
+}
+const viewMismatch = (t, url) => t.engine === 'chromium' && isWebUrl(url) && insecureAllowed(url) !== Boolean(t.insecureView);
+function swapTabView(t, url) {
+  const s = t.owner; if (!findTab(t.id) || s.win.isDestroyed()) return;
+  const old = t.view;
+  try { s.win.contentView.removeChildView(old); } catch {}
+  t.insecureView = insecureAllowed(url); t.mixedBlocked = false; t.mixedDismissed = false;
+  createTabView(t);
+  t.loading = false; t.url = url;
+  try { if (!old.webContents.isDestroyed()) old.webContents.close(); } catch {}
+  if (s.activeId === t.id) { showView(s, t); const inspector = networkWindows.get(s.id); if (inspector) inspector.monitor.start(t.view.webContents); }
+  sendState(s);
+  loadWhenReady(t.view.webContents, url).then(() => applySiteZoom(t)).catch(() => {});
+  if (s.activeId === t.id && !s.panelOpen) t.view.webContents.focus();
 }
 // Mise en veille d'un onglet : son processus est libéré (RAM/CPU), l'adresse est conservée.
 // Onglets ayant utilisé caméra, micro ou partage d'écran : jamais mis en veille (appel ou webcam en cours).
@@ -990,6 +1023,7 @@ function wakeTab(t) {
   t.sleeping=false;
   const dangerous = settings.phishingProtection && phishing ? phishing.match(t.url) : '';
   if (dangerous) { showPhishingWarning(t, t.url, dangerous); return; }
+  if (viewMismatch(t, t.url)) { swapTabView(t, t.url); return; }
   loadWhenReady(t.view.webContents, t.url).then(()=>applySiteZoom(t)).catch(()=>{});
 }
 function closeTab(s,id) {
@@ -1029,6 +1063,7 @@ function navigateTab(t,text) {
     const inspector=networkWindows.get(s.id);if(inspector)inspector.monitor.start(t.view.webContents);
   }
   sendState(s);
+  if (viewMismatch(t, url)) { swapTabView(t, url); return; }
   loadWhenReady(t.view.webContents, url).then(()=>applySiteZoom(t)).catch(() => {});
   if (s.activeId===t.id && !s.panelOpen) t.view.webContents.focus();
 }
@@ -1614,9 +1649,9 @@ function shieldMenu(s) {
 }
 function sitePermissions(origin) {
   const saved=origin ? settings.sitePrivacy[origin] || {} : {};
-  return Object.fromEntries(['camera','microphone','notifications','geolocation'].map(k=>[
+  return {...Object.fromEntries(['camera','microphone','notifications','geolocation'].map(k=>[
     k, saved[k] || (settings.mediaGrants[origin]?.[k] ? 'allow' : k==='camera'||k==='microphone'?'ask':'block')
-  ]));
+  ])), insecure: saved.insecure === 'allow' ? 'allow' : 'block'};
 }
 function permissionDecision(origin,key) { return sitePermissions(origin)[key]; }
 function mediaGranted(origin,key) {
@@ -2717,6 +2752,12 @@ function registerIpc(){
     'privacy:adblock-remove':(_s,host)=>{if(!adBlocker)return;adBlocker.setAllowed(String(host||''),false);saveSettings();broadcast();},
     'site:privacy':(s,key,mode)=>{
       const origin=activeOriginRequired(s);
+      if(key==='insecure'){
+        if(!['block','allow'].includes(mode))throw new Error('Autorisation invalide.');
+        settings.sitePrivacy[origin]={...(settings.sitePrivacy[origin]||{}),insecure:mode};saveSettings();
+        const t=activeTab(s);if(t?.url&&viewMismatch(t,t.url))swapTabView(t,t.url);
+        broadcast();return;
+      }
       if(!['camera','microphone','notifications','geolocation'].includes(key)||!['ask','block','allow'].includes(mode))throw new Error('Autorisation invalide.');
       settings.sitePrivacy[origin]={...(settings.sitePrivacy[origin]||{}),[key]:mode};
       if(['camera','microphone'].includes(key)){
@@ -2725,10 +2766,11 @@ function registerIpc(){
       }
       saveSettings();broadcast();
     },
+    'site:mixed-dismiss':s=>{const t=activeTab(s);if(t){t.mixedDismissed=true;sendState(s);}},
     'site:reset':s=>{
       const origin=activeOriginRequired(s);
       delete settings.popupModes[origin];delete settings.sitePrivacy[origin];delete settings.mediaGrants[origin];ephemeralMedia.delete(origin);
-      saveSettings();broadcast();
+      saveSettings();{const t=activeTab(s);if(t?.url&&viewMismatch(t,t.url))swapTabView(t,t.url);}broadcast();
     },
     'nav:zoom':(s,direction)=>setZoom(s,Number(direction)),
     'privacy:clear-cache':async()=>{await browsingSession.clearCache();broadcast();},

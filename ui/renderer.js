@@ -263,7 +263,7 @@ function updateSecurity(state){
   $('popup-effective').textContent=state.popupModeHere==='allow'
     ?(state.popupDefaultBabel?'✓ BabelVisio : pop-ups vidéo autorisés automatiquement, avec filtre anti-abus.':'✓ Pop-ups autorisés pour ce site, avec filtre anti-abus.')
     :'● Fenêtres pop-up bloquées pour ce site. Les liens « nouvel onglet » restent ouverts dans un onglet.';
-  for(const key of ['camera','microphone','notifications','geolocation']){
+  for(const key of ['camera','microphone','notifications','geolocation','insecure']){
     const el=$(`site-${key}`);el.disabled=!hasSite;el.value=state.privacyHere[key];
   }
   $('reset-site').disabled=!hasSite;
@@ -1428,6 +1428,7 @@ function updateTelemetry(state){
   {const by=state.referral?.referredBy||'';$('welcome-ref-box').classList.toggle('hidden',Boolean(by));$('welcome-ref-done').classList.toggle('hidden',!by);
    if(by)$('welcome-ref-done').textContent=state.referral.auto?`🎁 Parrainage validé automatiquement : code ${by}. Merci !`:`🎁 Parrainé par le code ${by}. Merci !`;}
   $('tm-banner').classList.toggle('hidden',!(tm.available&&!tm.asked&&state.welcomed&&!state.xmode));
+  $('mixed-banner').classList.toggle('hidden',!state.mixedHere);
   $('telemetry-line').classList.toggle('hidden',!tm.available);
   $('rate-card').classList.toggle('hidden',!tm.available);
   const box=$('rate-stars');
@@ -1504,3 +1505,8 @@ $('admin-store-publish').addEventListener('click',async()=>{
 window.addEventListener('blur',()=>document.body.classList.add('win-idle'));
 window.addEventListener('focus',()=>document.body.classList.remove('win-idle'));
 document.addEventListener('visibilitychange',()=>document.body.classList.toggle('win-idle',document.hidden||!document.hasFocus()));
+
+// 2.0.1 — contenu non chiffré (http) dans une page https : autorisation par site.
+$('site-insecure').addEventListener('change',()=>run(()=>api.sitePrivacy('insecure',$('site-insecure').value),$('site-insecure').value==='allow'?'Contenu non chiffré autorisé pour ce site.':'Contenu non chiffré bloqué pour ce site.'));
+$('mixed-allow').addEventListener('click',()=>run(()=>api.sitePrivacy('insecure','allow'),'Contenu non chiffré autorisé pour ce site. La page se recharge.'));
+$('mixed-no').addEventListener('click',()=>run(()=>api.mixedDismiss()));

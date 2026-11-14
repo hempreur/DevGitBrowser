@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('DevGit',Object.freeze({
   network:()=>invoke('nav:network'),legacy:()=>invoke('nav:legacy'),topmost:mode=>invoke('site:popup-topmost',mode),
   find:(query,forward,newSearch)=>invoke('nav:find',query,forward,newSearch),stopFind:()=>invoke('nav:stop-find'),print:()=>invoke('nav:print'),
   panel:value=>invoke('ui:panel',value),chromeHeight:px=>invoke('ui:chrome-height',px),menu:()=>invoke('ui:menu'),shieldMenu:()=>invoke('ui:shield-menu'),
-  allowPopups:value=>invoke('site:popups',value),sitePrivacy:(key,value)=>invoke('site:privacy',key,value),siteReset:()=>invoke('site:reset'),revokeMedia:()=>invoke('site:revoke-media'),
+  allowPopups:value=>invoke('site:popups',value),sitePrivacy:(key,value)=>invoke('site:privacy',key,value),siteReset:()=>invoke('site:reset'),mixedDismiss:()=>invoke('site:mixed-dismiss'),revokeMedia:()=>invoke('site:revoke-media'),
   proxy:value=>invoke('proxy:set',value),
   performance:(mode,gpu)=>invoke('performance:save',mode,gpu),
   preference:(key,value)=>invoke('prefs:set',key,value),
