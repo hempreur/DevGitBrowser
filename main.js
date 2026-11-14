@@ -969,9 +969,12 @@ function createTabView(t) {
   return view;
 }
 // Mise en veille d'un onglet : son processus est libéré (RAM/CPU), l'adresse est conservée.
+// Onglets ayant utilisé caméra, micro ou partage d'écran : jamais mis en veille (appel ou webcam en cours).
+const mediaContents = new WeakSet();
 function sleepTab(t) {
   const s=t.owner;
   if (!t.url || t.sleeping || s.activeId===t.id || t.audible || t.engine!=='chromium') return false;
+  if (t.view && mediaContents.has(t.view.webContents)) return false;
   const old=t.view;
   try { s.win.contentView.removeChildView(old); } catch {}
   createTabView(t);
@@ -1655,7 +1658,7 @@ function permissionDialog(wc, options) {
 }
 function configurePermissionPolicy(ses = browsingSession) {
   ses.setPermissionCheckHandler((wc,permission,origin,details={})=>{
-    if(permission==='media')return mediaPermissionCheck(wc,origin,details);
+    if(permission==='media'){const ok=mediaPermissionCheck(wc,origin,details);if(ok&&wc)mediaContents.add(wc);return ok;}
     if(permission==='display-capture')return Boolean(siteOrigin(origin)); // picker still must ask explicitly
     // Lecture de vidéos protégées (Netflix, Prime Video, Disney+, Spotify…) via Widevine.
     if(permission==='clipboard-sanitized-write'||permission==='fullscreen'||permission==='mediaKeySystem')return true;
@@ -1663,7 +1666,8 @@ function configurePermissionPolicy(ses = browsingSession) {
     if(permission==='notifications'||permission==='geolocation')return Boolean(privacyOriginAllowed(wc,siteOrigin(origin),permission));
     return false;
   });
-  ses.setPermissionRequestHandler((wc,permission,callback,details={})=>{
+  ses.setPermissionRequestHandler((wc,permission,callback0,details={})=>{
+    const callback=v=>{if(v&&wc&&['media','display-capture'].includes(permission))mediaContents.add(wc);callback0(v);};
     if(permission==='clipboard-sanitized-write'||permission==='fullscreen'||permission==='mediaKeySystem'){callback(true);return;}
     if(permission==='notifications' && bundledExtensionOrigin(details.requestingUrl||wc?.getURL?.())){callback(true);return;}
     if(permission==='openExternal'){
@@ -2525,7 +2529,8 @@ function applyProcessPriority() {
   for (const pid of appProcessIds()) { try { os.setPriority(pid, priority); } catch {} }
 }
 function sleepIdleTabs() {
-  const idleMs = settings.gamingMode ? 60_000 : settings.performance.mode === 'eco' ? 10 * 60_000 : 0;
+  // Mode équilibré (par défaut) : onglet inutilisé depuis 30 min mis en veille (sauf son, webcam, micro, partage).
+  const idleMs = settings.gamingMode ? 60_000 : settings.performance.mode === 'eco' ? 10 * 60_000 : 30 * 60_000;
   if (!idleMs) return 0;
   let count = 0;
   for (const s of windows.values()) for (const t of s.tabs.values()) {

@@ -375,16 +375,16 @@ body.x-mode .clock{color:#ffd0e6}
 .weather-pill i{display:inline-flex;width:20px;height:20px}
 .w-ico{width:20px;height:20px;overflow:visible}
 .w-sun{transform-origin:50% 50%}
-.w-ico.w-sun .w-sun{animation:w-spin 18s linear infinite;transform-origin:12px 12px}
+.w-ico.w-sun .w-sun{animation:w-spin 18s linear 1;transform-origin:12px 12px}
 @keyframes w-spin{to{transform:rotate(360deg)}}
-.w-ico.w-rain path[stroke],.w-ico.w-showers g[stroke]{animation:w-drop 1.1s ease-in-out infinite}
+.w-ico.w-rain path[stroke],.w-ico.w-showers g[stroke]{animation:w-drop 1.1s ease-in-out 3}
 @keyframes w-drop{0%,100%{transform:translateY(-1px);opacity:.75}50%{transform:translateY(1px);opacity:1}}
 .brand-logo{position:relative;display:inline-flex;flex:none;--logo-mask:url(../assets/logo-mark.png)}
 .brand-logo::after{content:'';position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.05) 38%,rgba(255,255,255,.95) 50%,rgba(255,255,255,.05) 62%,transparent 70%) no-repeat;
   background-size:250% 100%;background-position:180% 0;
   -webkit-mask:var(--logo-mask) center/contain no-repeat;mask:var(--logo-mask) center/contain no-repeat;
-  mix-blend-mode:screen;animation:logo-shine 3.6s ease-in-out infinite}
+  mix-blend-mode:screen;animation:logo-shine 3.6s ease-in-out 2}
 @keyframes logo-shine{0%{background-position:180% 0}55%,100%{background-position:-80% 0}}
 body.x-mode .brand-logo{--logo-mask:url(../assets/logo-dgbx-mark.png)}
 @media (prefers-reduced-motion:reduce){.brand-logo::after,.w-ico *{animation:none!important}}
@@ -493,7 +493,7 @@ html[data-material="acrylic"] #chrome{background:color-mix(in srgb,var(--t-chrom
 .trophy-btn{position:relative;flex-shrink:0;width:36px;height:34px;border-radius:10px;border:1px solid #3a3796;background:linear-gradient(160deg,#1b1650,#100c33);cursor:pointer;display:grid;place-items:center;margin-right:6px;transition:transform .15s,border-color .15s}
 .trophy-btn:hover{transform:translateY(-1px);border-color:#e9c594}
 .trophy-ico{font-size:17px;filter:drop-shadow(0 0 6px #ffcc4d88)}
-.trophy-btn.glow{border-color:#e9c594;box-shadow:0 0 12px #e9c59466;animation:trophyglow 2.2s ease-in-out infinite}
+.trophy-btn.glow{border-color:#e9c594;box-shadow:0 0 12px #e9c59466;animation:trophyglow 2.2s ease-in-out 4}
 @keyframes trophyglow{50%{box-shadow:0 0 20px #ffcc4daa}}
 .trophy-badge{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ff3d6a;color:#fff;font:800 10px/17px Inter,'Segoe UI',sans-serif;text-align:center;box-shadow:0 0 0 2px #0b0f2a}
 .ach-hero{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:22px 24px;border:1px solid #4a3f96;border-radius:18px;background:radial-gradient(ellipse at 15% 30%,#3a2a7a,transparent 60%),linear-gradient(120deg,#151a4a,#1d0f3d);margin-bottom:14px}
@@ -570,3 +570,11 @@ body.x-mode .status-cluster .trophy-btn{border-color:#4a1030;background:#14050e}
 /* v1.18.2 — bouton Mode IE toujours disponible dans la barre */
 .legacy-button .ie-ico{font:900 11.5px/1 Inter,'Segoe UI',Arial,sans-serif;letter-spacing:.3px;font-style:italic}
 .legacy-button.on{border-color:#4ad5fa!important;color:#7fe7ff;box-shadow:0 0 10px #255fff55}
+
+/* v1.18.6 — économie CPU/GPU : les animations décoratives jouent quelques fois puis s'arrêtent ;
+   elles reprennent au survol. Toutes les animations sont en pause quand la fenêtre n'est pas au premier plan. */
+.brand:hover .brand-logo::after{animation:logo-shine 3.6s ease-in-out infinite}
+.clock-weather:hover .w-ico.w-sun .w-sun{animation:w-spin 18s linear infinite}
+.clock-weather:hover .w-ico.w-rain path[stroke],.clock-weather:hover .w-ico.w-showers g[stroke]{animation:w-drop 1.1s ease-in-out infinite}
+.trophy-btn.glow:hover{animation:trophyglow 2.2s ease-in-out infinite}
+body.win-idle *,body.win-idle *::before,body.win-idle *::after{animation-play-state:paused!important}

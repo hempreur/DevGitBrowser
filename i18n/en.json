@@ -1390,7 +1390,7 @@
 "Électro": "Electro",
 "Éléments à partager": "Items to share",
 "Équilibré": "Balanced",
-"Équilibré conserve une visioconférence fluide ; Éco réduit l’activité en arrière-plan.": "Balanced keeps video calls smooth; Eco reduces background activity.",
+"Équilibré met en veille les onglets inutilisés depuis 30 min ; Éco dès 10 min et réduit l’activité en arrière-plan. Jamais un onglet qui joue du son ou utilise la webcam.": "Balanced puts tabs unused for 30 min to sleep; Eco after 10 min and reduces background activity. Never a tab playing sound or using the webcam.",
 "Équipe DevGitBrowser": "DevGitBrowser team",
 "État": "Status",
 "État des filtres": "Filter status",
