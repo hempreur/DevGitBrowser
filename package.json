@@ -1,7 +1,8 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "1.18.6",
+  "version": "2.0.0",
+  "devgitChannel": "Bêta",
   "devgitStats": {
     "url": "https://devgit-15-235-120-182.sslip.io:8443",
     "pin": "c7358541ccc940ef89a1f27c1bcfc87355f1b3a9ebe00ee986f7d63d45476b0f"

@@ -19,7 +19,7 @@ test('Bundled extensions ship inside Windows installer',()=>{
   assert.ok(pkg.build.asarUnpack.includes('extensions/**/*'));
   assert.match(fs.readFileSync(path.join(root,'main.js'),'utf8'),/app\.asar\.unpacked/);
   assert.match(fs.readFileSync(path.join(root,'main.js'),'utf8'),/await loadBundledExtensions\(\)/);
-  assert.match(fs.readFileSync(path.join(root,'main.js'),'utf8'),/browsingSession\.extensions\.loadExtension\(descriptor\.directory/);
+  assert.match(fs.readFileSync(path.join(root,'main.js'),'utf8'),/browsingSession\.extensions\.loadExtension\(info\.directory/);
 });
 test('Private GitHub cannot replace a built-in and disconnect does not remove it',()=>{
   assert.equal(reservedGitHubKey('matchpulse'),true);

@@ -301,7 +301,7 @@ function updateGithub(state){
     const item=elem('div','extension-row');const ico=elem('span','extension-ico',ext.source==='included'?'⚡':ext.source==='store'?'🧩':'▦');
     const detail=elem('div','ext-detail');detail.append(elem('strong','',ext.name||ext.key),elem('small','',ext.source==='included'?`Officielle · fournie avec le navigateur · ${ext.version||'version inconnue'}`:ext.source==='store'?`DevGit Store · ${ext.version||'version inconnue'} · mises à jour automatiques`:`Dépôt GitHub privé · extensions/${ext.key} · ${ext.version||'version inconnue'}`));
     if(ext.error)detail.append(elem('small','error-message',ext.error));
-    const stateLabel=elem('span',ext.loaded?'ext-ok':'ext-bad',ext.loaded?(ext.source==='included'?'INCLUSE':ext.source==='store'?'INSTALLÉE':'CHARGÉE'):'ERREUR');
+    const stateLabel=elem('span',ext.loaded||ext.standby?'ext-ok':'ext-bad',ext.standby?'EN VEILLE':ext.loaded?(ext.source==='included'?'ACTIVE':ext.source==='store'?'INSTALLÉE':'CHARGÉE'):'ERREUR');if(ext.standby)stateLabel.title='Démarre toute seule à l’ouverture d’un site de paris sportifs (Betclic, Winamax, Unibet), puis se remet en veille.';
     item.append(ico,detail,stateLabel);list.append(item);
   }
 }
@@ -443,8 +443,8 @@ function renderUpdate(u){
 async function loadAbout(){
   loadReferral();
   const info=await run(()=>api.about());if(!info)return;
-  $('about-version').textContent='v'+info.version;
-  const rows=[['Version',info.version+(info.packaged?'':' (développement)')],['Éditeur',info.author],['Chromium',info.chrome],['Electron',info.electron],['Vidéos protégées (Widevine)',info.widevine?.available?(info.widevine.state+(info.widevine.version?' · '+info.widevine.version:'')+(info.widevine.error?' · '+info.widevine.error:'')):'module absent'],['Node.js',info.node],['V8',info.v8],
+  $('about-version').textContent='v'+info.version+(info.channel?' · '+info.channel:'');
+  const rows=[['Version',info.version+(info.channel?' '+info.channel:'')+(info.packaged?'':' (développement)')],['Éditeur',info.author],['Chromium',info.chrome],['Electron',info.electron],['Vidéos protégées (Widevine)',info.widevine?.available?(info.widevine.state+(info.widevine.version?' · '+info.widevine.version:'')+(info.widevine.error?' · '+info.widevine.error:'')):'module absent'],['Node.js',info.node],['V8',info.v8],
     ['Système',`${info.os} · ${info.arch}`],['Langue',info.locale],['Extensions incluses',info.extensions.map(e=>`${e.name} ${e.version}${e.loaded?'':' (erreur)'}`).join(', ')||'—'],
     ['DevGitShield',info.shield?`${info.shield.enabled?'actif':'désactivé'} · ${info.shield.quality}`:'—'],['Historique / favoris',`${info.history} pages · ${info.bookmarks} favoris`],
     ['Accélération graphique',info.gpu?'activée':'désactivée'],['Profil',info.userData],['User-Agent',info.userAgent]];

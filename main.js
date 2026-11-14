@@ -19,7 +19,7 @@ const {originOf, shouldAutoEmbed, encodeCommand, decodeEvent, requiresModernVide
 const { DEFAULT_PROXY, normalizeAddress, isWebUrl, normalizeProxy, proxyForElectron } = require('./lib/validation');
 const { GitHubAPI, cleanRepoName, cleanBranch, groupExtensions, revision, extensionPath, verifyPrivateOwnedRepo } = require('./lib/github-source');
 const { popupMode, PopupLimiter, parseOrigin } = require('./lib/popup-policy');
-const { BUILTIN_KEYS, bundledDescriptor, reservedGitHubKey } = require('./lib/bundled-extensions');
+const { BUILTIN_KEYS, bundledDescriptor, reservedGitHubKey, hostWanted } = require('./lib/bundled-extensions');
 const { BrowsingData } = require('./lib/browsing-data');
 const { UpdateService } = require('./lib/updater');
 const { cleanUserAgent, SEARCH_ENGINES, searchUrl, httpsUpgrade, isDangerousFile, externalProtocolAllowed, insertInMap, errorPage: errorPageFr, warningPage: warningPageFr, crashPage: crashPageFr, THEMES, LEGACY_THEMES, DNS_PROVIDERS, INTERNAL_HOST } = require('./lib/browser-utils');
@@ -679,7 +679,7 @@ function publicState(s) {
       repo: settings.github?.repo || '', branch: settings.github?.branch || 'main',
       lastSync, syncing, lastError },
     extensions: [
-      ...[...bundledInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version||'',error:info.error||null,loaded:Boolean(info.id),source:'included'})),
+      ...[...bundledInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version||'',error:info.error||null,loaded:Boolean(info.id),standby:!info.id&&!info.error,source:'included'})),
       ...[...installed.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.id),source:'github'})),
       ...[...storeInstalled.entries()].map(([key, info]) => ({key, name:info.name, version:info.version || '', error:info.error || null, loaded:Boolean(info.chromeId),source:'store'}))
     ],
@@ -898,10 +898,12 @@ function attachPageHandlers(t) {
         if (t.upgradeHits.n > 2) { t.httpsAllowedHttp = host; notice(t.owner, `${host} n’accepte que HTTP : connexion non chiffrée.`, true); return; }
         event.preventDefault();
         t.httpsUpgradedFrom = url;
-        wc.loadURL(upgraded).catch(()=>{});
+        loadWhenReady(wc, upgraded).catch(()=>{});
         return;
       }
     }
+    // Site d'une extension officielle pas encore démarrée (MatchPulse) : on la charge avant d'ouvrir la page.
+    if (bundledFor(url)) { event.preventDefault(); loadWhenReady(wc, url).catch(()=>{}); }
   };
   wc.on('will-navigate', (event, target) => {
     const url = String(typeof target === 'string' ? target : target?.url || '');
@@ -988,7 +990,7 @@ function wakeTab(t) {
   t.sleeping=false;
   const dangerous = settings.phishingProtection && phishing ? phishing.match(t.url) : '';
   if (dangerous) { showPhishingWarning(t, t.url, dangerous); return; }
-  t.view.webContents.loadURL(t.url).then(()=>applySiteZoom(t)).catch(()=>{});
+  loadWhenReady(t.view.webContents, t.url).then(()=>applySiteZoom(t)).catch(()=>{});
 }
 function closeTab(s,id) {
   const t = s.tabs.get(Number(id)); if (!t) return;
@@ -1027,7 +1029,7 @@ function navigateTab(t,text) {
     const inspector=networkWindows.get(s.id);if(inspector)inspector.monitor.start(t.view.webContents);
   }
   sendState(s);
-  t.view.webContents.loadURL(url).then(()=>applySiteZoom(t)).catch(() => {});
+  loadWhenReady(t.view.webContents, url).then(()=>applySiteZoom(t)).catch(() => {});
   if (s.activeId===t.id && !s.panelOpen) t.view.webContents.focus();
 }
 const XMODE_COMMAND = /^\s*%SxOnSite%\s*$/i;
@@ -2035,18 +2037,58 @@ async function updateStoreExtensions() {
   } catch (e) { logger.warn('Store', e.message); }
 }
 function startStore() { clearInterval(storeTimer); setTimeout(updateStoreExtensions, 30_000).unref?.(); storeTimer = setInterval(updateStoreExtensions, 6 * 3_600_000); storeTimer.unref?.(); }
+// Extensions officielles (MatchPulse) : vérifiées au démarrage mais chargées seulement à l'ouverture d'un des
+// sites qu'elles visent (sites de paris sportifs). Sans ces sites, aucun processus ni mémoire n'est utilisé.
 async function loadBundledExtensions() {
   for (const key of BUILTIN_KEYS) {
     try {
       const resourceRoot = app.isPackaged ? path.join(process.resourcesPath,'app.asar.unpacked') : __dirname;
       const descriptor = bundledDescriptor(resourceRoot, key);
-      const loaded = await browsingSession.extensions.loadExtension(descriptor.directory, {allowFileAccess:false});
-      bundledInstalled.set(key,{id:loaded.id,name:loaded.name||descriptor.name,version:descriptor.version,directory:descriptor.directory,error:null});
+      bundledInstalled.set(key,{id:null,name:descriptor.name,version:descriptor.version,directory:descriptor.directory,hosts:descriptor.hosts,lazy:true,loading:null,idleSince:0,error:null});
     } catch (err) {
-      bundledInstalled.set(key,{id:null,name:key,version:'',error:String(err.message||err)});
+      bundledInstalled.set(key,{id:null,name:key,version:'',hosts:[],error:String(err.message||err)});
     }
   }
   broadcast();
+}
+const BUNDLED_IDLE_MS = !app.isPackaged && Number(process.env.DGB_TEST_BUNDLED_IDLE) > 0 ? Number(process.env.DGB_TEST_BUNDLED_IDLE) : 5 * 60_000;
+function bundledFor(url) {
+  for (const info of bundledInstalled.values()) if (!info.error && !info.id && hostWanted(url, info.hosts)) return info;
+  return null;
+}
+function ensureBundled(info) {
+  if (info.id) return Promise.resolve(true);
+  if (!info.loading) info.loading = browsingSession.extensions.loadExtension(info.directory, {allowFileAccess:false})
+    .then(loaded => { info.id = loaded.id; info.idleSince = 0; logger.info('Extension officielle démarrée', info.name); broadcast(); return true; })
+    .catch(err => { info.error = String(err.message||err); logger.warn('Extension officielle', info.error); broadcast(); return false; })
+    .finally(() => { info.loading = null; });
+  return info.loading;
+}
+// Charge l'adresse ; si elle vise un site d'une extension officielle pas encore démarrée, l'extension est
+// chargée d'abord pour que son panneau soit présent dès l'affichage de la page.
+function loadWhenReady(wc, url) {
+  const info = bundledFor(url);
+  if (!info) return wc.loadURL(url);
+  return ensureBundled(info).then(() => { if (wc.isDestroyed()) return; return wc.loadURL(url); });
+}
+// Appelé régulièrement : arrête une extension officielle 5 min après la fermeture du dernier onglet concerné,
+// sauf si elle suit encore des matchs (alertes en cours).
+async function reapBundled() {
+  for (const info of bundledInstalled.values()) {
+    if (!info.id || !info.lazy) continue;
+    const used = [...windows.values()].some(s => [...s.tabs.values()].some(t => hostWanted(t.url, info.hosts)));
+    if (used) { info.idleSince = 0; continue; }
+    if (!info.idleSince) { info.idleSince = Date.now(); continue; }
+    if (Date.now() - info.idleSince < BUNDLED_IDLE_MS) continue;
+    let busy = false;
+    try {
+      const bg = allWebContents.getAllWebContents().find(w => !w.isDestroyed() && w.getURL().startsWith(`chrome-extension://${info.id}/`));
+      if (bg) busy = Boolean(await bg.executeJavaScript('Boolean(globalThis.MatchPulseBusy&&globalThis.MatchPulseBusy())', true));
+    } catch {}
+    if (busy) { info.idleSince = Date.now(); continue; }
+    try { browsingSession.extensions.removeExtension(info.id); } catch {}
+    info.id = null; info.idleSince = 0; logger.info('Extension officielle mise en veille', info.name); broadcast();
+  }
 }
 function clearExtensions() {
   for(const ext of installed.values()){
@@ -2565,9 +2607,9 @@ function perfMetrics() {
 
 function activeOriginRequired(s){const value=currentOrigin(s);if(!value)throw new Error('Ouvre un site HTTPS avant de modifier ses autorisations.');return value;}
 function aboutInfo() {
-  const bundled=[...bundledInstalled.values()].map(e=>({name:e.name,version:e.version,loaded:Boolean(e.id)}));
+  const bundled=[...bundledInstalled.values()].map(e=>({name:e.name,version:e.version,loaded:!e.error}));
   return {
-    name:'DevGitBrowser', version:app.getVersion(), author:'CodexHempreur INC', signature:'By CodexHempreur',
+    name:'DevGitBrowser', version:app.getVersion(), channel:String(require('./package.json').devgitChannel||''), author:'CodexHempreur INC', signature:'By CodexHempreur',
     electron:process.versions.electron, chrome:process.versions.chrome, node:process.versions.node, v8:process.versions.v8,
     os:`${os.type()} ${os.release()}`, arch:process.arch, platform:process.platform, locale:app.getLocale(),
     packaged:app.isPackaged, userData:app.getPath('userData'), executable:process.execPath, repository:REPOSITORY_URL,
@@ -3094,7 +3136,7 @@ else {
     phishing.load();
     setInterval(()=>phishing?.refresh().catch(()=>{}),24*60*60*1000).unref?.();
     // Mise en veille des onglets inactifs (mode gaming / éco) et priorité des processus.
-    perfTimer=setInterval(()=>{sleepIdleTabs();if(settings.gamingMode)applyProcessPriority();},20_000);perfTimer.unref?.();
+    perfTimer=setInterval(()=>{sleepIdleTabs();reapBundled().catch(()=>{});if(settings.gamingMode)applyProcessPriority();},20_000);perfTimer.unref?.();
     try{await browsingSession.setProxy(proxyForElectron(settings.proxy));}
     catch{settings.proxy={...DEFAULT_PROXY};}
     const fakeUpdate=!app.isPackaged&&/^\d+\.\d+\.\d+$/.test(process.env.DGB_TEST_UPDATER||'')?process.env.DGB_TEST_UPDATER:'';
