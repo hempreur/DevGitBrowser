@@ -19,7 +19,7 @@ function notesFor(version, changelog) {
   return clean.slice(0, 2700) || 'Nouvelle version disponible.';
 }
 
-function buildPayload(version, changelog) {
+function buildPayload(version, changelog, channel = '') {
   const tag = 'v' + version;
   const release = 'https://github.com/' + repo + '/releases/tag/' + tag;
   const installer = 'https://github.com/' + repo + '/releases/download/' + tag + '/DevGitBrowser-Setup-' + version + '.exe';
@@ -27,7 +27,7 @@ function buildPayload(version, changelog) {
     username: 'DevGitBrowser • Releases',
     allowed_mentions: {parse: []},
     embeds: [{
-      title: '🚀 DevGitBrowser ' + version + ' est disponible !',
+      title: '🚀 DevGitBrowser ' + version + (channel ? ' ' + channel : '') + ' est disponible !',
       url: release,
       description: notesFor(version, changelog),
       color: 8019199,
@@ -60,7 +60,7 @@ async function main() {
   const response = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(buildPayload(version, changelog)),
+    body: JSON.stringify(buildPayload(version, changelog, String(packageJson.devgitChannel || '').slice(0, 20))),
     signal: AbortSignal.timeout(15000)
   });
   if (!response.ok) throw new Error('Discord HTTP ' + response.status);

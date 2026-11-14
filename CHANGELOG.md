@@ -1,3 +1,20 @@
+## 2.0.0 — Version 2.0 Bêta
+
+DevGitBrowser passe en **2.0 Bêta** : une version complète, en phase de test. Tout ce qui a été ajouté depuis la 1.0 est inclus ; cette version apporte un audit général et les dernières optimisations.
+
+### ⚡ MatchPulse à la demande
+- MatchPulse ne tourne plus en permanence : il **démarre tout seul à l'ouverture d'un site de paris sportifs** (Betclic, Winamax, Unibet), avant même l'affichage de la page.
+- Il se remet en veille 5 minutes après la fermeture du dernier onglet de paris, sauf s'il suit encore des matchs (les alertes continuent d'arriver).
+- Résultat : environ 100 Mo de mémoire et un processus en moins quand tu ne paries pas. Dans ☰ → Extensions, MatchPulse apparaît « EN VEILLE » ou « ACTIVE ».
+
+### 🧹 Audit et nettoyage (après vérification de chaque élément)
+- Logos allégés (affichés au maximum à 120 px, ils étaient stockés en 512 px et 900 px) : environ 420 Ko de moins dans l'installateur.
+- 31 traductions d'écrans supprimés depuis longtemps retirées.
+- La mention « Bêta » apparaît dans À propos, dans le titre de la release et dans l'annonce Discord.
+
+### Rappel des optimisations récentes
+- Processeur au repos divisé par dix (1.18.6), onglets inutilisés mis en veille, annonces de mise à jour instantanées (1.18.5).
+
 ## 1.18.6 — Plus léger : moins de processeur et de carte graphique
 
 - **Au repos, le navigateur consomme environ 10 fois moins de processeur** (mesuré : 6,5 % → 0,5 %). Le reflet animé du logo tournait en continu et redessinait l'interface sans arrêt : il joue maintenant deux fois au démarrage, puis au survol du logo.

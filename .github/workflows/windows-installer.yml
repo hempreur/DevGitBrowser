@@ -142,7 +142,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          $version = $pkg.version
+          $title = if ($pkg.devgitChannel) { "DevGitBrowser $version $($pkg.devgitChannel)" } else { "DevGitBrowser $version" }
           $tag = "v$version"
           if (!(Test-Path dist/latest.yml)) { throw 'dist/latest.yml absent : mise à jour automatique impossible.' }
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
@@ -152,7 +154,7 @@ jobs:
           $m = [regex]::Match($changelog, "(?ms)^##\s+$([regex]::Escape($version)).*?(?=\r?\n## |\z)")
           if ($m.Success) { $notes = $m.Value }
           Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
-          gh release create $tag --repo $env:GITHUB_REPOSITORY --title "DevGitBrowser $version" --notes-file release-notes.md --target $env:GITHUB_SHA `
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --title $title --notes-file release-notes.md --target $env:GITHUB_SHA `
             "dist/DevGitBrowser-Setup-$version.exe" "dist/DevGitBrowser-Setup-$version.exe.blockmap" dist/latest.yml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "tag_published=$tag" >> $env:GITHUB_OUTPUT

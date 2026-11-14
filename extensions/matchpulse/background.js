@@ -269,6 +269,8 @@
       default: throw new Error('Commande non autorisée.');
     }
   }
+  // Lu par DevGitBrowser avant de remettre l'extension en veille : des matchs sont-ils encore suivis ?
+  globalThis.MatchPulseBusy = () => running && tracked.length > 0;
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!authorizedSender(sender)) { sendResponse({ok: false, error: 'Origine de page non autorisée.'}); return false; }
     Promise.resolve().then(() => handle(message)).then(data => sendResponse({ok: true, data}),
