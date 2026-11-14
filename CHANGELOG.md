@@ -1,3 +1,10 @@
+## 1.18.6 — Plus léger : moins de processeur et de carte graphique
+
+- **Au repos, le navigateur consomme environ 10 fois moins de processeur** (mesuré : 6,5 % → 0,5 %). Le reflet animé du logo tournait en continu et redessinait l'interface sans arrêt : il joue maintenant deux fois au démarrage, puis au survol du logo.
+- Même principe pour le soleil et la pluie de la météo et pour la lueur du bouton des succès : quelques passages, puis au survol.
+- Quand la fenêtre n'est pas au premier plan, les animations de l'interface se mettent en pause.
+- **Onglets en veille automatique** : en mode Équilibré (par défaut), un onglet inutilisé depuis 30 minutes est mis en veille et libère sa mémoire ; il se recharge dès qu'on clique dessus. Jamais pour un onglet qui joue du son ou qui a utilisé la webcam, le micro ou le partage d'écran. Le mode Éco garde sa veille à 10 minutes.
+
 ## 1.18.5 — Mises à jour annoncées instantanément
 
 - Dès qu'une nouvelle version est publiée, tous les navigateurs ouverts sont prévenus en direct (en général en moins de 2 minutes) : la **fenêtre de mise à jour s'ouvre toute seule** et suit le téléchargement. Avant, la vérification n'avait lieu qu'au lancement puis toutes les 4 heures.

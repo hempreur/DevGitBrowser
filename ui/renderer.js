@@ -1499,3 +1499,8 @@ $('admin-store-publish').addEventListener('click',async()=>{
   btn.disabled=false;btn.textContent='Publier une extension…';
   if(r){notify(`« ${r.name} » v${r.version} publiée sur la boutique.`);$('admin-store-id').value='';loadAdminStore();}
 });
+
+// v1.18.6 — fenêtre en arrière-plan : les animations de l'interface se mettent en pause (CPU/GPU).
+window.addEventListener('blur',()=>document.body.classList.add('win-idle'));
+window.addEventListener('focus',()=>document.body.classList.remove('win-idle'));
+document.addEventListener('visibilitychange',()=>document.body.classList.toggle('win-idle',document.hidden||!document.hasFocus()));
