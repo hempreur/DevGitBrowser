@@ -99,6 +99,7 @@ class MainActivity : Activity() {
         private const val REQ_AUTH = 4; private const val REQ_CSV = 5; private const val REQ_NOTIF = 6; private const val REQ_STORAGE = 7
         private const val MAX_TABS = 30
         private const val HOME_SITE = "https://www.BabelVisio.com"
+        private const val LAYOUT_FLAGS = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
     }
 
     private val a get() = app
@@ -208,6 +209,8 @@ class MainActivity : Activity() {
     // ======================================================================== Interface
     private fun buildUi() {
         window.statusBarColor = C.BAR; window.navigationBarColor = C.BAR
+        // Même comportement sur toutes les versions : l'application dessine sous les barres système et gère les marges.
+        if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false) else window.decorView.systemUiVisibility = LAYOUT_FLAGS
         root = FrameLayout(this).apply { setBackgroundColor(C.BAR) }
         column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(C.BG) }
 
@@ -669,7 +672,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
             val c = window.insetsController ?: return
             if (show) c.show(WindowInsets.Type.systemBars()) else { c.hide(WindowInsets.Type.systemBars()); c.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE }
         } else {
-            window.decorView.systemUiVisibility = if (show) 0 else (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            window.decorView.systemUiVisibility = if (show) LAYOUT_FLAGS else (LAYOUT_FLAGS or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
     }
 

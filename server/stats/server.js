@@ -57,7 +57,7 @@ const clean = {
   id: v => (typeof v === 'string' && /^[a-f0-9]{32}$/.test(v) ? v : null),
   cc: v => (typeof v === 'string' && /^[A-Z]{2}$/.test(v) ? v : 'ZZ'),
   ver: v => (typeof v === 'string' && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v) ? v : '?'),
-  os: v => (['win', 'mac', 'linux'].includes(v) ? v : 'other'),
+  os: v => (['win', 'mac', 'linux', 'android'].includes(v) ? v : 'other'),
   num: (v, max) => (Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : 0),
 };
 
