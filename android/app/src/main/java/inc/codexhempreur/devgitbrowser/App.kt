@@ -18,6 +18,7 @@ class App : Application() {
     lateinit var updater: Updater; private set
     lateinit var achievements: Achievements; private set
     lateinit var admin: Admin; private set
+    val tor: TorMode by lazy { TorMode(this) }
 
     override fun onCreate() {
         super.onCreate()

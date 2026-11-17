@@ -37,6 +37,16 @@ android {
         buildConfigField("String", "CHANNEL", "\"$channel\"")
         buildConfigField("String", "STATS_URL", "\"${stats["url"] ?: ""}\"")
         buildConfigField("String", "STATS_PIN", "\"${stats["pin"] ?: ""}\"")
+        // Téléphones (ARM 64 et 32 bits) : limite la taille ajoutée par Tor.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+    }
+
+    // Deux versions : « github » (APK publié sur GitHub, mise à jour intégrée) et « play » (Google Play,
+    // qui interdit qu'une appli se mette à jour elle-même : la mise à jour passe par le Store).
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "true") }
+        create("play") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "false") }
     }
 
     signingConfigs {
@@ -75,6 +85,9 @@ android {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
+    // Tor officiel du Guardian Project (Maven Central).
+    implementation("info.guardianproject:tor-android:0.4.8.17.2")
+    implementation("info.guardianproject:jtorctl:0.4.5.7")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

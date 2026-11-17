@@ -51,14 +51,16 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle -p android --no-daemon --stacktrace testReleaseUnitTest assembleRelease
+        run: gradle -p android --no-daemon --stacktrace testGithubReleaseUnitTest assembleGithubRelease bundlePlayRelease
 
       - name: Nommer l'APK
         id: apk
         run: |
           v=$(node -p "require('./package.json').version")
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk "dist/DevGitBrowser-Android-$v.apk"
+          cp android/app/build/outputs/apk/github/release/app-github-release.apk "dist/DevGitBrowser-Android-$v.apk"
+          mkdir -p dist-play
+          cp android/app/build/outputs/bundle/playRelease/app-play-release.aab "dist-play/DevGitBrowser-PlayStore-$v.aab"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           ls -la dist
 
@@ -67,6 +69,13 @@ jobs:
           name: DevGitBrowser-Android-${{ steps.apk.outputs.version }}
           path: dist/*.apk
           retention-days: 30
+
+      # Paquet pour Google Play (à envoyer à la main dans la Play Console, voir android/PLAY_STORE.md).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DevGitBrowser-PlayStore-${{ steps.apk.outputs.version }}
+          path: dist-play/*.aab
+          retention-days: 90
 
       - name: Ajouter l'APK à la release
         if: github.event_name == 'push' && env.ANDROID_KEYSTORE_FILE != ''

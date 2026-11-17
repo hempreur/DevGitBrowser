@@ -81,6 +81,8 @@ class Updater(private val ctx: Context) {
     @Volatile var checking = false; private set
 
     fun check(onResult: (Release?, String?) -> Unit) {
+        // Version Google Play : les mises à jour passent par le Store.
+        if (!BuildConfig.SELF_UPDATE) { main.post { onResult(null, null) }; return }
         if (checking) return
         checking = true
         Thread({

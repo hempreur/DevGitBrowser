@@ -146,6 +146,7 @@ class MainActivity : Activity() {
         createChannels()
         a.shield.start()
         wireServer()
+        a.tor.onState = { st -> refreshUi(); refreshBanners(); if (st == TorMode.State.ON) { toast(t("Mode Tor actif.")); active?.let { select(it) } } }
         a.achievements.onUnlock = { list -> toast("🏅 " + t("Succès débloqué :") + " " + list.joinToString(", ") { it.icon + " " + it.name }) }
         a.achievements.language(if (L.en) "en" else "fr")
         if (a.server.locked && !a.admin.hasToken) engageLock(a.server.currentLock()) else restoreTabs()
@@ -318,7 +319,7 @@ class MainActivity : Activity() {
         val t = active
         tabCount.text = if (tabs.size > 99) ":)" else tabs.size.toString()
         val privateMode = t?.private == true
-        topBar.setBackgroundColor(if (privateMode) C.PRIVATE else C.BAR)
+        topBar.setBackgroundColor(when { a.tor.state == TorMode.State.ON -> 0xFF2D1B4E.toInt(); privateMode -> C.PRIVATE; else -> C.BAR })
         if (!address.hasFocus()) address.setText(when {
             t == null || t.isHome -> ""
             else -> UrlTools.display(t.pending ?: t.url)
@@ -380,6 +381,7 @@ class MainActivity : Activity() {
         } catch (_: Exception) {}
         w.setBackgroundColor(Color.WHITE)
         matchPulse.install(w)
+        a.tor.protect(w)
         return w
     }
 
@@ -452,14 +454,15 @@ class MainActivity : Activity() {
         load(t, url)
     }
 
-    private fun load(t: Tab, url0: String) {
+    private fun load(tab: Tab, url0: String) {
+        if (a.tor.state == TorMode.State.STARTING) { tab.pending = url0; toast(t("Patiente : connexion au réseau Tor en cours…")); refreshUi(); return }
         var url = url0
-        if (a.prefs.httpsFirst) UrlTools.httpsUpgrade(url)?.let { t.httpsFallback = it to url; url = it }
-        else t.httpsFallback = null
-        t.url = url; t.title = UrlTools.display(url); t.popup = false
-        applyMixedMode(t, url)
-        if (t === active && content.indexOfChild(t.web) < 0) { content.removeAllViews(); (t.web.parent as? ViewGroup)?.removeView(t.web); content.addView(t.web, FrameLayout.LayoutParams(-1, -1)); t.web.onResume() }
-        t.web.loadUrl(url)
+        if (a.prefs.httpsFirst) UrlTools.httpsUpgrade(url)?.let { tab.httpsFallback = it to url; url = it }
+        else tab.httpsFallback = null
+        tab.url = url; tab.title = UrlTools.display(url); tab.popup = false
+        applyMixedMode(tab, url)
+        if (tab === active && content.indexOfChild(tab.web) < 0) { content.removeAllViews(); (tab.web.parent as? ViewGroup)?.removeView(tab.web); content.addView(tab.web, FrameLayout.LayoutParams(-1, -1)); tab.web.onResume() }
+        tab.web.loadUrl(url)
         refreshUi()
     }
 
@@ -539,6 +542,8 @@ class MainActivity : Activity() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             val scheme = request.url.scheme ?: return null
             if (scheme != "http" && scheme != "https") return null
+            // Connexion à Tor en cours : aucune requête ne part en direct.
+            if (a.tor.state == TorMode.State.STARTING) return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
             val host = request.url.host?.lowercase() ?: return null
             if (request.isForMainFrame) {
                 if (a.prefs.phishing && !tab.bypass.contains(host) && a.shield.dangerous(host)) return htmlPage(dangerPage(host, request.url.toString()))
@@ -877,6 +882,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
         item(9, t("Remplir le mot de passe"), onPage && a.vault.forOrigin(UrlTools.origin(tab!!.url)).isNotEmpty())
         item(10, t("Rechercher dans la page"), onPage); item(11, t("Partager"), onPage)
         item(12, if (tab?.desktop == true) t("Version mobile du site") else t("Version ordinateur du site"), onPage)
+        item(17, if (a.tor.state == TorMode.State.OFF || a.tor.state == TorMode.State.ERROR) "🧅 " + t("Mode Tor") else "🧅 " + t("Désactiver le mode Tor"))
         item(15, t("Succès et parrainage")); item(16, t("Signaler un bug"))
         item(13, t("Paramètres")); item(14, t("À propos et mises à jour"))
         m.setOnMenuItemClickListener { mi ->
@@ -896,6 +902,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
                 13 -> showSettings()
                 14 -> showAbout()
                 15 -> showAchievements()
+                17 -> toggleTor()
                 16 -> reportBug()
             }
             true
@@ -1126,6 +1133,7 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
         n.addView(text("Android v" + BuildConfig.VERSION_NAME + (if (BuildConfig.CHANNEL.isNotEmpty()) " · " + BuildConfig.CHANNEL else ""), 13f, C.MUTED))
         n.addView(text("CodexHempreur INC", 12f, C.MUTED))
         head.addView(n); s.body.addView(head, lp())
+        if (BuildConfig.SELF_UPDATE) {
         val status = s.row(t("Rechercher une mise à jour"), a.updater.available?.let { t("Version %s disponible").format(it.version) } ?: t("Vérifie si une nouvelle version est publiée"))
         status.setOnClickListener {
             ((status.getChildAt(0) as LinearLayout).getChildAt(1) as? TextView)?.text = t("Vérification…")
@@ -1134,6 +1142,7 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
                 if (rel != null) { a.prefs.skippedUpdate = ""; refreshBanners() }
             }
         }
+        } else s.note(t("Les mises à jour sont installées par Google Play."))
         for (c in a.server.chats()) {
             val id = c.optString("bugId")
             s.row("💬 " + t("Discussion de support"), c.optString("subject").take(80), onClick = {
@@ -1169,11 +1178,17 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
         if (!::banners.isInitialized) return
         val m = shownMessages.values.lastOrNull { it.id.toString() !in a.prefs.dismissed }
         val rel0 = a.updater.available; val c0 = active
-        val key = listOf(lockView != null, m?.id, rel0?.version, a.prefs.skippedUpdate, updateProgress, c0?.id, c0?.mixedBlocked, c0?.mixedDismissed, c0?.url?.startsWith("https://"), a.prefs.telemetry, L.en).joinToString("|")
+        val key = listOf(a.tor.state, lockView != null, m?.id, rel0?.version, a.prefs.skippedUpdate, updateProgress, c0?.id, c0?.mixedBlocked, c0?.mixedDismissed, c0?.url?.startsWith("https://"), a.prefs.telemetry, L.en).joinToString("|")
         if (key == bannerKey) return
         bannerKey = key
         banners.removeAllViews()
         if (lockView != null) return
+        when (a.tor.state) {
+            TorMode.State.STARTING -> banner("🧅", t("Connexion au réseau Tor… (jusqu’à 1 minute)"), 0xFF2D1B4E.toInt(), emptyList()) { a.tor.stop() }
+            TorMode.State.ON -> banner("🧅", t("Mode Tor actif : les sites ne voient pas ton adresse IP. Seuls les sites HTTPS s’ouvrent ; les appels vidéo sont désactivés."), 0xFF2D1B4E.toInt(), emptyList(), null)
+            TorMode.State.ERROR -> banner("🧅", a.tor.error, 0xFF4A1020.toInt(), listOf(t("Réessayer") to { a.tor.start(); Unit })) { a.tor.stop(); refreshBanners() }
+            else -> {}
+        }
         if (m != null) banner(if (m.level == "alert") "⚠️" else "📣", m.text, if (m.level == "alert") 0xFF4A3410.toInt() else 0xFF1E1A45.toInt(),
             if (m.url.isNotEmpty()) listOf(t("En savoir plus") to { openTab(m.url); Unit }) else emptyList()) { a.prefs.dismissed = a.prefs.dismissed + m.id.toString(); refreshBanners() }
         val rel = a.updater.available
@@ -1223,6 +1238,18 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
         if (view != null) view(v) else if (v.open && lockView == null) showSupportChat(v)
         val last = v.messages.lastOrNull { it.from != "system" }
         if (!resumed && last?.from == "admin") Notifier.show(this, "support", 9000 + v.bugId.hashCode() % 1000, t("💬 Réponse du support DevGitBrowser"), last.text.take(200), "support:" + v.bugId)
+    }
+
+    private fun toggleTor() {
+        if (a.tor.state == TorMode.State.ON || a.tor.state == TorMode.State.STARTING) { a.tor.stop(); for (tb in tabs) if (!tb.isHome) tb.web.reload(); return }
+        AlertDialog.Builder(this).setTitle("🧅 " + t("Mode Tor"))
+            .setMessage(t("Toutes les pages passeront par le réseau Tor : les sites ne verront pas ton adresse IP. C’est plus lent, seuls les sites HTTPS s’ouvrent, et les appels vidéo (WebRTC) sont désactivés pour ne pas révéler ton adresse. Pour un anonymat maximal, utilise Tor Browser."))
+            .setNegativeButton(t("Annuler"), null)
+            .setPositiveButton(t("Activer")) { _, _ ->
+                a.tor.start(); for (tb in tabs) a.tor.protect(tb.web)
+                // Rien ne se charge en direct pendant la connexion : les pages repartent une fois Tor prêt.
+                for (tb in tabs) if (!tb.isHome && UrlTools.isWeb(tb.url)) { tb.pending = tb.url; tb.web.stopLoading(); tb.web.loadUrl("about:blank") }
+            }.show()
     }
 
     /** Arrêt d'urgence décidé par l'éditeur : tout est bloqué, même après redémarrage, jusqu'au déblocage. */

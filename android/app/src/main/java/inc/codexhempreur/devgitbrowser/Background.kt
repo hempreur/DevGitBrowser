@@ -54,7 +54,7 @@ class BgJob : JobService() {
                     val last = v.messages.lastOrNull { it.from != "system" } ?: continue
                     if (last.from == "admin") Notifier.show(this, "support", 9000 + v.bugId.hashCode() % 1000, t("💬 Réponse du support DevGitBrowser"), last.text.take(200), "support:" + v.bugId)
                 }
-                if (Versions.newer(latest, BuildConfig.VERSION_NAME) && a.prefs.notifiedVersion != latest) {
+                if (BuildConfig.SELF_UPDATE && Versions.newer(latest, BuildConfig.VERSION_NAME) && a.prefs.notifiedVersion != latest) {
                     a.prefs.notifiedVersion = latest
                     Notifier.show(this, "updates", 7, t("Mise à jour disponible"), t("DevGitBrowser %s est disponible.").format(latest))
                 }
