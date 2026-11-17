@@ -1,0 +1,85 @@
+name: Application Android
+
+on:
+  pull_request:
+    paths: ['android/**', 'package.json', 'i18n/en.json', '.github/workflows/android.yml']
+  push:
+    branches: [main]
+    paths: ['android/**', 'package.json', 'i18n/en.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Traductions anglaises
+        run: python3 android/build-i18n.py
+
+      - name: Clé de signature
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ANDROID_KEYSTORE_BASE64 absent : APK signé avec une clé de test, il ne sera pas publié."
+          fi
+
+      - name: Tests et construction de l'APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle -p android --no-daemon --stacktrace testReleaseUnitTest assembleRelease
+
+      - name: Nommer l'APK
+        id: apk
+        run: |
+          v=$(node -p "require('./package.json').version")
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/DevGitBrowser-Android-$v.apk"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DevGitBrowser-Android-${{ steps.apk.outputs.version }}
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Ajouter l'APK à la release
+        if: github.event_name == 'push' && env.ANDROID_KEYSTORE_FILE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.apk.outputs.version }}
+        run: |
+          # La release est créée par le workflow Windows ; on l'attend (45 min au plus).
+          for i in $(seq 1 90); do
+            if gh release view "v$V" >/dev/null 2>&1; then
+              gh release upload "v$V" "dist/DevGitBrowser-Android-$V.apk" --clobber
+              echo "APK ajouté à la release v$V"; exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::Release v$V introuvable : APK non publié."; exit 1
