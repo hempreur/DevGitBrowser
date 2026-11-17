@@ -79,3 +79,17 @@ class LogicTest {
         assertTrue(PasswordImport.fromCsv("a,b\n1,2").isEmpty())
     }
 }
+
+class ScryptTest {
+    private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
+    @Test fun rfc7914() {
+        assertEquals("fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640",
+            hex(Scrypt.derive("password".toByteArray(), "NaCl".toByteArray(), 1024, 8, 16, 64)))
+    }
+    @Test fun sameAsDesktop() {
+        // Empreintes produites par lib/admin.js (Node) : la clé admin du PC fonctionne aussi sur Android.
+        assertTrue(Scrypt.verify(AdminKeys.normalizeKey("dgb abcd efgh jklm npqr"), "scrypt\$pgOT7MVI8xPqRMABE6Hzfw==\$NBPp60tlr88YJxB+kTjvGwOm9RJM5vfqzjhwyWvvuWk="))
+        assertFalse(Scrypt.verify("DGB-ABCD-EFGH-JKLM-NPQS", "scrypt\$pgOT7MVI8xPqRMABE6Hzfw==\$NBPp60tlr88YJxB+kTjvGwOm9RJM5vfqzjhwyWvvuWk="))
+        assertTrue(Scrypt.verify(AdminKeys.recoveryPhrase(listOf("Soleil", "lune ", " ETOILE")), "scrypt\$X1GKkEVxtFHhDy5WXoetTA==\$fJ65459zSChu98+G75h5gsg32HhybgMKSY8c6aqU/Fo="))
+    }
+}

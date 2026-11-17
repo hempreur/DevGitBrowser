@@ -146,7 +146,9 @@ class MainActivity : Activity() {
         createChannels()
         a.shield.start()
         wireServer()
-        if (a.server.locked) engageLock(a.server.currentLock()) else restoreTabs()
+        a.achievements.onUnlock = { list -> toast("🏅 " + t("Succès débloqué :") + " " + list.joinToString(", ") { it.icon + " " + it.name }) }
+        a.achievements.language(if (L.en) "en" else "fr")
+        if (a.server.locked && !a.admin.hasToken) engageLock(a.server.currentLock()) else restoreTabs()
         handleIntent(intent, fromCreate = true)
         if (tabs.isEmpty() && lockView == null) openTab(null)
         ui.postDelayed({ checkUpdates(silent = true) }, 8_000)
@@ -157,7 +159,13 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handleIntent(intent, fromCreate = false) }
 
     private val minuteTick = object : Runnable {
-        override fun run() { if (resumed && a.prefs.telemetry == 1) a.server.minutes = minOf(a.server.minutes + 1, 600); ui.postDelayed(this, 60_000) }
+        override fun run() {
+            if (resumed && a.prefs.telemetry == 1) a.server.minutes = minOf(a.server.minutes + 1, 600)
+            if (resumed) a.achievements.minute()
+            a.achievements.bump("ads", a.shield.totalBlocked.getAndSet(0).toLong())
+            matchPulse.reap(tabs.any { MatchPulse.isBookmaker(UrlTools.host(it.pending ?: it.url)) })
+            ui.postDelayed(this, 60_000)
+        }
     }
 
     override fun onResume() { super.onResume(); resumed = true; active?.web?.onResume(); ui.postDelayed(minuteTick, 60_000) }
@@ -172,7 +180,7 @@ class MainActivity : Activity() {
         super.onUserLeaveHint()
         // Vidéo en plein écran : elle continue en petite fenêtre (Picture-in-Picture).
         if (customView != null && Build.VERSION.SDK_INT >= 26 && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
-            try { enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()) } catch (_: Exception) {}
+            try { if (enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build())) a.achievements.bump("pip") } catch (_: Exception) {}
         }
     }
 
@@ -196,6 +204,7 @@ class MainActivity : Activity() {
 
     private fun handleIntent(i: Intent?, fromCreate: Boolean) {
         if (i == null) return
+        i.getStringExtra("dgb-open")?.takeIf { it.startsWith("support:") }?.let { id -> lastSupport[id.removePrefix("support:")]?.let { showSupportChat(it) } }
         val url = when (i.action) {
             Intent.ACTION_VIEW -> i.dataString?.takeIf { UrlTools.isWeb(it) }
             Intent.ACTION_WEB_SEARCH -> i.getStringExtra(SearchManager.QUERY)?.let { UrlTools.searchOrAddress(it, a.prefs.engine) }
@@ -256,6 +265,7 @@ class MainActivity : Activity() {
         fullscreen = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); visibility = View.GONE }
         root.addView(fullscreen, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
+        matchPulse = MatchPulse(this, root)
 
         // Écran bord à bord (Android 15) : barres système et clavier gérés à la main.
         root.setOnApplyWindowInsetsListener { _, insets ->
@@ -298,7 +308,11 @@ class MainActivity : Activity() {
 
     private fun showKeyboard(v: View) { (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0) }
     private fun hideKeyboard() { (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0) }
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    internal fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    internal fun screen(title: String) = Screen(this, title, overlay, screens).show()
+    internal val chatViews = HashMap<String, (SupportView) -> Unit>()
+    private val lastSupport = HashMap<String, SupportView>()
+    private lateinit var matchPulse: MatchPulse
 
     private fun refreshUi() {
         val t = active
@@ -365,6 +379,7 @@ class MainActivity : Activity() {
             cm.setAcceptThirdPartyCookies(w, true)
         } catch (_: Exception) {}
         w.setBackgroundColor(Color.WHITE)
+        matchPulse.install(w)
         return w
     }
 
@@ -385,6 +400,7 @@ class MainActivity : Activity() {
         tabs.add(idx.coerceIn(0, tabs.size), placeholder)
         if (!background || active == null) select(placeholder)
         if (url != null) { if (placeholder === active) load(placeholder, url) else placeholder.pending = url }
+        a.achievements.atLeast("maxTabs", tabs.size.toLong()); if (private) a.achievements.bump("privateTabs")
         refreshUi()
         return placeholder
     }
@@ -429,6 +445,7 @@ class MainActivity : Activity() {
     }
 
     private fun navigate(text: String) {
+        if (AdminKeys.COMMAND.matches(text)) { address.clearFocus(); hideKeyboard(); refreshUi(); showAdminLogin(); return }
         val url = UrlTools.searchOrAddress(text, a.prefs.engine) ?: return
         address.clearFocus(); hideKeyboard()
         val t = active ?: openTab(null) ?: return
@@ -540,7 +557,7 @@ class MainActivity : Activity() {
             tab.url = url; tab.pageHost = UrlTools.host(url); tab.blocked = 0; tab.mixedBlocked = false; tab.mixedDismissed = false; tab.icon = favicon; tab.popup = false
             // Autorisation « contenu non chiffré » du site atteint (redirection comprise) : rechargement unique si elle change.
             if (applyMixedMode(tab, url) && tab.mixedReloaded != UrlTools.origin(url)) { tab.mixedReloaded = UrlTools.origin(url); view.reload() }
-            a.server.countPage()
+            a.server.countPage(); a.achievements.bump("pages")
             if (tab === active) { if (content.indexOfChild(view) < 0) select(tab) else refreshUi() }
         }
 
@@ -860,12 +877,13 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
         item(9, t("Remplir le mot de passe"), onPage && a.vault.forOrigin(UrlTools.origin(tab!!.url)).isNotEmpty())
         item(10, t("Rechercher dans la page"), onPage); item(11, t("Partager"), onPage)
         item(12, if (tab?.desktop == true) t("Version mobile du site") else t("Version ordinateur du site"), onPage)
+        item(15, t("Succès et parrainage")); item(16, t("Signaler un bug"))
         item(13, t("Paramètres")); item(14, t("À propos et mises à jour"))
         m.setOnMenuItemClickListener { mi ->
             when (mi.itemId) {
                 1 -> tab?.web?.reload()
                 2 -> tab?.web?.goForward()
-                3 -> tab?.let { val added = a.store.toggleBookmark(it.url, it.title); toast(if (added) t("Ajouté aux favoris.") else t("Retiré des favoris.")) }
+                3 -> tab?.let { val added = a.store.toggleBookmark(it.url, it.title); a.achievements.atLeast("bookmarks", a.store.bookmarks.size.toLong()); toast(if (added) t("Ajouté aux favoris.") else t("Retiré des favoris.")) }
                 4 -> openTab(null)
                 5 -> openTab(null, private = true)
                 6 -> showBookmarks()
@@ -877,6 +895,8 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
                 12 -> tab?.let { it.desktop = !it.desktop; it.web.settings.userAgentString = if (it.desktop) desktopUa(mobileUa) else mobileUa; it.web.reload() }
                 13 -> showSettings()
                 14 -> showAbout()
+                15 -> showAchievements()
+                16 -> reportBug()
             }
             true
         }
@@ -989,7 +1009,8 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
                 val origin = UrlTools.origin(site.text.toString().trim().let { if (UrlTools.isWeb(it)) it else "https://$it" })
                 if (origin.isEmpty() || pass.text.isEmpty()) { toast(t("Site ou mot de passe manquant.")); return@setPositiveButton }
                 if (e != null) a.vault.remove(e)
-                a.vault.add(listOf(Credential(origin, user.text.toString(), pass.text.toString()))); done()
+                a.vault.add(listOf(Credential(origin, user.text.toString(), pass.text.toString())))
+                a.achievements.atLeast("vaultCreated", 1); a.achievements.atLeast("passwords", a.vault.entries.size.toLong()); done()
             }.setNegativeButton(t("Annuler"), null).show()
     }
 
@@ -1004,6 +1025,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
             val list = PasswordImport.fromCsv(text ?: "")
             if (list.isEmpty()) { toast(t("Aucun mot de passe trouvé dans ce fichier. Utilise l’export CSV officiel de ton ancien navigateur.")); return }
             val n = a.vault.add(list)
+            a.achievements.bump("imports"); a.achievements.atLeast("vaultCreated", 1); a.achievements.atLeast("passwords", a.vault.entries.size.toLong())
             AlertDialog.Builder(this).setTitle(t("Import terminé")).setMessage(t("%d mots de passe importés. Supprime maintenant le fichier CSV : il contient tes mots de passe en clair.").format(n)).setPositiveButton("OK", null).show()
             passwordsRefresh?.invoke()
         } catch (e: Exception) { toast(t("Import impossible.")) }
@@ -1112,6 +1134,14 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
                 if (rel != null) { a.prefs.skippedUpdate = ""; refreshBanners() }
             }
         }
+        for (c in a.server.chats()) {
+            val id = c.optString("bugId")
+            s.row("💬 " + t("Discussion de support"), c.optString("subject").take(80), onClick = {
+                val v = lastSupport[id]
+                if (v != null) showSupportChat(v) else { a.server.reloadChat(id); toast(t("Ouverture de la discussion… (quelques secondes)")) }
+            })
+        }
+        s.row(t("Signaler un bug"), t("Le rapport part chez le créateur de DevGitBrowser"), onClick = { reportBug() })
         s.row(t("Site officiel"), "hempreur.github.io/DevGitBrowser", onClick = { s.close(); openTab("https://hempreur.github.io/DevGitBrowser/") })
         s.row("Discord", t("Rejoindre la communauté"), onClick = { s.close(); openTab("https://discord.gg/hmQZuDXBvu") })
         s.row("GitHub", "github.com/hempreur/DevGitBrowser", onClick = { s.close(); openTab("https://github.com/hempreur/DevGitBrowser") })
@@ -1167,19 +1197,9 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
         }
     }
 
-    private fun createChannels() {
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(NotificationChannel("messages", t("Messages de DevGitBrowser"), NotificationManager.IMPORTANCE_DEFAULT))
-        nm.createNotificationChannel(NotificationChannel("updates", t("Mises à jour"), NotificationManager.IMPORTANCE_DEFAULT))
-    }
+    private fun createChannels() = Notifier.channels(this)
 
-    private fun notifyUser(channel: String, id: Int, title: String, body: String) {
-        if (Build.VERSION.SDK_INT >= 33 && !granted(Manifest.permission.POST_NOTIFICATIONS)) return
-        val open = android.app.PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), android.app.PendingIntent.FLAG_IMMUTABLE)
-        val n = android.app.Notification.Builder(this, channel).setSmallIcon(R.drawable.ic_shield).setContentTitle(title).setContentText(body)
-            .setStyle(android.app.Notification.BigTextStyle().bigText(body)).setContentIntent(open).setAutoCancel(true).build()
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(id, n)
-    }
+    private fun notifyUser(channel: String, id: Int, title: String, body: String) = Notifier.show(this, channel, id, title, body)
 
     // ======================================================================== Serveur : messages, arrêt d'urgence
     private fun wireServer() {
@@ -1190,9 +1210,19 @@ if(us.length&&u)set(us[us.length-1],u);set(f,p);return 'ok';})(${JSONObject.quot
             if (!resumed) notifyUser("messages", (m.id % 100000).toInt(), if (m.level == "alert") "⚠️ DevGitBrowser" else "📣 DevGitBrowser", m.text)
         }
         s.onRetract = { ids -> ids.forEach { shownMessages.remove(it) }; refreshBanners() }
-        s.onLockdown = { l -> if (l.blocked) engageLock(l) else liftLock() }
+        // Téléphone admin (jeton du serveur enregistré) : jamais bloqué, mais prévenu.
+        s.onLockdown = { l -> if (l.blocked && a.admin.hasToken) toast(t("Arrêt d’urgence actif : ce téléphone admin reste accessible.")) else if (l.blocked) engageLock(l) else liftLock() }
+        s.onSupport = { v -> onSupport(v) }
         s.onLatest = { v -> if (Versions.newer(v, BuildConfig.VERSION_NAME)) checkUpdates(silent = true) }
         s.start()
+    }
+
+    private fun onSupport(v: SupportView) {
+        lastSupport[v.bugId] = v
+        val view = chatViews[v.bugId]
+        if (view != null) view(v) else if (v.open && lockView == null) showSupportChat(v)
+        val last = v.messages.lastOrNull { it.from != "system" }
+        if (!resumed && last?.from == "admin") Notifier.show(this, "support", 9000 + v.bugId.hashCode() % 1000, t("💬 Réponse du support DevGitBrowser"), last.text.take(200), "support:" + v.bugId)
     }
 
     /** Arrêt d'urgence décidé par l'éditeur : tout est bloqué, même après redémarrage, jusqu'au déblocage. */

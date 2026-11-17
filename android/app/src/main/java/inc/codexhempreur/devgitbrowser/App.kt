@@ -16,6 +16,8 @@ class App : Application() {
     lateinit var server: Server; private set
     lateinit var vault: Vault; private set
     lateinit var updater: Updater; private set
+    lateinit var achievements: Achievements; private set
+    lateinit var admin: Admin; private set
 
     override fun onCreate() {
         super.onCreate()
@@ -26,6 +28,10 @@ class App : Application() {
         server = Server(this)
         vault = Vault(this)
         updater = Updater(this)
+        achievements = Achievements(this)
+        admin = Admin(this)
+        Notifier.channels(this)
+        try { BgJob.schedule(this) } catch (_: Exception) {}
     }
 }
 
@@ -70,7 +76,18 @@ class Prefs(ctx: Context) {
     var dismissed: Set<String> get() = sp.getStringSet("dismissed", emptySet()) ?: emptySet(); set(v) = put { putStringSet("dismissed", v.toList().takeLast(50).toSet()) }
     var tabs: String get() = str("tabs", ""); set(v) = put { putString("tabs", v) }
     var notifAsked: Boolean get() = sp.getBoolean("notifAsked", false); set(v) = put { putBoolean("notifAsked", v) }
+    var notifiedVersion: String get() = str("notifiedVersion", ""); set(v) = put { putString("notifiedVersion", v) }
     var skippedUpdate: String get() = str("skippedUpdate", ""); set(v) = put { putString("skippedUpdate", v) }
+    var msgCursor: Long get() = sp.getLong("msgCursor", 0); set(v) = put { putLong("msgCursor", v) }
+    var chats: String get() = str("chats", "[]"); set(v) = put { putString("chats", v) }
+    var refCode: String get() {
+        val cur = str("refCode", "")
+        if (Regex("^[A-Z2-9]{8}$").matches(cur)) return cur
+        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; val r = SecureRandom()
+        val code = (1..8).map { alphabet[r.nextInt(alphabet.length)] }.joinToString("")
+        put { putString("refCode", code) }; return code
+    } set(v) = put { putString("refCode", v) }
+    var referredBy: String get() = str("referredBy", ""); set(v) = put { putString("referredBy", v) }
 }
 
 data class Entry(val url: String, val title: String, val at: Long)

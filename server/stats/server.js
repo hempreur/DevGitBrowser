@@ -229,7 +229,9 @@ function publicConfig(v, cc) {
 // ---- Messages en direct (connexions d'écoute)
 const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
 // Version de l'API, lue par le navigateur pour signaler un serveur pas à jour (18 = DevGitBrowser 1.18).
-const API_VERSION = 19;
+const API_VERSION = 20;
+// Relève en arrière-plan de l'application Android : messages encore transmis pendant 24 h.
+const BG_MAX_AGE = 24 * 3_600_000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 let liveSeq = Date.now(); // croissant même après un redémarrage du serveur
 let liveItems = [];
@@ -244,9 +246,9 @@ function cleanMessage(m) {
     .map(c => String(c).trim().toUpperCase()).filter(c => /^[A-Z]{2}$/.test(c)).slice(0, 50);
   return {text: msg, level: m?.level === 'alert' || m?.level === 'warning' ? 'alert' : 'info', versions, countries, url};
 }
-function messagesFor(after, v, cc) {
+function messagesFor(after, v, cc, maxAge = LIVE_TTL) {
   const now = Date.now();
-  return liveItems.filter(m => m.id > after && now - m.at < LIVE_TTL && versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)))
+  return liveItems.filter(m => m.id > after && now - m.at < maxAge && versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)))
     .map(({id, text: body, level, url, at}) => ({id, text: body, level, url, at}));
 }
 // ---- Nouvelle version publiée (v1.18.5) : le serveur surveille la dernière release GitHub (toutes les 2 min,
@@ -269,7 +271,7 @@ async function pollLatestRelease() {
   } catch {}
 }
 function liveBody(w) {
-  return {cursor: liveSeq, latest: latestRelease, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc), retracted: retractedSince(w.after),
+  return {cursor: liveSeq, latest: latestRelease, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc, w.bg ? BG_MAX_AGE : LIVE_TTL), retracted: retractedSince(w.after),
     lockdown: publicLockdown(w.v), features: config.features, support: supportFor(w.chats)};
 }
 function releaseWaiter(w, body) {
@@ -291,8 +293,11 @@ function wakeWaiters({force = false} = {}) {
 function liveRequest(req, res, ip) {
   const q = new URLSearchParams(req.url.split('?')[1] || '');
   const w = {res, ip, after: /^\d{1,16}$/.test(q.get('after') || '') ? Number(q.get('after')) : -1,
-    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null, chats: parseChats(q.get('chat'))};
+    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null, chats: parseChats(q.get('chat')), bg: q.get('bg') === '1'};
   const body = liveBody(w);
+  // Relève en arrière-plan (application Android fermée, toutes les 15 min environ) : réponse immédiate,
+  // messages des dernières 24 h encore visibles, sans connexion d'écoute.
+  if (w.bg) return send(res, 200, body);
   // Réponse immédiate : premier appel (curseur de départ), message en attente, verrou différent ou nouvelle réponse du support.
   if (w.after < 0 || body.messages.length || body.retracted.length || body.support.length || body.lockdown.blocked !== w.lock) return send(res, 200, body);
   let perIp = 0; for (const x of waiters) if (x.ip === ip) perIp++;

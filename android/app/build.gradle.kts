@@ -15,7 +15,16 @@ val stats = (pkg["devgitStats"] as? Map<String, Any?>) ?: emptyMap()
 val v = appVersion.split(".").map { it.toInt() }
 val keystore: String? = System.getenv("ANDROID_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
 
+// MatchPulse : les fichiers de l'extension du navigateur PC sont copiés tels quels dans l'APK (une seule source).
+val matchPulseAssets = layout.buildDirectory.dir("generated/matchpulse-assets")
+val copyMatchPulse by tasks.registering(Copy::class) {
+    from(rootProject.file("../extensions/matchpulse")) { include("core.js", "dom-reader.js", "content.js", "background.js", "style.css") }
+    into(matchPulseAssets.map { it.dir("matchpulse") })
+}
+tasks.named("preBuild") { dependsOn(copyMatchPulse) }
+
 android {
+    sourceSets { getByName("main") { assets.srcDir(matchPulseAssets) } }
     namespace = "inc.codexhempreur.devgitbrowser"
     compileSdk = 35
 
