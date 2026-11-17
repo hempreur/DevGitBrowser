@@ -1,3 +1,20 @@
+## 2.1.0 — Bêta : DevGitBrowser arrive sur Android
+
+### 📱 Nouvelle application Android (Android 8 et plus récent)
+- Onglets, favoris, historique, recherche, page d'accueil avec BabelVisio.
+- DevGitShield (pubs et traqueurs), anti-hameçonnage, HTTPS prioritaire, onglets privés.
+- Coffre à mots de passe chiffré par la puce de sécurité du téléphone, import CSV (Chrome, Edge, Firefox, Brave, Bitwarden), remplissage sur la page.
+- Webcam, micro et position autorisés site par site, vidéos en Picture-in-Picture, réglage « contenu non chiffré » par site.
+- **Mode Tor** intégré : les sites ne voient pas ton adresse IP.
+- **MatchPulse** sur Betclic, Winamax et Unibet, démarré seulement sur ces sites.
+- Messages de l'éditeur, arrêt d'urgence, statistiques anonymes (avec accord), succès et parrainage, signalement de bug avec tchat de support.
+- Mises à jour : l'application GitHub se met à jour toute seule (Android demande confirmation). Une version pour Google Play est prête.
+- Léger : environ 8 Mo, Tor compris.
+
+### Serveur (mise à jour du VPS nécessaire)
+- Les messages restent transmis 24 h aux applications Android fermées, qui les relèvent environ toutes les 15 minutes, sans service Google.
+- Statistiques : Android compté comme système à part.
+
 ## 2.0.1 — Bêta : vidéos en http sur les sites https
 
 - Certains lecteurs en ligne (pages en https) lisent des flux vidéo envoyés en http. Par sécurité, ce « contenu non chiffré » est bloqué, comme dans Chrome, et la vidéo ne démarrait pas.

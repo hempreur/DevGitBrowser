@@ -17,7 +17,7 @@ test('MatchPulse : démarré seulement sur les sites de paris sportifs',()=>{
 });
 test('2.0 Bêta : étiquette, release et logos allégés',()=>{
   const pkg=JSON.parse(read('package.json'));
-  assert.match(pkg.version,/^2\.0\.\d+$/);assert.equal(pkg.devgitChannel,'Bêta');
+  assert.match(pkg.version,/^2\.\d+\.\d+$/);assert.equal(pkg.devgitChannel,'Bêta');
   assert.match(read('.github/workflows/windows-installer.yml'),/\$title = if \(\$pkg\.devgitChannel\)/);
   assert.match(read('ui/renderer.js'),/info\.channel\?' · '\+info\.channel:''/);
   const {buildPayload}=require('../scripts/discord-announce');

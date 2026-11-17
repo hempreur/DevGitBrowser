@@ -13,13 +13,20 @@ Le navigateur Windows tout-en-un de **CodexHempreur INC** : bloqueur de publicit
 [![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20·%2064%20bits-0078d4?style=for-the-badge&logo=windows)](https://github.com/hempreur/DevGitBrowser/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-rejoindre-5865f2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/hmQZuDXBvu)
 
-### [⬇️ Télécharger pour Windows](https://github.com/hempreur/DevGitBrowser/releases/latest) · [🌐 Site officiel](https://hempreur.github.io/DevGitBrowser/) · [📋 Nouveautés](CHANGELOG.md)
+### [⬇️ Télécharger pour Windows](https://github.com/hempreur/DevGitBrowser/releases/latest) · [📱 Android (Bêta)](#-sur-android) · [🌐 Site officiel](https://hempreur.github.io/DevGitBrowser/) · [📋 Nouveautés](CHANGELOG.md)
 
 <img src="docs/screenshots/accueil.jpg" alt="Page d'accueil de DevGitBrowser" width="880">
 
 </div>
 
 ---
+
+
+## 📱 Sur Android
+
+DevGitBrowser existe aussi sur **Android 8 et plus récent** (version Bêta) : DevGitShield, anti-hameçonnage, onglets privés, coffre à mots de passe, mode Tor, MatchPulse, succès et parrainage.
+
+Télécharge `DevGitBrowser-Android-x.y.z.apk` dans la [dernière release](https://github.com/hempreur/DevGitBrowser/releases/latest), puis ouvre-le sur ton téléphone. Android te demandera d'autoriser l'installation depuis ton navigateur ou ton gestionnaire de fichiers. Ensuite, l'application se met à jour toute seule.
 
 ## ✨ Ce qui le rend différent
 
