@@ -1,7 +1,7 @@
 ## 2.2.0 — Bêta : commandes secrètes sur Android
 
 ### 📱 Application Android
-- **Mode DGBx** : la commande `%SxOnSite%` dans la barre d'adresse (ou dans la recherche de l'accueil) ouvre le mode réservé aux adultes, comme sur PC : confirmation de majorité, code d'accès facultatif (4 à 8 chiffres, blocage d'une minute après 5 erreurs), catalogue identique au PC avec recherche, « Ma liste », « Reprendre » et « Au hasard ». Les sites s'ouvrent dans des onglets privés, rien dans l'historique, et tout se ferme avec « Quitter DGBx ».
+- **Mode DGBx** : la commande secrète (affichée sur le site après vérification de l'âge) ouvre le mode réservé aux adultes, comme sur PC : confirmation de majorité, code d'accès facultatif (4 à 8 chiffres, blocage d'une minute après 5 erreurs), catalogue identique au PC avec recherche, « Ma liste », « Reprendre » et « Au hasard ». Les sites s'ouvrent dans des onglets privés, rien dans l'historique, et tout se ferme avec « Quitter DGBx ».
 - Succès secrets DGBx (visibles seulement depuis le mode DGBx).
 - `%AdminDBG%` ouvre toujours le panneau d'administration (même clé et mêmes mots de sécurité que sur PC).
 - DGBx n'est pas inclus dans la version Google Play (règles du Store).
@@ -353,7 +353,7 @@ DevGitBrowser passe en **2.0 Bêta** : une version complète, en phase de test. 
 
 ### Nouveautés
 - **Nouveau logo DGB** pour l'application (icône de l'exe, barre des tâches) et pour l'interface.
-- **Mode caché DGBx** : taper `%SxOnSite%` dans la barre d'adresse ouvre une interface sombre magenta et néon, avec rangées de plateformes adultes connues (gratuites et freemium) façon catalogue vidéo, recherche, catégories, favoris ♥ et « Reprendre ».
+- **Mode caché DGBx** : une commande secrète dans la barre d'adresse ouvre une interface sombre magenta et néon, avec rangées de plateformes adultes connues (gratuites et freemium) façon catalogue vidéo, recherche, catégories, favoris ♥ et « Reprendre ».
   - Confirmation de majorité obligatoire à la première entrée, code d'accès facultatif (4 à 8 chiffres, haché avec scrypt, blocage 60 s après 5 erreurs).
   - Navigation privée dans ce mode : rien dans l'historique, la restauration de session ni les onglets fermés récemment. Les onglets du mode se ferment quand on clique sur « Quitter DGBx ».
   - La commande n'est jamais envoyée au moteur de recherche.
