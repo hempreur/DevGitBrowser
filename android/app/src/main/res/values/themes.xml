@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DevGit" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#7C5CFF</item>
+        <item name="android:colorPrimary">#120F26</item>
+        <item name="android:colorPrimaryDark">#0B0A18</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">#0B0A18</item>
+        <item name="android:navigationBarColor">#0B0A18</item>
+        <item name="android:alertDialogTheme">@style/Theme.DevGit.Dialog</item>
+    </style>
+    <style name="Theme.DevGit.Dialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#9C86FF</item>
+    </style>
+</resources>

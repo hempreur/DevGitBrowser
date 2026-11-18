@@ -36,3 +36,14 @@ test('navigateur : la version annoncée déclenche la vérification, une seule f
   const main=read('main.js');assert.match(main,/onLatest:v=>\{if\(updater\?\.checkFor\(v\)\)/);
   assert.match(read('ui/update/update.js'),/if \(st\.autoInstall === false\)/,'pas d’installation automatique pendant l’utilisation');
 });
+
+test('relève en arrière-plan (Android) : réponse immédiate, messages des 24 dernières heures',async()=>{
+  const first=await j('/v1/live?after=-1&lock=0&v=2.1.0&bg=1');
+  assert.ok(Number.isSafeInteger(first.cursor));assert.deepEqual(first.messages,[]);
+  const t0=Date.now();const again=await j(`/v1/live?after=${first.cursor}&lock=0&v=2.1.0&bg=1`);
+  assert.ok(Date.now()-t0<1000,'pas d’attente');assert.deepEqual(again.messages,[]);
+  const s=read('server/stats/server.js');
+  assert.match(s,/if \(w\.bg\) return send\(res, 200, body\);/);
+  assert.match(s,/messagesFor\(w\.after, w\.v, w\.cc, w\.bg \? BG_MAX_AGE : LIVE_TTL\)/);
+  assert.match(s,/os: v => \(\['win', 'mac', 'linux', 'android'\]\.includes\(v\) \? v : 'other'\)/);
+});
