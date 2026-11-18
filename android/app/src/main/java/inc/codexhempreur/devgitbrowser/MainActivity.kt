@@ -88,6 +88,8 @@ class Tab(val id: Int, val private: Boolean, var web: WebView) {
     var usedMedia = false
     val bypass: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
     var icon: Bitmap? = null
+    /** Onglet ouvert depuis le mode DGBx (toujours privé, fermé en quittant DGBx). */
+    var xTab = false
     val isHome get() = url.isEmpty() && pending == null && !popup
 }
 
@@ -137,6 +139,8 @@ class MainActivity : Activity() {
     private var privateProfile: String? = null
     private val shownMessages = LinkedHashMap<Long, LiveMessage>()
     private var updateProgress = -1
+    internal var xmode = false
+    internal val xCatalog: List<XCategory> by lazy { try { XCatalog.parse(assets.open("dgbx/x-catalog.js").bufferedReader().readText()) } catch (_: Exception) { emptyList() } }
 
     // ======================================================================== Cycle de vie
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -163,6 +167,7 @@ class MainActivity : Activity() {
         override fun run() {
             if (resumed && a.prefs.telemetry == 1) a.server.minutes = minOf(a.server.minutes + 1, 600)
             if (resumed) a.achievements.minute()
+            if (resumed && xmode) a.achievements.bump("dgbxMinutes")
             a.achievements.bump("ads", a.shield.totalBlocked.getAndSet(0).toLong())
             matchPulse.reap(tabs.any { MatchPulse.isBookmaker(UrlTools.host(it.pending ?: it.url)) })
             ui.postDelayed(this, 60_000)
@@ -319,7 +324,7 @@ class MainActivity : Activity() {
         val t = active
         tabCount.text = if (tabs.size > 99) ":)" else tabs.size.toString()
         val privateMode = t?.private == true
-        topBar.setBackgroundColor(when { a.tor.state == TorMode.State.ON -> 0xFF2D1B4E.toInt(); privateMode -> C.PRIVATE; else -> C.BAR })
+        topBar.setBackgroundColor(when { xmode -> X_BAR; a.tor.state == TorMode.State.ON -> 0xFF2D1B4E.toInt(); privateMode -> C.PRIVATE; else -> C.BAR })
         if (!address.hasFocus()) address.setText(when {
             t == null || t.isHome -> ""
             else -> UrlTools.display(t.pending ?: t.url)
@@ -387,22 +392,24 @@ class MainActivity : Activity() {
 
     private fun openTab(url: String?, private: Boolean = false, background: Boolean = false, popup: Boolean = false): Tab? {
         if (lockView != null) return null
+        // En mode DGBx, tout nouvel onglet est un onglet privé DGBx.
+        val x = xmode; val priv = private || x
         if (tabs.size >= MAX_TABS) { toast(t("Maximum de %d onglets atteint.").format(MAX_TABS)); return null }
-        if (private && !profileSupported()) {
+        if (priv && !profileSupported()) {
             AlertDialog.Builder(this).setTitle(t("Mode privé indisponible"))
                 .setMessage(t("Le mode privé a besoin d’une version récente d’« Android System WebView ». Mets-la à jour depuis le Play Store, puis réessaie."))
                 .setPositiveButton(t("Ouvrir le Play Store")) { _, _ -> openExternal("market://details?id=com.google.android.webview", true) }
                 .setNegativeButton(t("Fermer"), null).show()
             return null
         }
-        val placeholder = Tab(nextId++, private, newWebView(null, private))
-        placeholder.popup = popup
+        val placeholder = Tab(nextId++, priv, newWebView(null, priv))
+        placeholder.popup = popup; placeholder.xTab = x
         attach(placeholder)
         val idx = active?.let { tabs.indexOf(it) + 1 } ?: tabs.size
         tabs.add(idx.coerceIn(0, tabs.size), placeholder)
         if (!background || active == null) select(placeholder)
         if (url != null) { if (placeholder === active) load(placeholder, url) else placeholder.pending = url }
-        a.achievements.atLeast("maxTabs", tabs.size.toLong()); if (private) a.achievements.bump("privateTabs")
+        a.achievements.atLeast("maxTabs", tabs.size.toLong()); if (priv && !x) a.achievements.bump("privateTabs")
         refreshUi()
         return placeholder
     }
@@ -447,6 +454,7 @@ class MainActivity : Activity() {
     }
 
     private fun navigate(text: String) {
+        if (XCatalog.COMMAND.matches(text)) { address.clearFocus(); hideKeyboard(); refreshUi(); toggleXmode(); return }
         if (AdminKeys.COMMAND.matches(text)) { address.clearFocus(); hideKeyboard(); refreshUi(); showAdminLogin(); return }
         val url = UrlTools.searchOrAddress(text, a.prefs.engine) ?: return
         address.clearFocus(); hideKeyboard()
@@ -502,7 +510,7 @@ class MainActivity : Activity() {
         fun fill() {
             while (s.body.childCount > 1) s.body.removeViewAt(1)
             for (tab in tabs.toList()) {
-                val label = (if (tab.private) "🕶 " else "") + (if (tab.isHome) t("Nouvel onglet") else tab.title.ifBlank { UrlTools.display(tab.url) })
+                val label = (if (tab.xTab) "🔞 " else if (tab.private) "🕶 " else "") + (if (tab.isHome) t("Nouvel onglet") else tab.title.ifBlank { UrlTools.display(tab.url) })
                 val close = text("✕", 18f, C.MUTED).apply { gravity = Gravity.CENTER; ripple(dp(18)); contentDescription = t("Fermer l’onglet") }
                 val row = s.row(label, if (tab.isHome) null else UrlTools.display(tab.pending ?: tab.url), onClick = { s.close(); select(tab) }, trailing = close)
                 close.setOnClickListener { closeTab(tab); if (tabs.isEmpty()) s.close() else fill() }
@@ -562,7 +570,7 @@ class MainActivity : Activity() {
             tab.url = url; tab.pageHost = UrlTools.host(url); tab.blocked = 0; tab.mixedBlocked = false; tab.mixedDismissed = false; tab.icon = favicon; tab.popup = false
             // Autorisation « contenu non chiffré » du site atteint (redirection comprise) : rechargement unique si elle change.
             if (applyMixedMode(tab, url) && tab.mixedReloaded != UrlTools.origin(url)) { tab.mixedReloaded = UrlTools.origin(url); view.reload() }
-            a.server.countPage(); a.achievements.bump("pages")
+            if (!tab.xTab) { a.server.countPage(); a.achievements.bump("pages") }
             if (tab === active) { if (content.indexOfChild(view) < 0) select(tab) else refreshUi() }
         }
 
@@ -802,6 +810,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
     }
 
     private fun buildHome(tab: Tab): View {
+        if (xmode) return buildXHome({ site -> openXSite(site) }).also { homeView = it }
         val scroll = ScrollView(this).apply { isFillViewport = true; setBackgroundColor(if (tab.private) 0xFF150A24.toInt() else C.BG) }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(18), dp(28), dp(18), dp(28)) }
         scroll.addView(col)
@@ -867,6 +876,36 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
         return scroll
     }
 
+    // ======================================================================== Mode DGBx
+    internal fun enterXmode() {
+        xmode = true
+        if (openTab(null) == null) { xmode = false; refreshUi(); return }
+        toast(t("Mode DGBx ouvert. Tape à nouveau la commande ou « Quitter » pour le fermer."))
+    }
+
+    internal fun exitXmode() {
+        if (!xmode) return
+        xmode = false
+        // Les onglets ouverts depuis DGBx sont fermés en le quittant (aucune trace).
+        for (tab in tabs.filter { it.xTab }) closeTab(tab)
+        active?.takeIf { it.isHome }?.let { select(it) }
+        refreshUi(); toast(t("Mode DGBx fermé."))
+    }
+
+    internal fun refreshXHome(query: String) {
+        val tab = active ?: return
+        if (!xmode || !tab.isHome) return
+        content.removeAllViews()
+        content.addView(buildXHome({ site -> openXSite(site) }, query).also { homeView = it }, FrameLayout.LayoutParams(-1, -1))
+        if (query.isNotEmpty()) hideKeyboard()
+    }
+
+    private fun openXSite(site: XSite) {
+        a.xprefs.touch(site.url)
+        val tab = active
+        if (tab != null && tab.xTab && tab.isHome) load(tab, site.url) else openTab(site.url)
+    }
+
     // ======================================================================== Menu
     private fun showMenu(anchor: View) {
         val tab = active
@@ -882,6 +921,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
         item(9, t("Remplir le mot de passe"), onPage && a.vault.forOrigin(UrlTools.origin(tab!!.url)).isNotEmpty())
         item(10, t("Rechercher dans la page"), onPage); item(11, t("Partager"), onPage)
         item(12, if (tab?.desktop == true) t("Version mobile du site") else t("Version ordinateur du site"), onPage)
+        item(18, "🔞 " + t("Quitter DGBx"), xmode)
         item(17, if (a.tor.state == TorMode.State.OFF || a.tor.state == TorMode.State.ERROR) "🧅 " + t("Mode Tor") else "🧅 " + t("Désactiver le mode Tor"))
         item(15, t("Succès et parrainage")); item(16, t("Signaler un bug"))
         item(13, t("Paramètres")); item(14, t("À propos et mises à jour"))
@@ -903,6 +943,7 @@ h1{font-size:24px}a{display:block;text-align:center;padding:14px;border-radius:1
                 14 -> showAbout()
                 15 -> showAchievements()
                 17 -> toggleTor()
+                18 -> exitXmode()
                 16 -> reportBug()
             }
             true

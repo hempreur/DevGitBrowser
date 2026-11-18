@@ -5,6 +5,9 @@ import glob, json, os, re, sys
 here = os.path.dirname(os.path.abspath(__file__))
 src = ''.join(open(f, encoding='utf-8').read() for f in glob.glob(os.path.join(here, 'app/src/main/java/**/*.kt'), recursive=True))
 keys = sorted({k.replace('\\"', '"') for k in re.findall(r'\bt\("((?:[^"\\]|\\.)*)"\)', src)})
+# Catalogue DGBx (ui/x-catalog.js) : titres de catégories et prix affichés avec t(…).
+cat = open(os.path.join(here, '..', 'ui', 'x-catalog.js'), encoding='utf-8').read()
+keys = sorted(set(keys) | set(re.findall(r"title: '([^']*)'", cat)) | set(re.findall(r"price: '([^']*)'", cat)))
 desktop = json.load(open(os.path.join(here, '..', 'i18n', 'en.json'), encoding='utf-8'))
 extra = json.load(open(os.path.join(here, 'i18n-en-extra.json'), encoding='utf-8'))
 out, missing = {}, []

@@ -2,10 +2,10 @@ name: Application Android
 
 on:
   pull_request:
-    paths: ['android/**', 'package.json', 'i18n/en.json', '.github/workflows/android.yml']
+    paths: ['android/**', 'package.json', 'i18n/en.json', 'ui/x-catalog.js', 'extensions/matchpulse/**', '.github/workflows/android.yml']
   push:
     branches: [main]
-    paths: ['android/**', 'package.json', 'i18n/en.json', '.github/workflows/android.yml']
+    paths: ['android/**', 'package.json', 'i18n/en.json', 'ui/x-catalog.js', 'extensions/matchpulse/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
 permissions:
