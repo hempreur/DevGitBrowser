@@ -29,12 +29,25 @@
         $$('.dl-link').forEach(a => { a.href = exe.browser_download_url; });
         $$('.size').forEach(n => { n.textContent = 'Installateur ' + Math.round(exe.size / 1048576) + ' Mo'; });
       }
-      const apk = (rel.assets || []).find(a => /^DevGitBrowser-Android-.*\.apk$/i.test(a.name));
-      if (apk && /^https:\/\/github\.com\//.test(apk.browser_download_url)) {
-        $$('.apk-link').forEach(a => { a.href = apk.browser_download_url; });
-        $$('.apk-size').forEach(n => { n.textContent = Math.round(apk.size / 1048576) + ' Mo'; });
-      }
       if (rel.published_at) $$('.rel-date').forEach(n => { n.textContent = new Date(rel.published_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'}); });
+    })
+    .catch(() => {});
+
+  // Application Android : releases séparées (tag « android-v1.0.1 »), on prend la plus récente avec son APK.
+  fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {headers: {accept: 'application/vnd.github+json'}})
+    .then(r => (r.ok ? r.json() : Promise.reject()))
+    .then(list => {
+      const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+      let best = null;
+      for (const rel of Array.isArray(list) ? list : []) {
+        const v = (String(rel.tag_name || '').match(/^android-v(\d+\.\d+\.\d+)$/) || [])[1];
+        const apk = v && !rel.draft && !rel.prerelease && (rel.assets || []).find(a => a.name === `DevGitBrowser-Android-${v}.apk`);
+        if (apk && /^https:\/\/github\.com\//.test(apk.browser_download_url) && (!best || cmp(v, best.v) > 0)) best = {v, apk};
+      }
+      if (!best) return;
+      $$('.apk-link').forEach(a => { a.href = best.apk.browser_download_url; });
+      $$('.apk-size').forEach(n => { n.textContent = Math.round(best.apk.size / 1048576) + ' Mo'; });
+      $$('.ver-android,.ver-android-label').forEach(n => { n.textContent = best.v; });
     })
     .catch(() => {});
 
