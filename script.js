@@ -29,9 +29,18 @@
         $$('.dl-link').forEach(a => { a.href = exe.browser_download_url; });
         $$('.size').forEach(n => { n.textContent = 'Installateur ' + Math.round(exe.size / 1048576) + ' Mo'; });
       }
+      const apk = (rel.assets || []).find(a => /^DevGitBrowser-Android-.*\.apk$/i.test(a.name));
+      if (apk && /^https:\/\/github\.com\//.test(apk.browser_download_url)) {
+        $$('.apk-link').forEach(a => { a.href = apk.browser_download_url; });
+        $$('.apk-size').forEach(n => { n.textContent = Math.round(apk.size / 1048576) + ' Mo'; });
+      }
       if (rel.published_at) $$('.rel-date').forEach(n => { n.textContent = new Date(rel.published_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'}); });
     })
     .catch(() => {});
+
+  // Zone 18+ : la commande n'est affichée qu'après confirmation de majorité.
+  const reveal = $('#x-reveal');
+  if (reveal) reveal.addEventListener('click', () => { $('#x-cmd').classList.remove('hidden'); reveal.classList.add('hidden'); });
 
   // Boîte 3D : légère rotation qui suit la souris (désactivée si l'utilisateur limite les animations).
   const box = $('#box'), stage = $('.box-stage');
@@ -47,7 +56,7 @@
   // Apparition progressive des sections
   if ('IntersectionObserver' in window && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
     const io = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), {threshold: 0.12});
-    $$('.card,.layer,.step,.head,.reassure,.spec,.store-mock,.faq-list,.comm-cards').forEach(n => { n.classList.add('rv'); io.observe(n); });
+    $$('.card,.layer,.step,.head,.reassure,.spec,.store-mock,.x-card,.faq-list,.comm-cards').forEach(n => { n.classList.add('rv'); io.observe(n); });
   }
 })();
 
