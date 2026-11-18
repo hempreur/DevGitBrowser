@@ -323,25 +323,17 @@
       <p>DevGitBrowser intègre un mode secret réservé aux <b>personnes majeures</b>, sur PC et sur Android : une interface dédiée, sombre et élégante, qui regroupe des plateformes adultes <b>légales et connues</b>, classées par catégorie, avec recherche et favoris.</p>
       <ul class="ticks x-ticks">
         <li><b>Invisible par défaut</b> : aucun bouton ni menu, il ne s'ouvre qu'avec une commande secrète</li>
-        <li><b>Confirmation de majorité</b> obligatoire à la première ouverture</li>
+        <li><b>Confirmation de majorité</b> obligatoire à la première ouverture du mode</li>
         <li><b>Code d'accès</b> facultatif (4 à 8 chiffres), avec blocage après plusieurs erreurs</li>
         <li><b>Navigation privée</b> : rien dans l'historique ni dans la session restaurée, et tout se ferme en un clic sur « Quitter DGBx »</li>
         <li>Les plateformes sont seulement listées : DevGitBrowser n'héberge aucun contenu</li>
       </ul>
-      <div class="x-gate" id="x-gate">
-        <p><b>Vérification de l’âge.</b> Indique ta date de naissance pour afficher la commande d’accès.</p>
-        <form class="age-form" id="age-form" novalidate>
-          <div class="age-row" role="group" aria-label="Date de naissance">
-            <label>Jour<input id="age-d" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="JJ" autocomplete="bday-day" required></label>
-            <label>Mois<input id="age-m" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="MM" autocomplete="bday-month" required></label>
-            <label class="age-year">Année<input id="age-y" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="AAAA" autocomplete="bday-year" required></label>
-          </div>
-          <label class="age-check"><input type="checkbox" id="age-c"> Je certifie sur l’honneur que cette date de naissance est exacte et que j’ai 18 ans ou plus.</label>
-          <button class="btn x-btn" type="submit">Vérifier mon âge</button>
-          <p class="age-msg" id="age-msg" role="alert" aria-live="polite"></p>
-        </form>
-        <div class="age-denied hidden" id="age-denied" role="alert"><b>Accès refusé.</b> Cette section est réservée aux personnes majeures. Reviens plus tard si tu as fait une erreur.</div>
+      <div class="x-gate" id="x-gate" data-ageverif-key="">
+        <p><b>Vérification de l’âge obligatoire.</b> La commande d’accès ne s’affiche qu’après une vérification par <b>AgeVerif</b>, un service spécialisé : selfie analysé pour estimer ton âge (rien à télécharger), ou carte bancaire, France Identité…</p>
+        <button class="btn x-btn" id="age-start" type="button">📸 Vérifier mon âge</button>
+        <p class="age-msg" id="age-msg" role="alert" aria-live="polite"></p>
         <div class="x-cmd hidden" id="x-cmd"></div>
+        <p class="age-note">DevGitBrowser ne reçoit ni ta photo ni ton identité, seulement la réponse « majeur » d’AgeVerif. Voir la <a href="https://www.ageverif.com/biometric-data-policy" target="_blank" rel="noopener">politique d’AgeVerif sur les données biométriques</a>.</p>
       </div>
       <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton appareil, active un <b>code d'accès</b> DGBx et le contrôle parental de ton système (Microsoft Family Safety sur Windows, Google Family Link sur Android). DGBx n'est pas inclus dans la version Google Play.</p>
     </div>

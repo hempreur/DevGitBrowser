@@ -1,50 +1,61 @@
 'use strict';
-// Zone 18+ : vérification de l'âge par la date de naissance avant d'afficher la commande d'accès.
-// Site statique sans serveur : il s'agit d'une déclaration sur l'honneur, pas d'un contrôle d'identité.
+// Zone 18+ : la commande d'accès n'est affichée qu'après une vérification de l'âge par AgeVerif
+// (estimation de l'âge par selfie, carte bancaire, France Identité…). DevGitBrowser ne reçoit ni la photo
+// ni l'identité du visiteur : seulement la réponse « majeur » d'AgeVerif. Le script AgeVerif n'est chargé
+// que lorsque le visiteur clique sur le bouton (aucune requête tierce pour les autres visiteurs).
 (() => {
-  const form = document.getElementById('age-form');
-  if (!form) return;
+  const gate = document.getElementById('x-gate');
+  if (!gate) return;
   const $ = id => document.getElementById(id);
-  const DENY_KEY = 'dgbx-age-denied', OK_KEY = 'dgbx-age-ok', DENY_MS = 24 * 3600e3;
-  const store = {
-    get: (s, k) => { try { return s.getItem(k); } catch { return null; } },
-    set: (s, k, v) => { try { s.setItem(k, v); } catch {} },
-  };
+  const KEY = (gate.dataset.ageverifKey || '').trim();
+  const btn = $('age-start');
   const msg = (text, bad = true) => { $('age-msg').textContent = text; $('age-msg').classList.toggle('bad', bad); };
 
   function reveal() {
-    // La commande n'est pas écrite en clair dans la page : elle n'apparaît qu'après vérification.
     const code = document.createElement('code');
     code.textContent = atob('==QJlRXaT52T4NVJ'.split('').reverse().join(''));
-    const box = $('x-cmd');
-    box.replaceChildren('Tape ', code, ' dans la barre d’adresse de DevGitBrowser (PC ou Android), puis valide.');
-    box.classList.remove('hidden');
-    form.classList.add('hidden');
+    $('x-cmd').replaceChildren('Âge vérifié ✔ Tape ', code, ' dans la barre d’adresse de DevGitBrowser (PC ou Android), puis valide.');
+    $('x-cmd').classList.remove('hidden');
+    btn.classList.add('hidden'); msg('', false);
   }
-  function deny() {
-    form.classList.add('hidden');
-    $('age-denied').classList.remove('hidden');
+  function hide() { $('x-cmd').replaceChildren(); $('x-cmd').classList.add('hidden'); btn.classList.remove('hidden'); }
+
+  if (!/^[A-Za-z0-9_-]{8,}$/.test(KEY)) {
+    btn.disabled = true;
+    msg('La vérification de l’âge est en cours d’installation. Reviens bientôt.', false);
+    return;
   }
 
-  const deniedAt = Number(store.get(localStorage, DENY_KEY) || 0);
-  if (deniedAt && Date.now() - deniedAt < DENY_MS) { deny(); return; }
-  if (store.get(sessionStorage, OK_KEY) === '1') { reveal(); return; }
+  let loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = new Promise((resolve, reject) => {
+      window.dgbAgeLoaded = () => resolve(window.ageverif);
+      window.dgbAgeSuccess = () => reveal();
+      window.dgbAgeInvalidate = () => hide();
+      window.dgbAgeError = () => reject(new Error('ageverif'));
+      const s = document.createElement('script');
+      s.src = 'https://www.ageverif.com/checker.js?key=' + encodeURIComponent(KEY) +
+        '&nostart&language=fr&onload=dgbAgeLoaded&onsuccess=dgbAgeSuccess&oninvalidate=dgbAgeInvalidate&onerror=dgbAgeError';
+      s.async = true;
+      s.onerror = () => reject(new Error('blocked'));
+      document.body.appendChild(s);
+    });
+    return loading;
+  }
 
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const d = Number($('age-d').value), m = Number($('age-m').value), y = Number($('age-y').value);
-    const now = new Date();
-    const birth = new Date(y, m - 1, d);
-    if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y) || y < 1900 || birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d || birth > now) {
-      msg('Date de naissance invalide. Exemple : 07 / 03 / 1998.'); return;
-    }
-    let age = now.getFullYear() - y;
-    if (now.getMonth() < m - 1 || (now.getMonth() === m - 1 && now.getDate() < d)) age--;
-    if (!$('age-c').checked) { msg('Coche la case pour certifier ta date de naissance.'); return; }
-    if (age < 18) { store.set(localStorage, DENY_KEY, String(Date.now())); deny(); return; }
-    store.set(sessionStorage, OK_KEY, '1');
-    msg('', false); reveal();
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; msg('Ouverture de la vérification…', false);
+    try {
+      const av = await load();
+      if (av.verified) { reveal(); return; }
+      msg('', false);
+      const res = await av.start({language: 'fr'});
+      if (res && res.verified) reveal();
+      else msg('Vérification non terminée. Tu peux réessayer quand tu veux.');
+    } catch {
+      loading = null;
+      msg('Impossible de charger la vérification (bloqueur de publicités ou connexion ?). Autorise ageverif.com puis réessaie.');
+    } finally { btn.disabled = false; }
   });
-  // Passage automatique au champ suivant.
-  [['age-d', 'age-m', 2], ['age-m', 'age-y', 2]].forEach(([a, b, n]) => $(a).addEventListener('input', () => { if ($(a).value.length >= n) $(b).focus(); }));
 })();
