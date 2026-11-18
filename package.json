@@ -1,7 +1,7 @@
 {
   "name": "devgitbrowser",
   "productName": "DevGitBrowser",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "devgitChannel": "Bêta",
   "devgitStats": {
     "url": "https://devgit-15-235-120-182.sslip.io:8443",

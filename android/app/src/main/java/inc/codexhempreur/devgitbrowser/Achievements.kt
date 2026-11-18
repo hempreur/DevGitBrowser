@@ -17,7 +17,8 @@ data class Achievement(val id: String, val icon: String, val category: String, v
 class Achievements(ctx: Context) {
     companion object {
         val CATEGORIES = listOf("time" to ("⏳" to ("Temps" to "Time")), "protection" to ("🛡️" to ("Protection" to "Protection")),
-            "explore" to ("🧭" to ("Exploration" to "Exploration")), "security" to ("🔐" to ("Sécurité" to "Security")), "community" to ("🤝" to ("Communauté" to "Community")))
+            "explore" to ("🧭" to ("Exploration" to "Exploration")), "security" to ("🔐" to ("Sécurité" to "Security")), "community" to ("🤝" to ("Communauté" to "Community")),
+            "secret" to ("🗝️" to ("Secrets" to "Secrets")))
         val RANKS = listOf(Triple(0, "🌱", "Novice" to "Rookie"), Triple(100, "🧭", "Explorateur" to "Explorer"), Triple(300, "⚔️", "Aventurier" to "Adventurer"),
             Triple(700, "🏅", "Expert" to "Expert"), Triple(1200, "👑", "Maître DevGit" to "DevGit Master"), Triple(1800, "💎", "Légende" to "Legend"))
         val ALL = listOf(
@@ -51,7 +52,11 @@ class Achievements(ctx: Context) {
             Achievement("first_referral", "🤝", "community", "silver", "referrals", 1, "Premier filleul", "Un ami installe DevGitBrowser avec ton code.", "First referral", "A friend installs DevGitBrowser with your code."),
             Achievement("recruiter", "👥", "community", "gold", "referrals", 5, "Recruteur", "5 amis installent DevGitBrowser avec ton code.", "Recruiter", "5 friends install DevGitBrowser with your code."),
             Achievement("legend", "👑", "community", "platinum", "referrals", 25, "Légende DevGit", "25 amis installent DevGitBrowser avec ton code.", "DevGit legend", "25 friends install DevGitBrowser with your code."),
-            Achievement("bug_hunter", "🐞", "community", "silver", "bugs", 1, "Chasseur de bugs", "Envoie un rapport de bug.", "Bug hunter", "Send a bug report.")
+            Achievement("bug_hunter", "🐞", "community", "silver", "bugs", 1, "Chasseur de bugs", "Envoie un rapport de bug.", "Bug hunter", "Send a bug report."),
+            // Succès secrets : visibles seulement depuis le mode DGBx (comme sur PC).
+            Achievement("dgbx_first", "🗝️", "secret", "bronze", "dgbxMinutes", 10, "Initié", "Passe 10 minutes dans le mode DGBx.", "Initiate", "Spend 10 minutes in DGBx mode."),
+            Achievement("dgbx_hour", "🌙", "secret", "silver", "dgbxMinutes", 60, "Noctambule", "Passe 1 heure dans le mode DGBx.", "Night prowler", "Spend 1 hour in DGBx mode."),
+            Achievement("dgbx_10h", "🎭", "secret", "gold", "dgbxMinutes", 600, "Double vie", "Passe 10 heures dans le mode DGBx.", "Double life", "Spend 10 hours in DGBx mode.")
         )
     }
 

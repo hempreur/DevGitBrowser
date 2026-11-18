@@ -79,6 +79,7 @@ fun MainActivity.showAchievements() {
     })
 
     for ((cat, meta) in Achievements.CATEGORIES) {
+        if (cat == "secret" && !xmode) continue
         val (catIcon, label) = meta
         s.section("$catIcon " + if (L.en) label.second else label.first)
         for (a in Achievements.ALL.filter { it.category == cat }) {

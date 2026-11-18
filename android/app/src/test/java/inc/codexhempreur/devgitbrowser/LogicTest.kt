@@ -93,3 +93,21 @@ class ScryptTest {
         assertTrue(Scrypt.verify(AdminKeys.recoveryPhrase(listOf("Soleil", "lune ", " ETOILE")), "scrypt\$X1GKkEVxtFHhDy5WXoetTA==\$fJ65459zSChu98+G75h5gsg32HhybgMKSY8c6aqU/Fo="))
     }
 }
+
+class DgbxTest {
+    @Test fun catalogFromDesktop() {
+        val js = java.io.File("../../ui/x-catalog.js").readText()
+        val cats = XCatalog.parse(js)
+        val expected = Regex("\\burl: '").findAll(js).count()
+        assertEquals(6, cats.size)
+        assertEquals(expected, cats.sumOf { it.sites.size })
+        assertTrue(cats.flatMap { it.sites }.all { it.url.startsWith("https://") && it.name.isNotBlank() && it.price in setOf("Gratuit", "Freemium", "Payant") })
+    }
+
+    @Test fun commandsAndCodes() {
+        assertTrue(XCatalog.COMMAND.matches("%SxOnSite%")); assertTrue(XCatalog.COMMAND.matches("  %sxonsite% "))
+        assertFalse(XCatalog.COMMAND.matches("%SxOnSite% x")); assertTrue(AdminKeys.COMMAND.matches("%AdminDBG%"))
+        assertTrue(XCatalog.isValidCode("1234")); assertTrue(XCatalog.isValidCode("12345678"))
+        assertFalse(XCatalog.isValidCode("123")); assertFalse(XCatalog.isValidCode("12a4")); assertFalse(XCatalog.isValidCode("123456789"))
+    }
+}

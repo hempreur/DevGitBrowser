@@ -21,10 +21,16 @@ val copyMatchPulse by tasks.registering(Copy::class) {
     from(rootProject.file("../extensions/matchpulse")) { include("core.js", "dom-reader.js", "content.js", "background.js", "style.css") }
     into(matchPulseAssets.map { it.dir("matchpulse") })
 }
-tasks.named("preBuild") { dependsOn(copyMatchPulse) }
+// Mode DGBx : même catalogue que le navigateur PC (ui/x-catalog.js).
+val dgbxAssets = layout.buildDirectory.dir("generated/dgbx-assets")
+val copyDgbx by tasks.registering(Copy::class) {
+    from(rootProject.file("../ui")) { include("x-catalog.js") }
+    into(dgbxAssets.map { it.dir("dgbx") })
+}
+tasks.named("preBuild") { dependsOn(copyMatchPulse, copyDgbx) }
 
 android {
-    sourceSets { getByName("main") { assets.srcDir(matchPulseAssets) } }
+    sourceSets { getByName("main") { assets.srcDirs(matchPulseAssets, dgbxAssets) } }
     namespace = "inc.codexhempreur.devgitbrowser"
     compileSdk = 35
 
@@ -45,8 +51,9 @@ android {
     // qui interdit qu'une appli se mette à jour elle-même : la mise à jour passe par le Store).
     flavorDimensions += "store"
     productFlavors {
-        create("github") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "true") }
-        create("play") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "false") }
+        // DGBx (adulte) : seulement dans l'APK GitHub, Google Play refuse les applis donnant accès à du contenu sexuel.
+        create("github") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "true"); buildConfigField("boolean", "XMODE", "true") }
+        create("play") { dimension = "store"; buildConfigField("boolean", "SELF_UPDATE", "false"); buildConfigField("boolean", "XMODE", "false") }
     }
 
     signingConfigs {

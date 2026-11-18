@@ -1,3 +1,11 @@
+## 2.2.0 — Bêta : commandes secrètes sur Android
+
+### 📱 Application Android
+- **Mode DGBx** : la commande `%SxOnSite%` dans la barre d'adresse (ou dans la recherche de l'accueil) ouvre le mode réservé aux adultes, comme sur PC : confirmation de majorité, code d'accès facultatif (4 à 8 chiffres, blocage d'une minute après 5 erreurs), catalogue identique au PC avec recherche, « Ma liste », « Reprendre » et « Au hasard ». Les sites s'ouvrent dans des onglets privés, rien dans l'historique, et tout se ferme avec « Quitter DGBx ».
+- Succès secrets DGBx (visibles seulement depuis le mode DGBx).
+- `%AdminDBG%` ouvre toujours le panneau d'administration (même clé et mêmes mots de sécurité que sur PC).
+- DGBx n'est pas inclus dans la version Google Play (règles du Store).
+
 ## 2.1.0 — Bêta : DevGitBrowser arrive sur Android
 
 ### 📱 Nouvelle application Android (Android 8 et plus récent)
