@@ -36,11 +36,21 @@
         <li>Les plateformes sont seulement listées : DevGitBrowser n'héberge aucun contenu</li>
       </ul>
       <div class="x-gate" id="x-gate">
-        <p>La commande d'accès est réservée aux personnes majeures.</p>
-        <button class="btn x-btn" id="x-reveal" type="button">J'ai 18 ans ou plus, afficher la commande</button>
-        <div class="x-cmd hidden" id="x-cmd">Tape <code>%SxOnSite%</code> dans la barre d'adresse de DevGitBrowser (PC ou Android), puis valide.</div>
+        <p><b>Vérification de l’âge.</b> Indique ta date de naissance pour afficher la commande d’accès.</p>
+        <form class="age-form" id="age-form" novalidate>
+          <div class="age-row" role="group" aria-label="Date de naissance">
+            <label>Jour<input id="age-d" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="JJ" autocomplete="bday-day" required></label>
+            <label>Mois<input id="age-m" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="MM" autocomplete="bday-month" required></label>
+            <label class="age-year">Année<input id="age-y" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="AAAA" autocomplete="bday-year" required></label>
+          </div>
+          <label class="age-check"><input type="checkbox" id="age-c"> Je certifie sur l’honneur que cette date de naissance est exacte et que j’ai 18 ans ou plus.</label>
+          <button class="btn x-btn" type="submit">Vérifier mon âge</button>
+          <p class="age-msg" id="age-msg" role="alert" aria-live="polite"></p>
+        </form>
+        <div class="age-denied hidden" id="age-denied" role="alert"><b>Accès refusé.</b> Cette section est réservée aux personnes majeures. Reviens plus tard si tu as fait une erreur.</div>
+        <div class="x-cmd hidden" id="x-cmd"></div>
       </div>
-      <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton ordinateur, active un <b>code d'accès</b> DGBx et le contrôle parental de Windows (Microsoft Family Safety).</p>
+      <p class="x-legal">Contenus réservés aux adultes. Si des mineurs utilisent ton appareil, active un <b>code d'accès</b> DGBx et le contrôle parental de ton système (Microsoft Family Safety sur Windows, Google Family Link sur Android).</p>
     </div>
     <div class="x-visual" aria-hidden="true">
       <div class="x-card"><img src="assets/logo-dgbx.png" alt=""><span class="x-18">18+</span></div>
@@ -50,8 +60,6 @@
 </main>
 <footer class="foot"><div class="wrap foot-in"><div class="foot-brand"><img src="assets/logo-mark.png" alt="" width="32" height="32"><div><b>DevGitBrowser</b><small>© 2026 CodexHempreur INC</small></div></div>
 <p class="foot-note">Page réservée aux personnes majeures. DevGitBrowser n'héberge aucun contenu adulte : le mode DGBx liste uniquement des plateformes tierces légales.</p></div></footer>
-<script>
-document.getElementById('x-reveal').addEventListener('click',()=>{document.getElementById('x-cmd').classList.remove('hidden');document.getElementById('x-reveal').classList.add('hidden');});
-</script>
+<script src="age-gate.js" defer></script>
 </body>
 </html>

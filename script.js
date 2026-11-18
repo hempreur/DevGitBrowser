@@ -38,10 +38,6 @@
     })
     .catch(() => {});
 
-  // Zone 18+ : la commande n'est affichée qu'après confirmation de majorité.
-  const reveal = $('#x-reveal');
-  if (reveal) reveal.addEventListener('click', () => { $('#x-cmd').classList.remove('hidden'); reveal.classList.add('hidden'); });
-
   // Boîte 3D : légère rotation qui suit la souris (désactivée si l'utilisateur limite les animations).
   const box = $('#box'), stage = $('.box-stage');
   if (box && matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches) {

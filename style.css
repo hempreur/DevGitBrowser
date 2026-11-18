@@ -336,3 +336,15 @@ details p{margin:0 0 18px;color:var(--muted)}
 .ref-code small{font:600 11px Inter,'Segoe UI',sans-serif;letter-spacing:0;color:#9fb0e0;margin-left:6px}
 
 .ref-auto{margin:6px 0 0;color:#7df2b6;font-size:13px;font-weight:600}
+.age-form{display:grid;gap:14px}
+.age-row{display:flex;gap:10px;flex-wrap:wrap}
+.age-row label{display:grid;gap:4px;font-size:12px;font-weight:700;color:#ff9ad5;text-transform:uppercase;letter-spacing:.06em}
+.age-row input{width:74px;font:600 18px/1.2 'JetBrains Mono',monospace;color:#fff;text-align:center;padding:10px 8px;border-radius:10px;border:1px solid #5a1239;background:#1a0812;outline:none}
+.age-row .age-year input{width:104px}
+.age-row input:focus{border-color:#ff2d8a;box-shadow:0 0 0 3px rgba(255,45,138,.25)}
+.age-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#e3bcd2;cursor:pointer}
+.age-check input{margin-top:4px;accent-color:#ff2d8a;width:16px;height:16px;flex:none}
+.age-form .x-btn{justify-self:start}
+.age-msg{margin:0;min-height:1em;font-size:14px}
+.age-msg.bad{color:#ff8fa8}
+.age-denied{color:#ffb3c4;font-size:15px}
