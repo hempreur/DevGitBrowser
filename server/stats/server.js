@@ -206,9 +206,12 @@ function versionMatches(spec, v) {
     return {'<': c < 0, '<=': c <= 0, '>': c > 0, '>=': c >= 0, '=': c === 0, undefined: c === 0}[m[1]];
   });
 }
-const lockApplies = v => config.lockdown.active === true && (config.lockdown.versions ? versionMatches(config.lockdown.versions, v) : true);
+// L'application Android a ses propres numéros de version (1.x) : un ciblage par version (« <1.17.0 »…) vise
+// le navigateur Windows. Android ne reçoit que ce qui vise toutes les versions (« * » ou vide pour le verrou).
+const targets = (spec, v, os) => os === 'android' ? String(spec || '').trim() === '*' : versionMatches(spec, v);
+const lockApplies = (v, os) => config.lockdown.active === true && (config.lockdown.versions ? targets(config.lockdown.versions, v, os) : true);
 // rev : numéro de révision du verrou — le navigateur ignore une réponse plus ancienne que la dernière appliquée.
-function publicLockdown(v) { const on = lockApplies(v); return {blocked: on, message: on ? config.lockdown.message : '', since: on ? config.lockdown.since : '', rev: Number(config.lockdown.rev) || 0}; }
+function publicLockdown(v, os) { const on = lockApplies(v, os); return {blocked: on, message: on ? config.lockdown.message : '', since: on ? config.lockdown.since : '', rev: Number(config.lockdown.rev) || 0}; }
 function cleanLockdown(input) {
   const versions = text(input?.versions, 120);
   if (versions && !VERSION_SPEC.test(versions)) throw new Error('versions invalides (ex. « <1.17.0 » ou vide pour toutes)');
@@ -229,7 +232,7 @@ function publicConfig(v, cc) {
 // ---- Messages en direct (connexions d'écoute)
 const LIVE_TTL = 10 * 60_000, LIVE_HOLD = 25_000, MAX_WAITERS = 20_000, MAX_WAITERS_PER_IP = 6;
 // Version de l'API, lue par le navigateur pour signaler un serveur pas à jour (18 = DevGitBrowser 1.18).
-const API_VERSION = 20;
+const API_VERSION = 21;
 // Relève en arrière-plan de l'application Android : messages encore transmis pendant 24 h.
 const BG_MAX_AGE = 24 * 3_600_000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
@@ -246,9 +249,9 @@ function cleanMessage(m) {
     .map(c => String(c).trim().toUpperCase()).filter(c => /^[A-Z]{2}$/.test(c)).slice(0, 50);
   return {text: msg, level: m?.level === 'alert' || m?.level === 'warning' ? 'alert' : 'info', versions, countries, url};
 }
-function messagesFor(after, v, cc, maxAge = LIVE_TTL) {
+function messagesFor(after, v, cc, maxAge = LIVE_TTL, os = 'windows') {
   const now = Date.now();
-  return liveItems.filter(m => m.id > after && now - m.at < maxAge && versionMatches(m.versions, v) && (!m.countries.length || m.countries.includes(cc)))
+  return liveItems.filter(m => m.id > after && now - m.at < maxAge && targets(m.versions, v, os) && (!m.countries.length || m.countries.includes(cc)))
     .map(({id, text: body, level, url, at}) => ({id, text: body, level, url, at}));
 }
 // ---- Nouvelle version publiée (v1.18.5) : le serveur surveille la dernière release GitHub (toutes les 2 min,
@@ -270,9 +273,31 @@ async function pollLatestRelease() {
     setLatestRelease(await r.json());
   } catch {}
 }
+// Versions Android : releases séparées (tag « android-v1.0.1 », non marquées « latest »).
+let latestAndroid = '', androidEtag = '';
+const RELEASES_LIST_URL = process.env.RELEASES_LIST_URL || 'https://api.github.com/repos/hempreur/DevGitBrowser/releases?per_page=20';
+function setLatestAndroid(list) {
+  let best = '';
+  for (const r of Array.isArray(list) ? list : []) {
+    const v = String(r?.tag_name || '').match(/^android-v(\d{1,4}\.\d{1,4}\.\d{1,4})$/)?.[1];
+    if (!v || r.draft || r.prerelease || !(r.assets || []).some(a => a?.name === `DevGitBrowser-Android-${v}.apk`)) continue;
+    if (!best || cmpVersion(v, best) > 0) best = v;
+  }
+  if (!best || best === latestAndroid) return false;
+  latestAndroid = best; wakeWaiters({force: true});
+  return true;
+}
+async function pollAndroidRelease() {
+  try {
+    const r = await fetch(RELEASES_LIST_URL, {headers: {'user-agent': 'DevGit-Stats', accept: 'application/vnd.github+json', ...(androidEtag ? {'if-none-match': androidEtag} : {})}, signal: AbortSignal.timeout(15_000)});
+    if (r.status === 304 || !r.ok) return;
+    androidEtag = r.headers.get('etag') || '';
+    setLatestAndroid(await r.json());
+  } catch {}
+}
 function liveBody(w) {
-  return {cursor: liveSeq, latest: latestRelease, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc, w.bg ? BG_MAX_AGE : LIVE_TTL), retracted: retractedSince(w.after),
-    lockdown: publicLockdown(w.v), features: config.features, support: supportFor(w.chats)};
+  return {cursor: liveSeq, latest: latestRelease, latestAndroid, messages: w.after < 0 ? [] : messagesFor(w.after, w.v, w.cc, w.bg ? BG_MAX_AGE : LIVE_TTL, w.os), retracted: retractedSince(w.after),
+    lockdown: publicLockdown(w.v, w.os), features: config.features, support: supportFor(w.chats)};
 }
 function releaseWaiter(w, body) {
   if (!waiters.has(w)) return false;
@@ -293,7 +318,7 @@ function wakeWaiters({force = false} = {}) {
 function liveRequest(req, res, ip) {
   const q = new URLSearchParams(req.url.split('?')[1] || '');
   const w = {res, ip, after: /^\d{1,16}$/.test(q.get('after') || '') ? Number(q.get('after')) : -1,
-    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null, chats: parseChats(q.get('chat')), bg: q.get('bg') === '1'};
+    v: clean.ver(q.get('v')), cc: clean.cc(q.get('cc')), lock: q.get('lock') === '1', timer: null, chats: parseChats(q.get('chat')), bg: q.get('bg') === '1', os: q.get('os') === 'android' ? 'android' : 'windows'};
   const body = liveBody(w);
   // Relève en arrière-plan (application Android fermée, toutes les 15 min environ) : réponse immédiate,
   // messages des dernières 24 h encore visibles, sans connexion d'écoute.
@@ -559,6 +584,6 @@ const server = TLS ? https.createServer(TLS, handler) : http.createServer(handle
 server.requestTimeout = 10_000; server.headersTimeout = 10_000;
 if (require.main === module) {
   server.listen(PORT, HOST, () => console.log(`DevGit Stats en écoute sur ${TLS ? 'https' : 'http'}://${HOST}:${PORT}`));
-  if (process.env.RELEASES_POLL !== '0') { pollLatestRelease(); setInterval(pollLatestRelease, 2 * 60_000).unref(); }
+  if (process.env.RELEASES_POLL !== '0') { pollLatestRelease(); setInterval(pollLatestRelease, 2 * 60_000).unref(); pollAndroidRelease(); setInterval(pollAndroidRelease, 2 * 60_000).unref(); }
 }
-module.exports = {_setLatestRelease: setLatestRelease, _adminWaiters: () => adminWaiters, server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};
+module.exports = {_setLatestRelease: setLatestRelease, _setLatestAndroid: setLatestAndroid, _messagesFor: messagesFor, _publicLockdown: publicLockdown, _adminWaiters: () => adminWaiters, server, handler, publish, publicCatalog, ping, rate, stats, versionMatches, cleanLockdown, cleanMessage, publicConfig, postMessage, addBug, claimReferral, _db: () => db, _waiters: () => waiters, _setConfig: c => { config = c; }};

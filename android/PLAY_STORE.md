@@ -4,7 +4,7 @@ Le workflow GitHub « Application Android » fabrique deux fichiers à chaque ve
 
 | Fichier | Pour quoi | Où le trouver |
 |---|---|---|
-| `DevGitBrowser-Android-x.y.z.apk` | Installation directe (site, GitHub). Se met à jour tout seul. | Dans la release GitHub |
+| `DevGitBrowser-Android-x.y.z.apk` | Installation directe (site, GitHub). Se met à jour tout seul. | Dans la release Android (`android-vx.y.z`) |
 | `DevGitBrowser-PlayStore-x.y.z.aab` | Google Play. Pas de mise à jour intégrée (Google l'interdit, c'est le Store qui s'en charge). | Onglet *Actions* → dernière exécution « Application Android » → *Artifacts* |
 
 ## 1. Créer le compte (une seule fois)
@@ -65,4 +65,4 @@ Le workflow GitHub « Application Android » fabrique deux fichiers à chaque ve
 ## 5. Envoyer une version
 1. Télécharger `DevGitBrowser-PlayStore-x.y.z.aab` depuis l'onglet *Actions*.
 2. Console → *Tests* → *Test fermé* (puis *Production*) → *Créer une version* → importer l'AAB.
-3. Notes de version : copier la section du `CHANGELOG.md`.
+3. Notes de version : copier la section de `android/CHANGELOG.md`.

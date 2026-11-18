@@ -1,561 +1,130 @@
-## 2.2.0 — Bêta : commandes secrètes sur Android
+## 2.2.0 — Bêta
+- 📱 L'application Android a désormais ses propres versions et ses propres téléchargements (DevGitBrowser Android 1.0.1 Bêta). Le navigateur Windows reste en 2.2.0 Bêta.
+- 🌐 Site officiel : nouvelle section Android, avec téléchargement direct de l'application.
 
-### 📱 Application Android
-- **Mode DGBx** : la commande secrète (affichée sur le site après vérification de l'âge) ouvre le mode réservé aux adultes, comme sur PC : confirmation de majorité, code d'accès facultatif (4 à 8 chiffres, blocage d'une minute après 5 erreurs), catalogue identique au PC avec recherche, « Ma liste », « Reprendre » et « Au hasard ». Les sites s'ouvrent dans des onglets privés, rien dans l'historique, et tout se ferme avec « Quitter DGBx ».
-- Succès secrets DGBx (visibles seulement depuis le mode DGBx).
-- `%AdminDBG%` ouvre toujours le panneau d'administration (même clé et mêmes mots de sécurité que sur PC).
-- DGBx n'est pas inclus dans la version Google Play (règles du Store).
+## 2.1.0 — Bêta
+- 📱 DevGitBrowser arrive sur Android (8 et plus récent), en application séparée : DevGitShield, onglets privés, mode Tor, coffre à mots de passe, MatchPulse, succès et parrainage.
+- 🔔 Les messages de l'équipe arrivent aussi sur les téléphones.
 
-## 2.1.0 — Bêta : DevGitBrowser arrive sur Android
+## 2.0.1 — Bêta
+- 🎬 Vidéos envoyées en « http » sur un site sécurisé : un bandeau propose « Autoriser pour ce site », la page se recharge et la vidéo fonctionne. Le choix ne vaut que pour ce site.
 
-### 📱 Nouvelle application Android (Android 8 et plus récent)
-- Onglets, favoris, historique, recherche, page d'accueil avec BabelVisio.
-- DevGitShield (pubs et traqueurs), anti-hameçonnage, HTTPS prioritaire, onglets privés.
-- Coffre à mots de passe chiffré par la puce de sécurité du téléphone, import CSV (Chrome, Edge, Firefox, Brave, Bitwarden), remplissage sur la page.
-- Webcam, micro et position autorisés site par site, vidéos en Picture-in-Picture, réglage « contenu non chiffré » par site.
-- **Mode Tor** intégré : les sites ne voient pas ton adresse IP.
-- **MatchPulse** sur Betclic, Winamax et Unibet, démarré seulement sur ces sites.
-- Messages de l'éditeur, arrêt d'urgence, statistiques anonymes (avec accord), succès et parrainage, signalement de bug avec tchat de support.
-- Mises à jour : l'application GitHub se met à jour toute seule (Android demande confirmation). Une version pour Google Play est prête.
-- Léger : environ 8 Mo, Tor compris.
+## 2.0.0 — Bêta
+- ⚡ MatchPulse ne démarre plus qu'à l'ouverture d'un site de paris sportifs pris en charge, et se remet en veille ensuite : environ 100 Mo de mémoire en moins le reste du temps.
+- 🧹 Installateur plus léger et nombreux petits nettoyages.
 
-### Serveur (mise à jour du VPS nécessaire)
-- Les messages restent transmis 24 h aux applications Android fermées, qui les relèvent environ toutes les 15 minutes, sans service Google.
-- Statistiques : Android compté comme système à part.
+## 1.18.6
+- 🔋 Au repos, le navigateur consomme environ 10 fois moins de processeur. Les animations se mettent en pause quand la fenêtre n'est pas au premier plan.
+- 💤 Les onglets inutilisés depuis 30 minutes sont mis en veille pour libérer de la mémoire.
 
-## 2.0.1 — Bêta : vidéos en http sur les sites https
+## 1.18.5
+- 🔄 Les nouvelles versions sont annoncées en direct à tous les navigateurs ouverts. L'installation ne se lance jamais toute seule pendant un appel ou une webcam.
 
-- Certains lecteurs en ligne (pages en https) lisent des flux vidéo envoyés en http. Par sécurité, ce « contenu non chiffré » est bloqué, comme dans Chrome, et la vidéo ne démarrait pas.
-- Quand cela arrive, un **bandeau propose « Autoriser pour ce site »** : la page se recharge et la vidéo fonctionne. Le choix est mémorisé pour ce site uniquement.
-- Réglage aussi disponible dans ☰ → Sécurité et autorisations → **Contenu non chiffré (http)**, pour l'autoriser ou le rebloquer.
-- L'autorisation ne suit jamais l'onglet vers un autre site : tous les autres sites restent protégés.
-
-## 2.0.0 — Version 2.0 Bêta
-
-DevGitBrowser passe en **2.0 Bêta** : une version complète, en phase de test. Tout ce qui a été ajouté depuis la 1.0 est inclus ; cette version apporte un audit général et les dernières optimisations.
-
-### ⚡ MatchPulse à la demande
-- MatchPulse ne tourne plus en permanence : il **démarre tout seul à l'ouverture d'un site de paris sportifs** (Betclic, Winamax, Unibet), avant même l'affichage de la page.
-- Il se remet en veille 5 minutes après la fermeture du dernier onglet de paris, sauf s'il suit encore des matchs (les alertes continuent d'arriver).
-- Résultat : environ 100 Mo de mémoire et un processus en moins quand tu ne paries pas. Dans ☰ → Extensions, MatchPulse apparaît « EN VEILLE » ou « ACTIVE ».
-
-### 🧹 Audit et nettoyage (après vérification de chaque élément)
-- Logos allégés (affichés au maximum à 120 px, ils étaient stockés en 512 px et 900 px) : environ 420 Ko de moins dans l'installateur.
-- 31 traductions d'écrans supprimés depuis longtemps retirées.
-- La mention « Bêta » apparaît dans À propos, dans le titre de la release et dans l'annonce Discord.
-
-### Rappel des optimisations récentes
-- Processeur au repos divisé par dix (1.18.6), onglets inutilisés mis en veille, annonces de mise à jour instantanées (1.18.5).
-
-## 1.18.6 — Plus léger : moins de processeur et de carte graphique
-
-- **Au repos, le navigateur consomme environ 10 fois moins de processeur** (mesuré : 6,5 % → 0,5 %). Le reflet animé du logo tournait en continu et redessinait l'interface sans arrêt : il joue maintenant deux fois au démarrage, puis au survol du logo.
-- Même principe pour le soleil et la pluie de la météo et pour la lueur du bouton des succès : quelques passages, puis au survol.
-- Quand la fenêtre n'est pas au premier plan, les animations de l'interface se mettent en pause.
-- **Onglets en veille automatique** : en mode Équilibré (par défaut), un onglet inutilisé depuis 30 minutes est mis en veille et libère sa mémoire ; il se recharge dès qu'on clique dessus. Jamais pour un onglet qui joue du son ou qui a utilisé la webcam, le micro ou le partage d'écran. Le mode Éco garde sa veille à 10 minutes.
-
-## 1.18.5 — Mises à jour annoncées instantanément
-
-- Dès qu'une nouvelle version est publiée, tous les navigateurs ouverts sont prévenus en direct (en général en moins de 2 minutes) : la **fenêtre de mise à jour s'ouvre toute seule** et suit le téléchargement. Avant, la vérification n'avait lieu qu'au lancement puis toutes les 4 heures.
-- Pendant l'utilisation, la mise à jour ne s'installe pas d'elle-même (pour ne pas couper un appel ou une webcam) : « Installer maintenant » ou « Plus tard ». Au lancement, l'installation automatique après le compte à rebours est conservée.
-- Vérification de secours toutes les 30 minutes, même sans le serveur.
-- Serveur (mise à jour du VPS nécessaire) : surveille la dernière release GitHub et la transmet par le canal en direct.
-
-## 1.18.4 — Retour depuis la barre des tâches corrigé
-
-- Quand le navigateur était réduit dans la barre des tâches puis rouvert, certains sites voyaient leur page redimensionnée à une taille minuscule : les webcams flottantes (BabelVisio…) et autres éléments se retrouvaient déplacés. La page garde maintenant sa taille pendant la réduction.
-- Corrige l'écran noir qui pouvait apparaître au retour (il fallait déplacer la fenêtre pour que tout revienne) : la page est replacée et redessinée automatiquement, et le calcul d'occultation de Windows responsable de ce bug est désactivé.
-- Un nouvel onglet affichait encore l'adresse du site de l'onglet précédent dans la barre d'adresse : elle est maintenant vide, et chaque onglet retrouve bien sa propre adresse quand on passe de l'un à l'autre.
-
-## 1.18.3 — Nouvelle fenêtre de partage d'écran
-
-- Quand un site demande à partager ton écran (BabelVisio, Discord, Meet…), une vraie fenêtre de choix s'ouvre, comme dans Chrome : onglets **Fenêtre** et **Écran complet**, aperçus des fenêtres avec leur icône, rafraîchis toutes les 3 secondes.
-- Option **Partager l'audio système** (Windows) quand le site demande aussi le son.
-- Double-clic sur un aperçu ou touche Entrée pour partager, Échap pour annuler. Rien n'est partagé sans ton choix.
-- Remplace l'ancienne boîte qui affichait toutes les fenêtres en une longue rangée de boutons.
-
-## 1.18.2 — Bouton Mode IE de retour dans la barre
-
-- Le bouton **IE** est de nouveau **toujours disponible** à droite de la barre d'adresse sur Windows, sur n'importe quel site (et plus seulement quand un ancien site est détecté). Il s'illumine quand une page ActiveX / VBScript est détectée, et indique « IE✓ » quand le moteur IE est actif.
-- Sur les sites de webcams modernes (WebRTC), comme BabelVisio, le bouton est grisé avec une explication : le moteur IE ne gère pas ces webcams.
-- Le lancement automatique des sites déjà approuvés est inchangé.
-
-## 1.18.1 — Nouvelle bannière BabelVisio, panneau admin plus clair
-
-- **Accueil** : la nouvelle bannière BabelVisio (salons live, webcams, jeux, traduction) s'affiche en grand, avec une ombre portée ; un clic ouvre le site. Les raccourcis passent sur une seule ligne.
-- **Carte du monde** : la légende grisée inutile est retirée.
-- **Serveur pas à jour** : le panneau admin l'indique clairement, avec la commande à lancer, au lieu d'une « erreur du serveur » lors de la suppression d'un message ou de l'ouverture d'un tchat.
-- **Rapports de bug** : le panneau explique pourquoi le tchat n'est pas disponible (rapport envoyé depuis une version antérieure à la 1.18, ou serveur pas à jour).
-- **Installation du serveur** : la commande récupère toujours la toute dernière version (plus de version en cache pendant quelques minutes après une publication) et vérifie le fichier avant de l'installer.
-
-## 1.18.0 — Nouvel accueil, support en direct, panneau admin en temps réel
-
-### 🏠 Nouvelle page d'accueil
-- Mise en page plus sobre et plus professionnelle : recherche au centre, salutation et date du jour, protections actives, accès rapide à tes sites et raccourcis avec des icônes nettes.
-- Les couleurs suivent le thème choisi (Néon, Noir, Blanc, Nature, Sable, Océan, Velours).
-- **Partenaire BabelVisio** : une capture d'un salon BabelVisio (discussion, webcams, liste des utilisateurs), légèrement inclinée avec une ombre portée, présente le site ; un clic dessus ouvre BabelVisio.
-
-### 💬 Support en direct
-- Après un **🐞 Signaler un bug**, si l'équipe prend ton signalement en charge, une **fenêtre de discussion s'ouvre automatiquement** pour échanger avec toi en direct, avec une notification Windows quand une réponse arrive.
-- Seul ton navigateur peut écrire dans cette discussion : il garde une clé secrète, et le serveur n'en conserve que l'empreinte.
-
-### 🏅 Bouton des succès
-- Nouvelle icône, plus neutre, collée à l'heure et à la météo, à la même hauteur.
-
-### 🛠 Corrigé
-- Le changement du code d'accès d'un espace protégé utilisait une fenêtre système que le navigateur ne sait pas afficher : il se fait maintenant dans un petit formulaire.
-- Les fichiers sources du logo ne sont plus copiés dans l'installateur (environ 880 Ko de moins).
-- Nettoyage : les anciens styles de l'ancienne page d'accueil ont été retirés (environ 14 Ko de CSS inutilisé).
-
-### Serveur (mise à jour du VPS nécessaire)
-- Panneau admin en temps réel (`/v1/admin/watch`), suppression des messages envoyés (retirés aussi des navigateurs ouverts) et des rapports de bug, tchat de support.
-- Sécurité : l'adresse transmise par l'en-tête `X-Forwarded-For` n'est plus prise en compte sans proxy déclaré (`TRUST_PROXY=1`), ce qui empêchait de contourner les limites anti-abus.
-
-## 1.17.0 — Messages en direct et arrêt d'urgence total, séparés
-
-### 📣 Messages en direct
-- Envoyés depuis le panneau admin, ils arrivent **immédiatement**, en moins d'une seconde, mais **uniquement dans les navigateurs ouverts** à ce moment-là. Un navigateur fermé, ou ouvert plus tard, ne les reçoit pas.
-- Deux types :
-  - **📣 Info** : bandeau et message dans le navigateur ;
-  - **⚠️ Alerte** : bandeau rouge et **notification Windows**.
-- Ciblage facultatif par version et par pays, lien facultatif.
-- L'admin indique combien de navigateurs sont ouverts et combien ont reçu chaque message.
-
-### ⛔ Arrêt d'urgence (séparé des messages)
-- **Bloque totalement** les navigateurs, toutes versions ou seulement certaines. Un écran « Accès temporairement suspendu » remplace le navigateur : plus d'onglets, plus de fonctions. Les onglets ouverts sont sauvegardés.
-  - Navigateurs **ouverts** : bloqués en moins d'une seconde.
-  - Navigateurs **fermés** : bloqués dès leur prochain lancement.
-- Le blocage **tient au redémarrage et hors connexion**, jusqu'au déblocage depuis l'admin. Le navigateur se débloque alors tout seul et rouvre ses onglets.
-- Activation protégée : il faut taper « BLOQUER » pour confirmer.
-- **L'administrateur n'est jamais enfermé dehors** :
-  - le PC qui possède le jeton du serveur n'est pas bloqué (un bandeau rouge rappelle que l'arrêt est actif) ;
-  - sur un autre PC, l'écran de blocage propose « Accès administrateur » avec la clé admin, puis ouvre directement le panneau admin.
-- « Couper seulement certaines fonctions » (boutique, VPN, aperçu des liens…) reste disponible dans la même carte, sans bloquer le navigateur.
-- Les versions 1.13 à 1.16 affichent un bandeau et se mettent à jour ; elles sont alors bloquées.
-
-### 🛠 Corrigé
-- Fermer une fenêtre contenant des onglets restaurés jamais ouverts provoquait une erreur interne.
-
-### Serveur (mise à jour du VPS nécessaire)
-- Nouvelles routes `/v1/live` (connexion d'écoute : messages et verrou instantanés), `/v1/admin/messages`, `/v1/admin/lockdown`, `/v1/admin/features`.
-- L'ancienne route `/v1/admin/config` (écriture) est remplacée.
-
-## 1.16.0 — Mises à jour guidées, parrainage automatique, réglages corrigés
-
-### 🔄 Mises à jour
-- **Pendant l'utilisation** : une **notification Windows** prévient quand une nouvelle version est trouvée, puis quand elle est prête. Un clic ouvre la fenêtre de mise à jour. Le bandeau dans le navigateur reste là.
-- **À l'ouverture**, si le navigateur n'a pas été utilisé depuis un moment : une **fenêtre de mise à jour** s'ouvre toute seule. Elle montre la version, les nouveautés et le téléchargement, puis **installe automatiquement** la mise à jour après un compte à rebours de 10 secondes. Les boutons « Installer maintenant » et « Plus tard » restent disponibles ; avec « Plus tard », l'installation se fait à la prochaine fermeture.
-- Les onglets ouverts sont **toujours rouverts** après une mise à jour, même si l'option « Rouvrir les onglets au démarrage » est désactivée.
-
-### 🎁 Parrainage automatique
-- Le code d'un lien d'invitation est **validé tout seul au premier lancement**, sans rien saisir :
-  - le site transmet l'adresse du lien avec le téléchargement de l'installateur ;
-  - Windows note cette adresse dans la « marque du web » du fichier ;
-  - le navigateur la retrouve, via l'installateur ou le dossier Téléchargements.
-- En secours, le site copie aussi le code au format `DevGitBrowser ref:CODE`. Le navigateur le lit une seule fois, au premier lancement, et seulement dans ce format exact.
-- L'assistant affiche « 🎁 Parrainage validé automatiquement ». Le champ manuel reste disponible si aucun code n'est trouvé.
-
-### 🛠 Corrigé
-- Trois interrupteurs des Paramètres se décochaient tout seuls après avoir été activés (le réglage était pourtant enregistré) : **Discord**, **Montrer le site que je visite** et **Statistiques anonymes**. Un test vérifie désormais que chaque interrupteur reste dans la position choisie.
-
-## 1.15.1 — DevGitShield plus solide sur les Wi-Fi publics, dépôt nettoyé
-
-### Correctif
-- **DevGitShield** : sur un Wi-Fi d'hôtel, de gare ou d'entreprise (portail de connexion), une page web pouvait être reçue à la place d'une liste de filtres. Si elle ne commençait pas par `<!doctype` ou `<html`, elle était acceptée et remplaçait les règles de blocage jusqu'à la mise à jour suivante. Désormais, toute réponse HTML (type `text/html`, ou contenu commençant par `<`) est refusée et les règles actuelles sont conservées.
-
-### Dépôt
-- Nouveau README avec captures d'écran.
-- Suppression de deux fichiers devenus inutiles :
-  - `legacy/legacy-browser.ps1` : ancienne fenêtre IE séparée, remplacée par l'IE intégré à l'onglet et appelée nulle part.
-  - `INSTALLATION-RAPIDE.txt` : notice de l'archive ZIP d'origine (v1.0.0), dépassée.
-
-## 1.15.0 — 🏆 Succès et invitations
-
-### 🏆 Succès
-- Nouveau bouton **trophée** en haut à droite, à côté de la météo et de l'heure. Une pastille rouge compte les succès pas encore vus.
-- **46 succès**, chacun avec son icône, en 6 catégories :
-  - **Temps** : 10 min jusqu'à 500 h, jours d'utilisation, séries de jours d'affilée, oiseau de nuit, lève-tôt.
-  - **Protection** : 100 à 100 000 pubs bloquées, temps sous VPN, onglets privés, « Qui me piste ? ».
-  - **Exploration** : pages visitées, favoris, thèmes, radio, Picture-in-Picture, aperçus de liens, onglets ouverts, mode gaming, langues, extensions, import.
-  - **Sécurité** : coffre, identifiants, vérification des fuites, générateur, coordonnées.
-  - **Communauté** : invitations, filleuls, note, rapport de bug, Discord.
-  - **Secret** : temps passé dans le mode DGBx.
-- 4 paliers (🥉 bronze, 🥈 argent, 🥇 or, 💎 platine), des points et un **rang** : Novice → Explorateur → Aventurier → Expert → Maître DevGit → Légende.
-- Une notification « 🏆 Succès débloqué » s'affiche à chaque nouveau succès.
-- Tout est calculé **sur l'ordinateur** ; rien n'est envoyé.
-- Les succès du **mode DGBx** sont secrets : ils n'apparaissent, et ne sont annoncés, que depuis le mode DGBx. Le panneau ne trahit donc jamais l'existence du mode.
-
-### 📣 Inviter depuis le navigateur
-- Dans le panneau des succès (et depuis À propos), on peut partager son lien de parrainage en un clic : copier le lien, copier un message prêt à envoyer, WhatsApp, Discord, Telegram, X, Facebook, Reddit ou e-mail.
-- Le message est rédigé dans la langue de l'interface. Chaque partage fait progresser les succès « Ambassadeur » et « Porte-voix ».
-
-## 1.14.0 — DevGitBrowser in English · interface en anglais
-
-### 🌐 Langue de l'interface
-- Nouveau réglage **Langue** : Automatique (langue de Windows), Français ou English. Il est disponible dès le premier écran de l'assistant de bienvenue et dans Paramètres → Général.
-- Le changement s'applique **immédiatement**, sans redémarrer. Il couvre toutes les fenêtres : navigateur, radio, analyse réseau, aperçu des liens.
-- Sont aussi traduits les menus (☰, clic droit, onglets, 🛡, VPN), les boîtes de dialogue, les notifications, les messages d'erreur, les pages d'erreur et de site dangereux, et le statut Discord.
-- Plus de 1 350 textes traduits. Dates et noms de pays suivent la langue choisie.
-- En mode « Automatique », un Windows en français garde l'interface en français ; toutes les autres langues de Windows passent en anglais.
-
-### 🎁 Site web : liens de parrainage
-- Le lien `https://hempreur.github.io/DevGitBrowser/?ref=CODE` affiche un encadré « Un ami t'a invité ! » avec le code et un bouton Copier.
-
-### Language
-- New **Language** setting: Automatic (Windows language), Français or English — on the very first welcome screen and in Settings → General. Applies instantly to every window, menu, dialog and error page.
-
-## 1.13.0 — Communauté : rapport de bug, parrainage, Discord, admin en direct
-
-### 🐞 Signaler un bug en un clic
-- À propos → « Signaler un bug » : description, contact facultatif, et **journal technique joint seulement si la case est cochée**.
-- Avant l'envoi, « Voir exactement ce qui sera envoyé ». Le journal est anonymisé : chemins du profil Windows, adresses complètes des sites (seule l'origine reste), e-mails et adresses IP sont masqués.
-- Les rapports arrivent sur le serveur DevGit et dans le panneau admin, maximum 5 par heure et par connexion.
-
-### 🎁 Parrainage et badges
-- Chaque navigateur a un **code de parrainage** (8 caractères) et un lien à partager (À propos → « Parraine tes amis »).
-- Le filleul saisit le code à la fin de l'assistant de bienvenue, ou plus tard dans À propos. Un seul parrain par PC, impossible de se parrainer soi-même.
-- Badges : 🥉 Bronze (1), 🥈 Argent (3), 🥇 Or (10), 💎 Légende (25).
-
-### 🎮 Discord Rich Presence (facultatif)
-- Paramètres → Discord : « Joue à DevGitBrowser » sur ton profil Discord, avec un bouton « Télécharger DevGitBrowser ».
-- Option séparée pour afficher le site visité ; jamais pour les onglets privés ou DGBx.
-- Fonctionne avec l'application Discord ouverte sur le PC, par son canal local : rien ne passe par Internet.
-
-### 📣 Messages et arrêt d'urgence
-- Le navigateur lit la configuration DevGit au démarrage puis toutes les 6 heures. Il n'envoie que sa version et le pays de Windows, sans identifiant.
-- **Messages ciblés** par version, pays et date de fin, avec un lien facultatif. Ils s'affichent dans un bandeau qu'on peut fermer.
-- **Arrêt d'urgence** : une version boguée affiche un bandeau qui invite à mettre à jour et lance la recherche de mise à jour. Certaines fonctions peuvent aussi être coupées temporairement (boutique, aperçu des liens, lecteur protégé, VPN, import, statistiques).
-- Sans réponse du serveur, rien n'est bloqué.
-
-### 🛠 Panneau admin
-- **Carte du monde** : utilisateurs en ligne maintenant (points animés) et actifs sur 30 jours.
-- **Rapports de bug** : à traiter, vus, corrigés ; journal consultable ; suppression.
-- **Messages et arrêt d'urgence** modifiables et publiés depuis le panneau.
-- Nouveaux indicateurs : parrainages et rapports reçus.
-
-### Serveur
-- `server/stats/server.js` : nouvelles routes `/v1/config`, `/v1/bug`, `/v1/referral/*` et `/v1/admin/*`.
-- **Mettre à jour le serveur** en relançant la commande d'installation. Le jeton, le certificat et les données sont conservés.
-
-## 1.12.0 — Mica/Acrylic, aperçu des liens, « Qui me piste ? »
-
-### 🕵 Qui me piste ?
-- Nouveau rapport par site (menu 🛡 → « Qui me piste sur ce site ? ») : les **entreprises** qui ont tenté de suivre ta navigation sur la page affichée (Google, Meta, Amazon, Microsoft, TikTok, Criteo, Taboola, Hotjar…), avec leur rôle (publicité, mesure d'audience, réseau social, empreinte, enregistrement de session) et le nombre de requêtes bloquées.
-- Base locale d'environ 60 acteurs ; les domaines inconnus restent listés. Rien n'est envoyé sur Internet.
-- Le rapport repart de zéro à chaque nouvelle page. Il prévient quand DevGitShield est désactivé ou en pause sur le site.
-
-### 👁 Aperçu des liens
-- **Maj + survol** d'un lien (réglage par défaut) : la page s'ouvre dans une petite fenêtre au-dessus de la page en cours, avec « Ouvrir dans un onglet » et ✕.
-- Autre mode : **survol prolongé** (1 seconde), ou désactivé (Paramètres → Apparence).
-- L'aperçu se ferme quand la souris quitte le lien et l'aperçu, ainsi qu'avec Échap, un clic, le défilement ou un changement d'onglet.
-- La page aperçue est muette, sans boîtes de dialogue, protégée par DevGitShield. Ses pop-ups s'ouvrent dans un vrai onglet. Jamais d'aperçu depuis un onglet privé ou DGBx.
-
-### 🪟 Effet de fenêtre Windows 11
-- **Mica** (la couleur du fond d'écran transparaît dans la barre d'onglets) ou **Acrylic** (flou dépoli) : Paramètres → Apparence → « Effet de fenêtre ».
-- Proposé uniquement sous Windows 11 22H2 ou plus récent ; compatible avec tous les thèmes.
-
-## 1.11.0 — Bienvenue : assistant de premier lancement, import, coffre enrichi
-
-### Assistant de premier lancement (5 étapes)
-- **Thème**, **moteur de recherche**, **protection** (DevGitShield, nuisances, mode renforcé YouTube/Twitch, VPN au démarrage avec choix du pays), **import** depuis l'ancien navigateur, **coffre à mots de passe**.
-- Chaque étape peut être passée (« Plus tard ») ; tout reste modifiable dans les Paramètres.
-- Nouveau réglage : Paramètres → VPN → « Connecter au démarrage ».
-- Les réglages « nuisances » et « mode renforcé » s'appliquent désormais immédiatement depuis les Paramètres.
-
-### Import depuis Chrome, Edge, Brave, Vivaldi, Opera, Opera GX et Firefox
-- Détection automatique des navigateurs et de leurs profils (avec leur nom).
-- Import des **favoris** et de l'**historique** (sans doublon), lus sur une copie : rien n'est modifié dans l'autre navigateur et rien n'est envoyé sur Internet.
-- Si l'historique ne s'importe pas, fermer l'autre navigateur puis réessayer.
-- Disponible dans l'assistant et dans Paramètres → « Importer depuis un autre navigateur ».
-- **Mots de passe** : via l'export CSV officiel de chaque navigateur (instructions affichées), puis coffre → « Importer un CSV ». Les identifiants existants sont mis à jour, jamais dupliqués. Option (cochée par défaut) pour **supprimer le fichier CSV** après l'import, car il contient les mots de passe en clair.
-
-### Coffre à mots de passe
-- **Vérifier les fuites** : chaque mot de passe est comparé à la base Have I Been Pwned par k-anonymat. Seuls les 5 premiers caractères de son empreinte SHA-1 sont envoyés ; le mot de passe ne quitte jamais le PC. Les mots de passe trouvés portent un badge 🚨.
-- **Générateur** : longueur de 12 à 64, chiffres et symboles au choix, bouton Copier.
-- **Mes coordonnées** : fiches (nom, e-mail, téléphone, société, adresse) **chiffrées dans le coffre**. Clic droit dans un champ d'un formulaire HTTPS → « Remplir mes coordonnées ». Jamais dans les onglets privés, ni sur les champs mot de passe, cachés ou déjà remplis.
-
-## 1.10.0 — Netflix (Widevine), DevGitShield sans casse, onglets privés sous VPN, nouveaux thèmes
-
-### Vidéos protégées (Netflix, Prime Video, Disney+, Canal+…)
-- Le navigateur passe à **Electron for Content Security (castLabs) 45.2.1**, la même version d'Electron avec en plus le module DRM **Widevine**, installé et mis à jour automatiquement en arrière-plan. Son état est visible dans À propos.
-- Nouveau **lecteur protégé DevGit** (`DevGitMedia.exe`).
-  - Netflix, Disney+, Prime Video, Max, Canal+, Apple TV+, Paramount+ et Crunchyroll s'y ouvrent automatiquement, dans une fenêtre séparée avec son propre profil.
-  - C'est le moteur castLabs d'origine, **signé VMP** par castLabs EVS, comme ces plateformes l'exigent.
-  - Le navigateur principal garde **tous ses fusibles de sécurité** : castLabs refuse de signer un moteur modifié, d'où ce lecteur séparé.
-  - Les liens hors streaming sont renvoyés vers DevGitBrowser.
-  - Réglage : Paramètres → Général → « Lecteur protégé ».
-- La permission `mediaKeySystem` est autorisée. Elle était refusée par la politique de permissions, d'où l'erreur M7701-1003.
-- La compilation se fait en plusieurs étapes : dossier, lecteur signé, installateur. La signature utilise les secrets GitHub `EVS_ACCOUNT_NAME` et `EVS_PASSWD`.
-
-### DevGitShield : fin des sites bloqués
-- Les scriptlets uBlock Origin étaient injectés **deux fois** (préchargement DevGitShield + moteur Ghostery). C'était la cause des blocages complets de YouTube et Twitch. Ils ne sont plus injectés qu'une fois, au plus tôt.
-- Les protections maison YouTube/Twitch (interception de `JSON.parse`, des Workers et accélération des publicités), détectables par ces sites, passent dans un **mode renforcé facultatif**, désactivé par défaut. Le blocage s'appuie sur les filtres uBlock Origin mis à jour chaque jour (quick-fixes, unbreak).
-- Le type de chaque requête est désormais celui fourni par Chromium, plus « deviné » depuis l'URL : des scripts et des images de sites légitimes étaient bloqués par erreur.
-- Les listes « anti-nuisances » (cookies, pop-ups), connues pour casser des sites, deviennent facultatives, comme dans uBlock Origin.
-- Nouveau raccourci dans le menu 🛡️ : « *site* ne fonctionne pas ? Mettre la protection en pause ici ».
-
-### Nouveautés
-- **Onglet privé sous VPN** : clic droit sur **+** → « Naviguer en mode privé », ou Ctrl+Maj+N.
-  - L'onglet utilise une session séparée en mémoire, effacée à la fermeture du dernier onglet privé.
-  - Il passe **toujours** par le VPN, avec blocage de toute connexion directe tant que le VPN n'est pas prêt et WebRTC verrouillé.
-  - Rien n'est conservé : ni historique, ni restauration de session.
-- **Nouveaux thèmes** : Néon, Noir, Blanc, Nature, Sable, Océan et Velours. Ce sont de vraies palettes de couleurs (fonds, surfaces, textes, accents) au lieu d'un filtre de couleur global, appliquées aussi à la radio. Les anciens choix sont repris automatiquement.
-- **Météo** : le nom de la ville s'affiche à côté de la température.
-
-## 1.9.1 — DevGit Video local (extension DevGit Store)
-
-- DevGit Store continue à distribuer les extensions depuis le VPS. **Aucune vidéo, URL vidéo ou opération de conversion ne passe par le VPS.**
-- Nouvelle extension `extensions/devgit-video/` installable depuis DevGit Store : bouton MP4/MP3 sur YouTube/Shorts, sélecteur de résolution / débit audio, enregistrement Windows.
-- Le moteur yt-dlp + FFmpeg s'exécute **uniquement sur le PC Windows de l'utilisateur**, dans le processus local DevGitBrowser. Les exécutables officiels sont téléchargés et vérifiés à la compilation de l'installateur, et fournis avec le navigateur.
-- Confirmation native du chemin de sauvegarde, vérification stricte des identifiants YouTube, validation du format et de la qualité, sans commande shell arbitraire. Installation de la version 1.9.1 nécessaire avant d'utiliser l'extension depuis la boutique.
-- Limites : disponibilité des vidéos dépend de YouTube et des droits d'utilisation ; aucune conversion sans consentement de l'utilisateur. La qualité de réencodage MP3 n'améliore pas celle de la source.
-
-## 1.9.0 — DevGit Store : boutique d'extensions hébergée sur le serveur DevGit
-
-### Nouveautés
-- **Extensions disponibles** (onglet Extensions) : un catalogue d'extensions est hébergé sur le serveur DevGit (VPS), avec recherche, installation et désinstallation en un clic.
-  - Les autorisations demandées par l'extension sont affichées avant l'installation.
-  - Les mises à jour sont automatiques, au démarrage puis toutes les 6 h.
-- **Sécurité** : la connexion au serveur est épinglée (certificat vérifié par empreinte). Chaque paquet est contrôlé avant l'installation : empreinte SHA-256, chemins de fichiers sûrs (aucun fichier ne peut s'écrire hors du dossier de l'extension), manifest valide. Les extensions n'ont pas accès aux fichiers locaux.
-- **Panneau admin → Boutique d'extensions** : on publie une extension en choisissant son dossier. Pour une nouvelle version, il suffit de republier. Le panneau affiche le nombre d'installations par extension et permet de retirer une extension.
-- Serveur DevGit : nouvelles routes `/v1/store/*`. Pour les ajouter, relancer le script d'installation, qui conserve le jeton et le certificat.
-
-## 1.8.0 — Statistiques mondiales, météo illustrée, horloge dans la barre d'onglets
-
-### Nouveautés
-- **Serveur de statistiques** (`server/stats/`) à installer sur un VPS en une commande, avec HTTPS automatique (Caddy) et sans dépendance.
-- **Statistiques anonymes** : une bannière demande l'accord une seule fois. Le réglage est modifiable dans Paramètres → Confidentialité. Si l'utilisateur refuse, rien n'est envoyé et l'identifiant aléatoire est effacé.
-- **Panneau admin « Utilisateurs dans le monde »** :
-  - utilisateurs actifs (jour, 7 j, 30 j), total et nouveaux ;
-  - heures passées et trafic (pages ouvertes) ;
-  - classement par pays avec drapeaux ;
-  - versions utilisées ;
-  - graphique sur 30 jours ;
-  - satisfaction (note moyenne et répartition).
-  - Le jeton du serveur est stocké chiffré.
-- **Note du navigateur** (1 à 5 ★) dans À propos.
-- **Météo illustrée** : petites images animées (soleil, lune, éclaircies, nuages, brouillard, bruine, pluie, averses, neige, orage).
-- **Horloge et météo** déplacées tout en haut à droite, au niveau des onglets.
-- **Brillance du logo** : un reflet lumineux passe de gauche à droite (désactivé si Windows demande moins d'animations).
-
-## 1.7.0 — Horloge, météo, PiP au survol des vidéos, panneau admin
-
-### Nouveautés
-- **Horloge numérique** en haut à droite (heure locale de l'ordinateur, date complète au survol). Désactivable dans Paramètres → Général.
-- **Température extérieure** à côté de l'horloge : choisis ta ville dans Paramètres → Général. La source est gratuite et sans clé (Open-Meteo), avec mise à jour toutes les 20 minutes.
-- **Picture-in-Picture au survol des vidéos** : un bouton semi-transparent apparaît en haut à droite de la vidéo sous le pointeur. Le bouton fixe de la barre d'outils et l'entrée du menu ☰ ont été retirés. Un bouton **Télécharger** s'ajoute quand la vidéo est un fichier direct (mp4, webm…). Le bouton est isolé de la page (Shadow DOM fermé, monde isolé).
-- **Panneau admin caché** : taper `%AdminDBG%` dans la barre d'adresse.
-  - L'accès demande une clé `DGB-XXXX-XXXX-XXXX-XXXX` à chaque ouverture. Seule son empreinte scrypt est stockée. Les essais sont verrouillés après 5 erreurs, avec une pause qui s'allonge.
-  - Si la clé est perdue, les 3 mots de sécurité, dans l'ordre, génèrent une nouvelle clé. L'ancienne cesse alors de fonctionner.
-  - Le panneau affiche les installations, les navigateurs actifs (vérifications de mise à jour par jour), l'adoption par version, les mises à jour, et les étoiles, forks et signalements GitHub. Aucune donnée n'est collectée sur les utilisateurs.
-
-## 1.6.0 — Nouveau logo DGB et mode caché DGBx
-
-### Nouveautés
-- **Nouveau logo DGB** pour l'application (icône de l'exe, barre des tâches) et pour l'interface.
-- **Mode caché DGBx** : une commande secrète dans la barre d'adresse ouvre une interface sombre magenta et néon, avec rangées de plateformes adultes connues (gratuites et freemium) façon catalogue vidéo, recherche, catégories, favoris ♥ et « Reprendre ».
-  - Confirmation de majorité obligatoire à la première entrée, code d'accès facultatif (4 à 8 chiffres, haché avec scrypt, blocage 60 s après 5 erreurs).
-  - Navigation privée dans ce mode : rien dans l'historique, la restauration de session ni les onglets fermés récemment. Les onglets du mode se ferment quand on clique sur « Quitter DGBx ».
-  - La commande n'est jamais envoyée au moteur de recherche.
-
-## 1.5.1 — MatchPulse : nouvelle source fiable pour le direct
-
-### MatchPulse 0.6.0
-- **Cause du problème** : SofaScore refuse les requêtes qui ne proviennent pas de son propre site ; aucun match n'était trouvé, et l'ancien secours ESPN ne couvrait qu'une vingtaine de championnats.
-- **Nouvelle source principale : ESPN « toutes compétitions »** (gratuit, sans clé, sans compte) : le programme complet du jour en une seule requête (plus de 200 matchs un samedi), avec les dates voisines fusionnées pour les matchs du soir.
-- Direct toutes les 30 s : buts, pénaltys marqués ou manqués, cartons, **fautes, corners, tirs cadrés**, via le détail officiel de chaque match.
-- Probabilité avant validation calculée avec les cotes moyennes publiées par ESPN (DraftKings) et la forme des 5 derniers matchs.
-- Rapprochement ticket → match amélioré (noms courts comme « PSG », abréviations).
-- Bouton **« Tester la source »** : indique si ESPN répond, le nombre de matchs du jour et les compétitions disponibles.
-- API-Football reste disponible avec une clé personnelle.
-
-## 1.5.0 — VPN gratuit, coffre à mots de passe, radio, mode gaming, thèmes
-
-### Nouveautés
-- **VPN DevGit gratuit** (bouton 🌐) : le trafic du navigateur passe par le réseau chiffré Tor (adresse IP masquée, sans compte ni limite). Choix du pays de sortie (France, Pays-Bas, Suisse, États-Unis, Japon…) pour accéder aux contenus bloqués, « Nouvelle adresse IP », vérification en un clic. Fuites WebRTC bloquées pendant la connexion. Le composant Tor officiel est téléchargé par la CI et vérifié (signature GPG de Tor Browser + SHA-256).
-- **Coffre à mots de passe** local : AES-256-GCM, clé dérivée du mot de passe maître (scrypt), fichier lié en plus au compte Windows (DPAPI). Proposition d'enregistrement à la connexion, remplissage sur demande (clé 🔑 dans la barre d'adresse), générateur, audit des mots de passe faibles ou réutilisés, copie effacée du presse-papiers après 30 s, verrouillage automatique (15 min, veille, verrouillage de Windows), protection contre les essais répétés.
-- **Lecteur radio** (bouton 📻) : mini fenêtre avec des dizaines de milliers de stations (annuaire libre radio-browser.info), tri par pays, genre, popularité, recherche, favoris et stations récentes. La musique continue quand la fenêtre est fermée (indicateur ♪ dans la barre d'état).
-- **Mode gaming** et **gestionnaire de tâches** (Maj+Échap) : mémoire et processeur par onglet, mise en veille des onglets inactifs (processus libéré), priorité du navigateur abaissée pendant les parties. Mode Éco : onglets inactifs en veille après 10 min. Les onglets restaurés au démarrage sont chargés à la demande.
-- **7 thèmes de couleurs** (Néon, Océan, Émeraude, Rubis, Solaire, Graphite, Clair), modifiables à tout moment (menu ☰ → Thème ou Paramètres).
-- **Message de bienvenue** au premier lancement : thème, mot de passe maître, moteur de recherche.
-- Signature « By CodexHempreur » dans la même police que la marque en bas à gauche.
-
-### MatchPulse 0.5.0
-- **Ticket en préparation** : les sélections du panier sont lues avant la validation et une **probabilité de réussite estimée** s'affiche pour chaque sélection et pour le combiné (cotes du marché SofaScore sans marge, forme des 5 derniers matchs, repli sur la cote du ticket), avec la valeur par rapport à la cote proposée. Résultat 1N2, double chance, les deux équipes marquent, plus/moins de buts. Estimation statistique, jamais une garantie.
-
-### Sécurité (audit 1.5)
-- Protection **anti-hameçonnage / anti-malware** avant l'ouverture des pages (listes publiques mises à jour chaque jour, vérification locale).
-- **DNS sécurisé (DNS over HTTPS)** : Cloudflare, Quad9, AdGuard, Google ou Mullvad.
-- Page dédiée en cas de plantage d'un onglet, dialogue « page qui ne répond pas », alerte en cas de redémarrage du processus graphique, journal local des erreurs (jetons masqués), outils de réparation (cache, filtres, réglages).
-
-### Corrections
-- Les messages de la barre d'état étaient masqués par une ancienne règle CSS.
-- Vérification des mises à jour 5 secondes après le lancement.
-
-## 1.4.0 — Historique, favoris, onglets détachables, PiP, mises à jour automatiques
-
-### Nouveautés
-- **Historique de navigation** local (5 000 pages, recherche, suppression par page ou par période, Ctrl+H) et **suggestions** dans la barre d'adresse (favoris puis pages les plus visitées).
-- **Favoris** : bouton ☆ dans la barre d'adresse (Ctrl+D), barre de favoris (Ctrl+Maj+B), gestion complète (renommer, réordonner, supprimer, ouvrir en onglet/fenêtre), accès rapide sur la page d'accueil.
-- **Onglets détachables** : glisser un onglet hors de la fenêtre crée une nouvelle fenêtre ; le glisser sur une autre fenêtre le rattache ; réordonnancement par glisser-déposer. Menu clic droit des onglets (dupliquer, couper le son, déplacer vers une fenêtre, fermer les autres, rouvrir l'onglet fermé Ctrl+Maj+T).
-- **Picture-in-Picture** : bouton dédié et clic droit sur une vidéo ; la vidéo reste au-dessus des autres fenêtres (y compris dans les iframes).
-- **Mises à jour automatiques** : chaque version poussée sur `main` est publiée en release GitHub ; le navigateur la télécharge en arrière-plan et propose de redémarrer pour l'installer. Les onglets sont restaurés après la mise à jour.
-- **À propos** : version, Chromium, Electron, système, extensions, état de DevGitShield, vérification manuelle des mises à jour, copie des informations de diagnostic.
-- Restauration de la session (fenêtres et onglets), menu ☰ natif, menu contextuel des pages (ouvrir un lien dans un nouvel onglet, copier, enregistrer l'image, rechercher la sélection, inspecter…), téléchargements suivis avec progression, choix du moteur de recherche, indicateur et coupure du son par onglet, aperçu du lien survolé dans la barre d'état.
-
-### DevGitShield (YouTube / Twitch)
-- Les scriptlets uBlock Origin (`##+js`) sont désormais injectés **avant** les scripts de la page via un preload de session : auparavant ils arrivaient trop tard, d'où les publicités YouTube.
-- Protection dédiée YouTube : suppression de `adPlacements` / `playerAds` / `adSlots` des réponses du lecteur, filet de sécurité qui coupe et saute une publicité qui démarrerait malgré tout, masquage des encarts et de la fenêtre anti-bloqueur.
-- Protection dédiée Twitch : interception des playlists HLS du lecteur (Worker), demande d'un flux sans publicité intégrée, sinon retrait des segments publicitaires.
-- Chargement tolérant des listes : une liste indisponible ne fait plus retomber le bloqueur sur les 32 règles de secours. Miroirs Ghostery, listes uBlock annuelles 2020–2026, Peter Lowe, cookies/nuisances. Les pages HTML (portails captifs) ne sont plus acceptées comme listes.
-- Pause de la protection site par site, compteur de requêtes bloquées par onglet sur le bouton bouclier.
-
-### Sécurité
-- Mode **HTTPS prioritaire** (page d'avertissement avec repli HTTP explicite), page d'erreur claire pour les certificats invalides.
-- User-Agent sans « Electron » (connexion Google, YouTube, Twitch), signal **Global Privacy Control / DNT**, protection de l'adresse IP locale (WebRTC).
-- Avertissement avant le téléchargement de fichiers exécutables (.exe, .msi, .ps1, .js, .lnk…), confirmation avant l'ouverture d'une application externe (mailto:, etc.).
-- Fusibles Electron de l'exécutable Windows : `RunAsNode`, `NODE_OPTIONS` et `--inspect` désactivés, cookies chiffrés sur disque, chargement de l'application uniquement depuis `app.asar`.
-- Anti « popunder » : les liens vers un nouvel onglet sont limités en rafale et filtrés par DevGitShield.
-
-### MatchPulse 0.4.0
-- Nouvelle source **gratuite et sans clé SofaScore** (toutes compétitions, ~30 s) : buts, pénaltys (marqués/manqués), cartons (dont second jaune), VAR, **fautes et corners**. Bascule automatique sur ESPN si SofaScore ne répond pas ; API-Football reste disponible.
-- **Détection automatique des tickets validés** sur Betclic, Winamax et Unibet (« pari enregistré / validé / placé… ») et bouton « Suivre les matchs de mon ticket » qui retrouve automatiquement chaque rencontre (alias PSG, OM, OL…).
-- Le suivi tourne dans le module d'arrière-plan : il continue quand tu changes de page, jusqu'à 12 matchs, avec **notifications Windows** et choix des types d'alertes.
-
-### Corrections
-- Les liens `target="_blank"` étaient bloqués comme des pop-ups : ils s'ouvrent maintenant dans un nouvel onglet.
-- Les notifications de l'application étaient cachées derrière la page web : elles s'affichent dans la barre d'état.
-- « Occurrence suivante » de la recherche dans la page restait bloquée sur le premier résultat ; compteur 2/3 ajouté.
-- Le plein écran vidéo (YouTube…) occupe désormais toute la fenêtre.
-- Raccourcis clavier actifs aussi quand le focus est dans l'interface (Ctrl+T/W/L/Tab/1-9, F5, F11, F12, Alt+←/→).
-- Un événement du moteur IE pouvait faire naviguer un autre onglet que le sien.
-- Fermer le dernier onglet d'une fenêtre secondaire ferme la fenêtre.
-
-### Interface
-- En-tête compact et redessiné (icônes vectorielles), boutons redondants retirés (Détacher, Réseau, GitHub, recherche, DevTools : accessibles depuis le menu ☰ ou au clavier). Le bouton IE n'apparaît que sur les pages anciennes.
-- Paramètres réorganisés (Général, Confidentialité et sécurité, Performances, Téléchargements, Réseau, Outils avancés).
-- Signature « By CodexHempreur ».
-
-## 1.3.9 — DevGitShield : protection publicitaire native
-
-- Intégration du moteur de filtres Ghostery pour Electron (compatible syntaxes uBlock Origin et EasyList) à la session Chromium persistante ; aucune extension à ajouter manuellement.
-- Mode maximal activé par défaut : sources EasyList, EasyPrivacy, listes uBlock pour publicités, confidentialité, nuisances, corrections, risques et compatibilité, ainsi qu'EasyList France. Téléchargement via HTTPS et mises à jour quotidiennes.
-- Cache local des listes pour le démarrage hors ligne ; ensemble minimal de filtres préinstallé en cas d'absence de cache ou de réseau.
-- Interrupteur d'activation globale et actualisation des filtres dans Sécurité, sans changer les autorisations caméra et microphone.
-- Compatibilité conservée avec MatchPulse et les pop-ups Chromium ; l'hôte MSHTML (IE11) reste hors du périmètre des interceptions réseau d'Electron.
-- Les annonces intégrées à des médias ou diffusées directement depuis le site ne peuvent pas toutes être détectées ; une protection à 100 % n'est pas garantie.
-- Moteur tiers sous licence MPL-2.0 ; les listes de filtres conservent leurs licences et leurs auteurs respectifs.
-
-## 1.3.8 — MatchPulse 0.3.0 : lecture native du DOM et alertes du bookmaker
-
-- Lecture du ticket Betclic à partir de la structure HTML vivante (`textContent`, `innerText`, noeuds de cotes), sans capture d’écran ni API de compte.
-- Association de chaque cote à son marché et sa sélection, sans emprunter celle d’un pari voisin ; exclusion des anciennes cotes barrées.
-- Les sélections et les cotes visibles sont présentées avec leur provenance et une mise en garde sur leur statut (les cotes affichées peuvent différer de celles validées).
-- Surveillance locale toutes les 15 secondes des scores du ticket et des annotations explicites de cartons, pénaltys et fautes déjà présentes dans le DOM de Betclic. Alerte uniquement après une modification observée.
-- ESPN public et API-Football restent disponibles pour les compétitions et événements non couverts par la page.
-- Ajout de tests sur la lecture d’éléments HTML, les anciennes cotes barrées, les scores et les limites d’attribution.
-
-# DevGitBrowser 1.3.7 — MatchPulse 0.2.0
-
-- Réparation de la lecture Betclic « En cours / Combiné » : extraction des sélections sans imposer de cote.
-- Rapport explicite des sélections détectées et des cotes absentes, avec saisie optionnelle de la cote du ticket.
-- Source publique ESPN sans clé en mode expérimental pour scores, buts, cartons et pénaltys, selon couverture.
-- API-Football facultative maintenue pour les statistiques de fautes quand disponibles.
-- Aucun accès aux comptes ou au paiement.
-
----
-
-# DevGitBrowser — historique
-
-## 1.3.6 — MatchPulse inclus
-
-- MatchPulse 0.1.0 livré avec le navigateur et chargé automatiquement dans la session Chromium, sans GitHub.
-- Ajout du dossier officiel `extensions/matchpulse` au dépôt public et à l'installateur EXE.
-- Le gestionnaire distingue les extensions **INCLUSE** et **GitHub privé**.
-- Déconnexion GitHub sans retirer MatchPulse ; dépôt GitHub privé ne peut pas remplacer l'extension incluse.
-- Tickets et clés API conservés uniquement en mémoire par l'extension. Aucune automatisation de pari.
-
-## 1.3.5 — CamfrogWeb ActiveX / salon historique (Windows)
-
-- Détection ciblée de `monvisiocam.com` et de ses sous-domaines : IE11 s'exécute avec un hôte **32 bits** pour pouvoir charger d'anciens contrôles ActiveX 32 bits (contrairement au navigateur Electron 64 bits).
-- Le moteur IE64 reste sélectionné pour les autres sites anciens ; les liens et fenêtres enfant d'une session IE restent dans le moteur et la même architecture.
-- Ajout d'un diagnostic local, en lecture seule, pour les identifiants historiques CamfrogWeb du registre COM, sans installer, exécuter ou enregistrer automatiquement de contrôles non vérifiés. Il est affiché dans **Sécurité → Mode IE**.
-- Correction Win32 des appels de changement de propriétaire de fenêtre et de la conversion d'un handle 64 bits lors de l'exécution de l'hôte 32 bits.
-- Compilation de deux exécutables auxiliaires (`DevGitLegacyHost.exe` x64 et `DevGitLegacyHost32.exe` x86) ; tests natifs Windows des deux architectures et d'une fenêtre enfant IE.
-- Ne désactive pas les protections Windows ActiveX, ne modifie pas les zones de sécurité et ne garantit pas qu'un plugin obsolète fonctionne sur tous les systèmes.
-
-## 1.3.4 — Fenêtres IE persistantes et surimpression Win32
-
-- Remplacement du reparentage Win32 `SetParent` par une surface IE11 possédée, sans bordure, positionnée sur l'onglet : amélioration du rendu au-dessus de la composition Chromium.
-- Les navigations HTTP(S) restent dans une session IE11, y compris après changement de domaine ; l'autorisation automatique au prochain lancement reste limitée au domaine initialement accepté.
-- Capture de `NewWindow3` / `ppDisp` : fenêtres pop-up IE réelles pour les liens `target=_blank` et `window.open`, qui ne basculent pas vers Chromium. Les descendants conservent le moteur IE11.
-- Limites anti-abus des fenêtres IE (12 simultanées et 18/minute), rejet des protocoles non HTTP(S) et retour Chromium pour les domaines WebRTC incompatibles.
-- Nouveau test d'intégration Windows : page HTML locale + fenêtre enfant IE ouverte depuis cette page.
-
-## 1.3.2 — Résolution du mode IE7 implicite et repli vidéo moderne
-
-- Hôte MSHTML Windows dédié, sans console visible, avec mode IE11 forcé pour cet exécutable uniquement (clé HKCU per-user `FEATURE_BROWSER_EMULATION=11001`).
-- Vérification effective de `document.documentMode` avant de confirmer IE ✓ ; repli Chromium si le contrôle est obsolète ou si une page vidéo nécessite WebRTC.
-- MonVisio et BabelVisio restent en moteur moderne (le rendu IE11 ne prend pas en charge les webcams WebRTC).
-- Test de chargement Windows renforcé : exécutable dédié et mode IE11 requis avant publication.
-
-# Version 1.3.1 — Correctif de visibilité du moteur IE (2026-11-06)
-
-- Correctif de l’empilement natif Windows : la fenêtre enfant MSHTML est replacée au-dessus du rendu Chromium et le style WS_CHILD est fixé avant SetParent.
-- Respect des coordonnées physiques Windows et du facteur d’échelle de l’écran.
-- Le bouton IE indique désormais le chargement en cours et ne confirme le succès qu’après le chargement d’un document MSHTML.
-- Une erreur ou un délai excessif rétablit Chromium et affiche l’explication, au lieu de laisser une page invisible.
-- Test d’intégration Windows : attachement à une vraie fenêtre native et chargement d’une page HTML locale.
-- Le moteur IE demeure optionnel, après consentement par site, et reste exclu pour BabelVisio/WebRTC.
-
-# Version 1.3.0 — Intégration du mode historique à l’onglet
-
-- Le bouton **IE** bascule désormais le **site actuel dans le même onglet**, en intégrant un contrôle Windows `WebBrowser` (MSHTML) au moyen d’un processus local placé sous la fenêtre du navigateur. Il n’ouvre plus une seconde fenêtre avec titre et barre d’adresse.
-- La première activation d’un site se fait volontairement par un clic sur **IE**, puis le choix est conservé **par origine** dans les préférences de l’utilisateur ; ce site bascule automatiquement en mode ancien lors des prochaines visites. Le bouton IE permet de revenir à Chromium et de retirer l’autorisation automatique.
-- Protection : aucune bascule silencieuse vers un moteur obsolète pour les sites inconnus ; la détection ActiveX/VBScript n’est qu’un indice. BabelVisio reste en Chromium. Les liens vers d’autres origines reviennent en navigation moderne.
-- Les onglets, l’accueil, le zoom et les panneaux Chromium restent inchangés. **Limites :** le moteur IE n’a pas les mêmes cookies, permissions, outils réseau et capacités média que Chromium ; il repose sur des composants Windows non pris en charge dans toutes les configurations. La réalisation d’un composant natif au moyen de PowerShell/.NET ne garantit pas la prise en charge sur tous les postes.
-- En cas d’échec de l’intégration Windows, repli sur Chromium et message d’erreur explicite.
-
-## 1.2.1 — Affichage et ergonomie
-
-- Correction du double défilement vertical dans l’interface d’accueil et les panneaux (page racine non défilante).
-- Suppression effective du menu latéral gauche et de ses écouteurs ; navigation conservée en haut et récupération de la largeur dans les pages web.
-- Signature de pied de page revue : plus petite, plus élégante et en style calligraphique, libellée « By Hempreur ». Tests adaptés et nouvelles vérifications d’interface.
-
-# Historique DevGitBrowser
-
-## 1.1.0 — Correctif webcam et paramètres (6 novembre 2026)
-
-### Corrigé
-
-- **BabelVisio.com** et ses sous-domaines HTTPS peuvent ouvrir des fenêtres de webcam avec `window.open()`, y compris les fenêtres `about:blank` écrites ensuite par JavaScript.
-- Les fenêtres enfant conservent `window.opener` et les relations DOM nécessaires aux applications de visioconférence. Elles peuvent elles-mêmes ouvrir une fenêtre, sous les mêmes limites et règles de sécurité.
-- La limite précédente de trois pop-ups/minute devient **24/minute au maximum pour BabelVisio**, et **8/minute pour les sites explicitement autorisés**, avec **24 fenêtres ouvertes simultanément au maximum par origine** et **64 globalement**.
-- L'utilisateur peut révoquer explicitement l'autorisation automatique de BabelVisio dans **Sécurité → Fenêtres pop-up → Toujours bloquer**. Les anciennes listes d'autorisation de la 1.0.0 sont migrées.
-- Les URL dangereuses (`javascript:`, `data:`, `file:`, `chrome:`) sont refusées pour les pop-ups ; les documents `blob:` ne sont admis que s'ils viennent de la même origine.
-
-### Ajouté
-
-- Commandes individuelles **Caméra / Microphone / Notifications / Géolocalisation** par origine, et choix **Demander / Autoriser / Bloquer**.
-- Demande de permission pour les périphériques audio et vidéo ; contrôle séparé du partage d'écran, qui demande la sélection d'une source au moment de chaque utilisation (aucun partage silencieux).
-- **Paramètres** : mode équilibré ou économique, accélération GPU (décision appliquée au prochain démarrage), zoom par site, recherche dans la page, impression, dossier de téléchargement et vidage du cache/cookies.
-- Téléchargements avec fenêtre **Enregistrer sous** au lieu de lancer un exécutable automatiquement.
-- Ralentissement natif des onglets en arrière-plan et réduction des synchronisations GitHub de 90 s à 5 min en mode économique. Aucun drapeau de désactivation GPU imposé par défaut pour protéger les performances vidéo.
-- Tests automatisés de politique pop-up et rétrocompatibilité du panneau de sécurité.
-
-### Limites et vérification
-
-- Le site BabelVisio n'était pas consultable depuis l'environnement de développement. La compatibilité réelle avec l'intégralité de son code et avec chaque webcam doit être validée manuellement sur Windows.
-- Les modifications ont été vérifiées par tests de logique et compilation du projet, mais cela ne remplace pas un test end-to-end des fenêtres et périphériques Windows.
-- La consommation CPU/GPU varie selon les appels vidéo, le pilote graphique, les extensions chargées et le nombre d'onglets : une consommation quasi nulle n'est pas réaliste en visioconférence.
-- L'installateur NSIS Windows n'est pas signé avec un certificat Authenticode, les métadonnées CodexHempreur INC ne constituent pas une signature Windows vérifiée.
-
-## 1.2.0 — Neon / Analyse LIVE / IE Legacy (6 novembre 2026)
-
-- **Interface néon inspirée du visuel approuvé** : barre latérale, accueil cyberpunk cyan/violet/magenta, icônes et boutons cohérents, promotion BabelVisio pour discuter, utiliser les webcams et explorer les mini-jeux (sans listes de jeux non vérifiées).
-- **Icône Windows sans fond** : le symbole néon remplace le carré sombre ; PNG et ICO ont des pixels réellement transparents dans les quatre coins, sur le bureau, les raccourcis et l'installeur.
-- **Analyse réseau indépendante** : fenêtre Windows dédiée, protocole DevTools Network attaché seulement pendant l'inspection de l'onglet actif, requêtes/réponses, statuts, durées, en-têtes, aperçu de réponse explicitement demandé, données sensibles filtrées, aucune journalisation sur disque. WebSockets : métadonnées de connexion, pas le trafic privé des messages.
-- **Compatibilité IE historique réelle et distincte** : détection non intrusive de marqueurs anciens (ActiveX/VBScript/X-UA-Compatible), et commande *Ouvrir en mode ancien* invoquant le contrôle Windows WebBrowser (MSHTML/Trident) via une fenêtre PowerShell/WinForms sans console. Demande explicite et avertissement de sécurité avant chaque ouverture ; pas d'activation automatique sur les sites Internet.
-- **Caméras Windows au premier plan** : les nouvelles pop-ups natives de BabelVisio restent au premier plan par défaut (niveau flottant), sans désactiver l'isolation et les demandes de permissions. Réglage par site, menu contextuel et raccourci Alt+Maj+P pour épingler/désépingler. Le throttling d'arrière-plan est désactivé pour ces fenêtres vidéo afin de ne pas bloquer la lecture.
-- **Performances** : l'inspecteur réseau n'est actif que fenêtre ouverte, les animations décoratives ont été évitées, le GPU reste actif par défaut (meilleur rendu vidéo). Aucun gain chiffré garanti, dépend des sites et du PC.
-- **Distribution** : un seul installateur Windows x64 NSIS, même profil local et même partition, code éditeur CodexHempreur INC, sans certificat Authenticode.
+## 1.18.4
+- 🛠 Retour depuis la barre des tâches corrigé (page mal redimensionnée ou écran noir).
+- 🛠 Un nouvel onglet n'affiche plus l'adresse de l'onglet précédent.
+
+## 1.18.3
+- 🖥 Nouvelle fenêtre de partage d'écran, comme dans Chrome : onglets, fenêtres ou écran entier, avec l'option de partager le son.
+
+## 1.18.2
+- 🧭 Le bouton IE est de nouveau toujours disponible à droite de la barre d'adresse.
+
+## 1.18.1
+- 🏠 Nouvelle bannière BabelVisio sur la page d'accueil.
+
+## 1.18.0
+- 🏠 Nouvelle page d'accueil, plus sobre, aux couleurs du thème choisi.
+- 💬 Support en direct : après un signalement de bug pris en charge, une fenêtre de discussion s'ouvre pour échanger avec l'équipe.
+- 🏅 Nouvelle icône pour le bouton des succès.
+
+## 1.17.0
+- 📣 Les messages de l'équipe arrivent instantanément dans les navigateurs ouverts.
+- 🛠 Correctifs de stabilité.
+
+## 1.16.0
+- 🔄 Mises à jour guidées : notification Windows quand une version est prête, onglets toujours rouverts après la mise à jour.
+- 🎁 Le code d'un lien d'invitation est validé tout seul au premier lancement.
+- 🛠 Trois réglages qui se décochaient tout seuls sont corrigés.
+
+## 1.15.1
+- 🛡 DevGitShield plus solide sur les Wi-Fi publics (hôtels, gares, entreprises).
+
+## 1.15.0
+- 🏆 Succès : des dizaines de succès à débloquer, des paliers, des points et des rangs.
+- 📣 Partage du lien d'invitation en un clic (WhatsApp, Discord, Telegram, X…).
+
+## 1.14.0
+- 🌐 Interface disponible en anglais, avec changement immédiat sans redémarrer.
+
+## 1.13.0
+- 🐞 Signaler un bug en un clic, avec la possibilité de voir exactement ce qui est envoyé.
+- 🎁 Parrainage : un code et un lien à partager avec tes amis.
+- 🎮 Statut Discord « Joue à DevGitBrowser » (facultatif).
+
+## 1.12.0
+- 🕵 « Qui me piste ? » : les entreprises qui ont tenté de suivre ta navigation sur chaque site.
+- 👁 Aperçu des liens : Maj + survol pour lire une page sans quitter celle en cours.
+- 🪟 Effets Mica et Acrylic de Windows 11.
+
+## 1.11.0
+- 👋 Assistant de premier lancement en 5 étapes : thème, moteur de recherche, protection, import et coffre.
+- 📥 Import des favoris et de l'historique depuis Chrome, Edge, Brave, Vivaldi, Opera et Firefox, et des mots de passe par fichier CSV.
+- 🔐 Coffre enrichi : vérification des fuites, générateur de mots de passe et fiches de coordonnées chiffrées.
+
+## 1.10.0
+- 🎬 Netflix, Prime Video, Disney+ et Canal+ fonctionnent grâce au lecteur protégé.
+- 🛡 DevGitShield ne casse plus les sites, et peut être mis en pause sur un site en un clic.
+- 🕶 Onglets privés sous VPN, nouveaux thèmes.
+
+## 1.9.0
+- 🧩 DevGit Store : une boutique d'extensions intégrée au navigateur.
+
+## 1.8.0
+- 🌍 Statistiques anonymes (uniquement avec ton accord) et note du navigateur dans À propos.
+- 🌦 Météo illustrée, horloge et météo en haut à droite.
+
+## 1.7.0
+- 🕒 Horloge et température extérieure.
+- 📺 Bouton Picture-in-Picture au survol des vidéos.
+
+## 1.6.0
+- ✨ Nouveau logo DGB.
+
+## 1.5.1
+- ⚽ MatchPulse : nouvelle source gratuite et fiable pour le direct, avec fautes, corners et tirs cadrés.
+
+## 1.5.0
+- 🌐 VPN gratuit (réseau Tor), coffre à mots de passe chiffré, lecteur radio, mode gaming, gestionnaire de tâches et thèmes de couleurs.
+- 🛡 Protection anti-hameçonnage et DNS sécurisé.
+
+## 1.4.0
+- ⭐ Historique, favoris, onglets détachables, Picture-in-Picture et mises à jour automatiques.
+- 🔒 HTTPS prioritaire et avertissement avant le téléchargement de fichiers exécutables.
+
+## 1.3.9
+- 🛡 DevGitShield : bloqueur de publicités et de pisteurs intégré, compatible uBlock Origin et EasyList.
+
+## 1.3.8
+- ⚽ MatchPulse lit les tickets et prévient des événements des matchs suivis.
+
+## 1.3.6
+- ⚽ MatchPulse inclus dans le navigateur.
+
+## 1.3.5
+- 🧭 Mode IE amélioré pour les anciens sites de webcams.
+
+## 1.3.4
+- 🧭 Fenêtres du mode IE plus stables.
+
+## 1.3.2
+- 🧭 Mode IE plus fiable pour les anciens sites, avec repli vers la lecture vidéo moderne.
+
+## 1.2.1
+- 🎨 Affichage et ergonomie améliorés.
+
+## 1.2.0
+- ✨ Thème Néon, analyse en direct et mode IE pour les anciens sites.
+
+## 1.1.0
+- 🛠 Correctifs de la webcam et des paramètres.

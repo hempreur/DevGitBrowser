@@ -44,6 +44,6 @@ test('relève en arrière-plan (Android) : réponse immédiate, messages des 24 
   assert.ok(Date.now()-t0<1000,'pas d’attente');assert.deepEqual(again.messages,[]);
   const s=read('server/stats/server.js');
   assert.match(s,/if \(w\.bg\) return send\(res, 200, body\);/);
-  assert.match(s,/messagesFor\(w\.after, w\.v, w\.cc, w\.bg \? BG_MAX_AGE : LIVE_TTL\)/);
+  assert.match(s,/messagesFor\(w\.after, w\.v, w\.cc, w\.bg \? BG_MAX_AGE : LIVE_TTL, w\.os\)/);
   assert.match(s,/os: v => \(\['win', 'mac', 'linux', 'android'\]\.includes\(v\) \? v : 'other'\)/);
 });

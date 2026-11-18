@@ -111,7 +111,7 @@ class Server(private val ctx: Context) {
         while (running) {
             try {
                 val lock = if (locked) 1 else 0
-                val (code, text) = request("GET", "/v1/live?after=$cursor&lock=$lock&v=${BuildConfig.VERSION_NAME}&cc=$country${chatQuery()}", null, 40_000)
+                val (code, text) = request("GET", "/v1/live?after=$cursor&lock=$lock&v=${BuildConfig.VERSION_NAME}&os=android&cc=$country${chatQuery()}", null, 40_000)
                 if (code != 200) throw IllegalStateException("HTTP $code")
                 apply(JSONObject(text)); fails = 0
             } catch (_: Exception) {
@@ -148,7 +148,8 @@ class Server(private val ctx: Context) {
             }
             o.optJSONArray("retracted")?.let { a -> val ids = (0 until minOf(a.length(), 500)).map { a.optLong(it, -1) }.filter { it >= 0 }; if (ids.isNotEmpty()) main.post { onRetract(ids) } }
         }
-        val l = o.optString("latest")
+        // « latestAndroid » : dernière version Android (« latest » est celle de Windows).
+        val l = o.optString("latestAndroid")
         if (Versions.parse(l) != null && l != latest) { latest = l; main.post { onLatest(l) } }
     }
 
@@ -214,7 +215,7 @@ class Server(private val ctx: Context) {
     /** Relève en arrière-plan (application fermée) : messages des dernières 24 h, tchat et nouvelle version. */
     fun pollBackground(): Triple<List<LiveMessage>, List<SupportView>, String> {
         val after = prefs.msgCursor
-        val (code, text) = request("GET", "/v1/live?after=${if (after > 0) after else -1}&lock=${if (locked) 1 else 0}&v=${BuildConfig.VERSION_NAME}&cc=$country&bg=1${chatQuery()}", null, 20_000)
+        val (code, text) = request("GET", "/v1/live?after=${if (after > 0) after else -1}&lock=${if (locked) 1 else 0}&v=${BuildConfig.VERSION_NAME}&os=android&cc=$country&bg=1${chatQuery()}", null, 20_000)
         if (code != 200) return Triple(emptyList(), emptyList(), "")
         val o = JSONObject(text)
         val msgs = ArrayList<LiveMessage>()
@@ -223,6 +224,6 @@ class Server(private val ctx: Context) {
         }
         prefs.msgCursor = maxOf(after, o.optLong("cursor", after), msgs.maxOfOrNull { it.id } ?: 0)
         o.optJSONObject("lockdown")?.let { l -> val rev = l.optLong("rev"); if (rev >= prefs.lockRev) { prefs.lockRev = rev; prefs.lockdown = JSONObject().put("blocked", l.optBoolean("blocked")).put("message", l.optString("message").take(500)).put("rev", rev).toString() } }
-        return Triple(msgs, parseSupport(o), o.optString("latest"))
+        return Triple(msgs, parseSupport(o), o.optString("latestAndroid"))
     }
 }

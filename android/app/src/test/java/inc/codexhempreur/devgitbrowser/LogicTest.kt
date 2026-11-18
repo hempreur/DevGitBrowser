@@ -111,3 +111,15 @@ class DgbxTest {
         assertFalse(XCatalog.isValidCode("123")); assertFalse(XCatalog.isValidCode("12a4")); assertFalse(XCatalog.isValidCode("123456789"))
     }
 }
+
+class AndroidReleasesTest {
+    private fun rel(tag: String, apk: String?, pre: Boolean = false) = org.json.JSONObject().put("tag_name", tag).put("prerelease", pre).put("html_url", "https://github.com/x")
+        .put("assets", org.json.JSONArray().apply { if (apk != null) put(org.json.JSONObject().put("name", apk).put("browser_download_url", "https://github.com/$apk").put("size", 10)) })
+
+    @Test fun picksNewestAndroidRelease() {
+        val list = org.json.JSONArray().put(rel("v2.2.0", "DevGitBrowser-Android-2.2.0.apk")).put(rel("android-v1.0.2", "DevGitBrowser-Android-1.0.2.apk"))
+            .put(rel("android-v1.0.4", null)).put(rel("android-v1.1.0", "DevGitBrowser-Android-1.1.0.apk", pre = true)).put(rel("android-v1.0.3", "DevGitBrowser-Android-1.0.3.apk"))
+        assertEquals("1.0.3", AndroidReleases.pick(list, "1.0.1")?.version)
+        assertNull(AndroidReleases.pick(list, "1.0.3"))
+    }
+}

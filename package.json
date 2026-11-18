@@ -43,7 +43,6 @@
       "ui/**/*",
       "assets/**/*",
       "!assets/brand-source.png",
-      "!assets/generate-icon.py",
       "legacy/**/*",
       "network/**/*",
       "i18n/**/*",

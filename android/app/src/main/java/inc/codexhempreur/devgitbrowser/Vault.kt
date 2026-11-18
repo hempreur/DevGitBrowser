@@ -88,14 +88,9 @@ class Updater(private val ctx: Context) {
         Thread({
             var err: String? = null; var rel: Release? = null
             try {
-                val o = JSONObject(Net.get("https://api.github.com/repos/hempreur/DevGitBrowser/releases/latest", headers = mapOf("Accept" to "application/vnd.github+json")))
-                val assets = o.optJSONArray("assets") ?: JSONArray()
-                for (i in 0 until assets.length()) {
-                    val a = assets.getJSONObject(i)
-                    val m = Regex("^DevGitBrowser-Android-(\\d+\\.\\d+\\.\\d+)\\.apk$").matchEntire(a.optString("name")) ?: continue
-                    if (Versions.newer(m.groupValues[1], BuildConfig.VERSION_NAME))
-                        rel = Release(m.groupValues[1], a.getString("browser_download_url"), a.optLong("size"), o.optString("html_url"))
-                }
+                // Les versions Android ont leurs propres releases (tag « android-v1.0.1 ») : on prend la plus récente.
+                val list = JSONArray(Net.get("https://api.github.com/repos/hempreur/DevGitBrowser/releases?per_page=30", headers = mapOf("Accept" to "application/vnd.github+json")))
+                rel = AndroidReleases.pick(list, BuildConfig.VERSION_NAME)
             } catch (e: Exception) { err = e.message ?: "erreur" }
             available = rel; checking = false
             main.post { onResult(rel, err) }
@@ -144,5 +139,25 @@ class InstallReceiver : BroadcastReceiver() {
                 else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
             confirm?.let { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(it) }
         }
+    }
+}
+
+/** Choisit, parmi les releases GitHub, la version Android la plus récente plus récente que [current]. */
+object AndroidReleases {
+    private val TAG = Regex("^android-v(\\d+\\.\\d+\\.\\d+)$")
+    fun pick(list: JSONArray, current: String): Release? {
+        var best: Release? = null
+        for (i in 0 until list.length()) {
+            val o = list.optJSONObject(i) ?: continue
+            if (o.optBoolean("draft") || o.optBoolean("prerelease")) continue
+            val v = TAG.matchEntire(o.optString("tag_name"))?.groupValues?.get(1) ?: continue
+            if (!Versions.newer(v, current) || (best != null && !Versions.newer(v, best.version))) continue
+            val assets = o.optJSONArray("assets") ?: continue
+            for (j in 0 until assets.length()) {
+                val a = assets.optJSONObject(j) ?: continue
+                if (a.optString("name") == "DevGitBrowser-Android-$v.apk") best = Release(v, a.optString("browser_download_url"), a.optLong("size"), o.optString("html_url"))
+            }
+        }
+        return best
     }
 }

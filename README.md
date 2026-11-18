@@ -1,165 +1,149 @@
 <div align="center">
 
-<img src="assets/logo-mark.png" alt="DevGitBrowser" width="120">
+<img src="assets/logo-mark.png" alt="DevGitBrowser" width="130">
 
 # DevGitBrowser
 
-**Le web, en mode nouvelle génération.**
+### Le web, en mode nouvelle génération.
 
-Le navigateur Windows tout-en-un de **CodexHempreur INC** : bloqueur de publicités, VPN gratuit, coffre à mots de passe chiffré et outils de développement, dans un seul logiciel gratuit, sans compte ni abonnement.
+Un navigateur **gratuit**, **rapide** et **respectueux de ta vie privée**, imaginé par **CodexHempreur INC**.<br>
+Bloqueur de publicités, VPN, coffre à mots de passe : tout est déjà inclus, sans abonnement et sans compte.
 
-[![Dernière version](https://img.shields.io/github/v/release/hempreur/DevGitBrowser?label=version&color=7a5cff&style=for-the-badge)](https://github.com/hempreur/DevGitBrowser/releases/latest)
-[![Téléchargements](https://img.shields.io/github/downloads/hempreur/DevGitBrowser/total?label=t%C3%A9l%C3%A9chargements&color=50d9fa&style=for-the-badge)](https://github.com/hempreur/DevGitBrowser/releases)
-[![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011%20·%2064%20bits-0078d4?style=for-the-badge&logo=windows)](https://github.com/hempreur/DevGitBrowser/releases/latest)
+[![Windows](https://img.shields.io/github/v/release/hempreur/DevGitBrowser?label=Windows&logo=windows&color=7a5cff&style=for-the-badge)](https://github.com/hempreur/DevGitBrowser/releases/latest)
+[![Android](https://img.shields.io/github/v/release/hempreur/DevGitBrowser?filter=android-v*&label=Android&logo=android&logoColor=white&color=3ddc84&style=for-the-badge)](https://hempreur.github.io/DevGitBrowser/#android)
 [![Discord](https://img.shields.io/badge/Discord-rejoindre-5865f2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/hmQZuDXBvu)
 
-### [⬇️ Télécharger pour Windows](https://github.com/hempreur/DevGitBrowser/releases/latest) · [📱 Android (Bêta)](#-sur-android) · [🌐 Site officiel](https://hempreur.github.io/DevGitBrowser/) · [📋 Nouveautés](CHANGELOG.md)
+<br>
 
-<img src="docs/screenshots/accueil.jpg" alt="Page d'accueil de DevGitBrowser" width="880">
+<a href="https://github.com/hempreur/DevGitBrowser/releases/latest"><img src="https://img.shields.io/badge/⬇%20Télécharger%20pour-Windows%2010%20%2F%2011-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger pour Windows" height="44"></a>
+&nbsp;
+<a href="https://hempreur.github.io/DevGitBrowser/#android"><img src="https://img.shields.io/badge/⬇%20Télécharger%20pour-Android%208%2B-3ddc84?style=for-the-badge&logo=android&logoColor=white" alt="Télécharger pour Android" height="44"></a>
+
+**[🌐 Site officiel](https://hempreur.github.io/DevGitBrowser/)** · **[📋 Nouveautés Windows](CHANGELOG.md)** · **[📱 Nouveautés Android](android/CHANGELOG.md)**
+
+<br>
+
+<img src="docs/screenshots/accueil.jpg" alt="Page d'accueil de DevGitBrowser" width="900">
 
 </div>
 
----
+<br>
 
-
-## 📱 Sur Android
-
-DevGitBrowser existe aussi sur **Android 8 et plus récent** (version Bêta) : DevGitShield, anti-hameçonnage, onglets privés, coffre à mots de passe, mode Tor, MatchPulse, succès et parrainage.
-
-Télécharge `DevGitBrowser-Android-x.y.z.apk` dans la [dernière release](https://github.com/hempreur/DevGitBrowser/releases/latest), puis ouvre-le sur ton téléphone. Android te demandera d'autoriser l'installation depuis ton navigateur ou ton gestionnaire de fichiers. Ensuite, l'application se met à jour toute seule.
-
-## ✨ Ce qui le rend différent
-
-| Fonction | En bref |
-|---|---|
-| 🛡️ **DevGitShield** | Bloqueur de publicités et de pisteurs intégré, compatible avec les listes uBlock Origin et EasyList, mises à jour chaque jour. Pause possible site par site. |
-| 🕵️ **Qui me piste ?** | Pour chaque page, la liste des entreprises (Google, Meta, Amazon, TikTok, Criteo…) qui ont tenté de suivre ta navigation, avec leur rôle. |
-| 🌍 **VPN gratuit** | Réseau chiffré Tor, choix du pays de sortie, connexion au démarrage si tu le souhaites, et **onglets privés sous VPN** (clic droit sur ＋). |
-| 🔐 **Coffre à mots de passe** | Chiffré en AES-256 sur ton PC. Générateur, vérification des fuites (Have I Been Pwned, sans jamais envoyer tes mots de passe) et remplissage automatique de tes coordonnées. |
-| 📥 **Import en un clic** | Favoris et historique depuis Chrome, Edge, Brave, Opera, Vivaldi et Firefox ; mots de passe via l'export CSV officiel. |
-| 👁️ **Aperçu des liens** | Maj + survol d'un lien : la page s'ouvre dans une petite fenêtre, sans quitter la page en cours. |
-| 🎬 **Lecteur protégé** | Netflix, Disney+, Prime Video et les autres plateformes s'ouvrent dans un lecteur certifié (Widevine). |
-| 🏆 **Succès et parrainage** | 46 succès à débloquer, des rangs, et un lien d'invitation à partager en un clic (WhatsApp, Discord, Telegram, X…). |
-| 🎨 **Personnalisable** | 7 thèmes, effet Mica/Acrylic de Windows 11, horloge et météo, interface **en français ou en anglais**. |
-| 📻 **Et aussi** | Radios du monde entier, Picture-in-Picture, mode gaming, gestionnaire de tâches, onglets détachables, analyse réseau, statut Discord, boutique d'extensions DevGit Store. |
-
-## 📸 Aperçu
+## ✨ Pourquoi DevGitBrowser ?
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/assistant.jpg" alt="Assistant de premier lancement"><br><sub><b>Assistant de bienvenue</b> : thème, moteur de recherche, protection, import et coffre en 5 étapes.</sub></td>
-<td width="50%"><img src="docs/screenshots/qui-me-piste.jpg" alt="Rapport Qui me piste"><br><sub><b>Qui me piste ?</b> : les pisteurs bloqués sur la page, entreprise par entreprise.</sub></td>
+<td width="33%" valign="top">
+
+### 🛡️ Zéro pub, zéro pistage
+**DevGitShield** bloque les publicités, les pisteurs et les sites dangereux, dès l'installation. Et « **Qui me piste ?** » te montre qui essayait de te suivre.
+
+</td>
+<td width="33%" valign="top">
+
+### 🌍 VPN gratuit
+Un clic et ta navigation passe par le réseau **Tor** : les sites ne voient plus ton adresse IP. Gratuit, sans compte, sans limite.
+
+</td>
+<td width="33%" valign="top">
+
+### 🔐 Coffre-fort
+Tes mots de passe sont **chiffrés sur ton appareil**. Générateur, vérification des fuites et import depuis ton ancien navigateur.
+
+</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/apercu-liens.jpg" alt="Aperçu des liens"><br><sub><b>Aperçu des liens</b> : Maj + survol pour lire sans changer de page.</sub></td>
-<td width="50%"><img src="docs/screenshots/succes.jpg" alt="Succès et parrainage"><br><sub><b>Succès</b> : rang, statistiques et invitations à partager.</sub></td>
+<td width="33%" valign="top">
+
+### 📥 On déménage pour toi
+Favoris, historique et mots de passe récupérés depuis **Chrome, Edge, Firefox, Brave, Opera**… en quelques clics.
+
+</td>
+<td width="33%" valign="top">
+
+### 🎬 Tes séries, sans souci
+**Netflix, Disney+, Prime Video** fonctionnent grâce au lecteur protégé intégré.
+
+</td>
+<td width="33%" valign="top">
+
+### 🏆 Succès & parrainage
+Débloque des succès, grimpe dans les rangs et **invite tes amis** en un clic.
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### 🎨 À ton image
+Thèmes de couleurs, effets Windows 11, horloge et météo, interface **en français ou en anglais**.
+
+</td>
+<td width="33%" valign="top">
+
+### ⚽ MatchPulse
+Suis tes matchs en direct et reçois une alerte à chaque but, carton ou pénalty.
+
+</td>
+<td width="33%" valign="top">
+
+### 📻 Et plein de bonus
+Radios du monde entier, Picture-in-Picture, mode gaming, aperçu des liens, boutique d'extensions…
+
+</td>
 </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/succes-liste.jpg" alt="Liste des succès" width="880"><br><sub>Chaque succès a son icône, son palier (bronze, argent, or, platine) et sa progression.</sub></p>
+## 📸 En images
 
-## ⬇️ Installation
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/assistant.jpg" alt="Assistant de bienvenue"><p align="center"><b>Un assistant de bienvenue</b><br><sub>Thème, protection et import en 5 étapes.</sub></p></td>
+<td width="50%"><img src="docs/screenshots/qui-me-piste.jpg" alt="Qui me piste ?"><p align="center"><b>Qui me piste ?</b><br><sub>Les pisteurs bloqués, entreprise par entreprise.</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/apercu-liens.jpg" alt="Aperçu des liens"><p align="center"><b>Aperçu des liens</b><br><sub>Maj + survol pour lire sans changer de page.</sub></p></td>
+<td width="50%"><img src="docs/screenshots/succes.jpg" alt="Succès"><p align="center"><b>Succès et rangs</b><br><sub>Ta progression et tes invitations.</sub></p></td>
+</tr>
+</table>
 
-1. Télécharge **`DevGitBrowser-Setup-x.y.z.exe`** depuis la [dernière version](https://github.com/hempreur/DevGitBrowser/releases/latest).
-2. Lance le fichier. Windows peut afficher « **Windows a protégé votre ordinateur** » (éditeur inconnu, l'installateur n'étant pas encore signé) : clique sur **Informations complémentaires**, puis **Exécuter quand même**. Le [guide illustré](https://hempreur.github.io/DevGitBrowser/#installation) montre chaque écran.
-3. L'assistant de bienvenue s'ouvre : choisis ta langue, ton thème et ta protection, et importe tes favoris.
+## 📱 Aussi sur Android
 
-**Configuration requise** : Windows 10 ou 11, 64 bits.
+DevGitBrowser t'accompagne aussi sur ton téléphone (**Android 8 et plus récent**, version Bêta) :
+DevGitShield, onglets privés, mode Tor, coffre à mots de passe, MatchPulse, succès et parrainage.
 
-**Mises à jour automatiques** : le navigateur vérifie les nouvelles versions au démarrage, les télécharge en arrière-plan et les installe au redémarrage. Tes onglets sont restaurés.
+➡️ Télécharge l'application depuis la **[section Android du site](https://hempreur.github.io/DevGitBrowser/#android)**, ouvre le fichier sur ton téléphone et laisse-toi guider. Les mises à jour se font ensuite toutes seules.
 
-## ⌨️ Raccourcis utiles
+## ⬇️ Installer sur Windows
 
-| Action | Raccourci |
-|---|---|
-| Nouvel onglet · nouvelle fenêtre | `Ctrl+T` · `Ctrl+N` |
-| Onglet privé sous VPN | `Ctrl+Maj+N` ou clic droit sur ＋ |
-| Rouvrir l'onglet fermé | `Ctrl+Maj+T` |
-| Ajouter aux favoris · barre de favoris | `Ctrl+D` · `Ctrl+Maj+B` |
-| Historique | `Ctrl+H` |
-| Rechercher dans la page | `Ctrl+F` |
-| Aperçu d'un lien | `Maj` + survol |
-| Gestionnaire de tâches | `Maj+Échap` |
-| Outils de développement | `F12` |
-| Détacher un onglet | Glisser l'onglet hors de la fenêtre |
+1. Télécharge le fichier **`DevGitBrowser-Setup-….exe`** depuis la [dernière version](https://github.com/hempreur/DevGitBrowser/releases/latest).
+2. Lance-le. Si Windows affiche « *Windows a protégé votre ordinateur* », clique sur **Informations complémentaires**, puis sur **Exécuter quand même**. C'est normal pour un logiciel indépendant ([guide illustré](https://hempreur.github.io/DevGitBrowser/#installation)).
+3. Choisis ton thème et ta protection, importe tes favoris… c'est prêt !
 
-## 🔒 Confidentialité
+> 💡 **Windows 10 ou 11 (64 bits)**. Les mises à jour s'installent ensuite toutes seules, et tes onglets sont rouverts.
 
-- Historique, favoris, mots de passe, succès et réglages restent **sur ton ordinateur**, dans ton profil Windows.
-- Les **statistiques anonymes** (version, pays de Windows, temps d'utilisation, nombre de pages) ne sont envoyées qu'avec ton accord, et jamais les sites visités ni ton adresse IP.
-- Un **rapport de bug** n'est envoyé que si tu cliques ; le journal technique joint est anonymisé et tu vois exactement ce qui part.
-- HTTPS prioritaire, DNS sécurisé, signal « Ne pas vendre » (GPC), protection WebRTC, protection anti-hameçonnage, permissions caméra / micro / position demandées site par site.
-- Les pages web sont isolées (sandbox, sans accès au système) et le navigateur garde ses verrous de sécurité Electron.
+## 🔒 Ta vie privée d'abord
 
-## 💬 Communauté et aide
+- 🏠 Historique, favoris, mots de passe et réglages **restent sur ton appareil**.
+- 📊 Des statistiques **anonymes** ne sont envoyées **qu'avec ton accord**, et jamais les sites que tu visites.
+- 🚫 Pas de compte, pas de publicité, pas de revente de données.
 
-- **Discord** : [discord.gg/hmQZuDXBvu](https://discord.gg/hmQZuDXBvu), pour les questions, les idées et les nouveautés.
-- **Un bug ?** Dans le navigateur : ☰ → À propos → **🐞 Signaler un bug**. Il arrive directement chez le créateur ; s'il le prend en charge, une **fenêtre de discussion** s'ouvre pour échanger avec toi en direct.
-- **Inviter tes amis** : clique sur le **bouton des succès** (à gauche de l'heure, en haut à droite), puis sur l'un des boutons de partage.
+## 💬 Communauté
 
----
+- 💜 **Discord** : [discord.gg/hmQZuDXBvu](https://discord.gg/hmQZuDXBvu) pour poser tes questions, proposer des idées et suivre les nouveautés.
+- 🐞 **Un bug ?** Dans le navigateur : ☰ → À propos → **Signaler un bug**. L'équipe peut ensuite te répondre directement.
+
+<br>
 
 <details>
-<summary><b>🛠️ Pour les développeurs</b></summary>
+<summary><b>📜 Crédits</b></summary>
+<br>
 
-### Stack
-
-[Electron](https://www.electronjs.org/) (build [castLabs ECS](https://github.com/castlabs/electron-releases) pour Widevine), Node.js, sans framework côté interface. L'installateur est construit avec [electron-builder](https://www.electron.build/) (NSIS).
-
-### Structure
-
-```text
-main.js                 Processus principal : fenêtres, onglets, permissions, IPC
-preload.js              Pont IPC restreint de l'interface
-ui/                     Interface (index.html, renderer.js, thèmes, i18n.js, radio, aperçu)
-i18n/en.json            Dictionnaire français → anglais
-lib/                    Modules : DevGitShield, coffre, VPN, import, succès, Discord…
-network/                Fenêtre d'analyse réseau
-legacy/                 Hôte IE11 (MSHTML) pour les sites anciens
-extensions/             Extensions fournies avec le navigateur (MatchPulse…)
-server/stats/           Serveur DevGit (statistiques, boutique, configuration) — voir son README
-scripts/                Préparation de la compilation (Tor, app-update.yml…)
-tests/                  Tests automatiques (node --test)
-assets/                 Logos et icônes
-docs/screenshots/       Captures d'écran du README
-```
-
-### Commandes
-
-```bash
-npm install
-node node_modules/electron/install.js   # binaires castLabs
-npm test                                 # tests automatiques
-npm start                                # lancer en développement
-```
-
-### Publier une version
-
-1. Augmenter `version` dans `package.json`.
-2. Ajouter la section correspondante en tête de `CHANGELOG.md`.
-3. Fusionner dans `main` : GitHub Actions compile, teste, signe le lecteur protégé (VMP), puis publie la release `vX.Y.Z` avec l'installateur et `latest.yml` pour les mises à jour automatiques.
-
-### Serveur DevGit
-
-Statistiques anonymes, boutique d'extensions, messages ciblés, rapports de bug et parrainage : voir [`server/stats/README.md`](server/stats/README.md). Le serveur s'installe ou se met à jour avec une seule commande sur un VPS Debian / Ubuntu.
-
-</details>
-
-<details>
-<summary><b>📜 Crédits et licences des composants</b></summary>
-
-- Moteur Chromium via [Electron](https://www.electronjs.org/) / [castLabs ECS](https://github.com/castlabs/electron-releases).
-- DevGitShield : moteur [@ghostery/adblocker](https://github.com/ghostery/adblocker) (MPL-2.0) ; listes EasyList, EasyPrivacy, uBlock Origin (uAssets, GPL-3.0), Peter Lowe et EasyList France, téléchargées depuis leurs sources officielles.
-- VPN : [Tor](https://www.torproject.org/) (The Tor Project, licence BSD).
-- Radio : annuaire libre [radio-browser.info](https://www.radio-browser.info/).
-- Anti-hameçonnage : listes [malware-filter](https://gitlab.com/malware-filter) (URLhaus, PhishTank, OpenPhish).
-- Météo : [Open-Meteo](https://open-meteo.com/). Vérification des fuites : [Have I Been Pwned](https://haveibeenpwned.com/Passwords) (k-anonymat).
-- Carte du monde du panneau admin : [Natural Earth](https://www.naturalearthdata.com/) (domaine public) via world-atlas.
+DevGitBrowser s'appuie sur de super projets libres : [Chromium](https://www.chromium.org/) via [Electron](https://www.electronjs.org/) et [castLabs](https://github.com/castlabs/electron-releases), [Ghostery adblocker](https://github.com/ghostery/adblocker) (MPL-2.0) avec les listes EasyList, EasyPrivacy, uBlock Origin (GPL-3.0), Peter Lowe et EasyList France, [Tor](https://www.torproject.org/), [radio-browser.info](https://www.radio-browser.info/), [malware-filter](https://gitlab.com/malware-filter), [Open-Meteo](https://open-meteo.com/), [Have I Been Pwned](https://haveibeenpwned.com/Passwords) et [Natural Earth](https://www.naturalearthdata.com/).
 
 </details>
 
 <div align="center">
 <br>
-<img src="assets/logo-mark.png" alt="" width="40"><br>
-<sub>Conçu et développé par <b>CodexHempreur INC</b></sub>
+<sub>© 2026 <b>CodexHempreur INC</b> · DevGitBrowser n'est affilié ni à Google, ni à Microsoft, ni au projet Tor.</sub>
 </div>
