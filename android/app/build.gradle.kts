@@ -5,11 +5,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Une seule source de vérité : la version, le canal (« Bêta ») et le serveur viennent du package.json du navigateur.
+// Version propre à l'application Android (android/version.json), indépendante de la version Windows.
+// Le serveur (adresse et empreinte) vient du package.json du navigateur PC.
 @Suppress("UNCHECKED_CAST")
 val pkg = JsonSlurper().parseText(rootProject.file("../package.json").readText()) as Map<String, Any?>
-val appVersion = pkg["version"] as String
-val channel = (pkg["devgitChannel"] as? String) ?: ""
+@Suppress("UNCHECKED_CAST")
+val androidVersion = JsonSlurper().parseText(rootProject.file("version.json").readText()) as Map<String, Any?>
+val appVersion = androidVersion["version"] as String
+val channel = (androidVersion["channel"] as? String) ?: ""
 @Suppress("UNCHECKED_CAST")
 val stats = (pkg["devgitStats"] as? Map<String, Any?>) ?: emptyMap()
 val v = appVersion.split(".").map { it.toInt() }
@@ -38,7 +41,9 @@ android {
         applicationId = "inc.codexhempreur.devgitbrowser"
         minSdk = 26
         targetSdk = 35
-        versionCode = v[0] * 10000 + v[1] * 100 + v[2]
+        // 100000 + … : toujours plus grand que les premières versions (2.1.0 / 2.2.0 = 20100 / 20200),
+        // pour qu'Android accepte d'installer la 1.0.1 par-dessus.
+        versionCode = 100000 + v[0] * 10000 + v[1] * 100 + v[2]
         versionName = appVersion
         buildConfigField("String", "CHANNEL", "\"$channel\"")
         buildConfigField("String", "STATS_URL", "\"${stats["url"] ?: ""}\"")

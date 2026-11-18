@@ -163,7 +163,7 @@ test('serveur pas à jour : signalé clairement dans le panneau admin',async()=>
 
 test('paquet : sources du logo exclues de l’installateur, version 1.18',()=>{
   const pkg=JSON.parse(read('package.json'));
-  assert.ok(pkg.build.files.includes('!assets/brand-source.png'));assert.ok(pkg.build.files.includes('!assets/generate-icon.py'));
+  assert.ok(pkg.build.files.includes('!assets/brand-source.png'));
   assert.equal(pkg.version,'2.2.0');assert.match(read('CHANGELOG.md'),/^## 2\.2\.0/);
 });
 

@@ -56,7 +56,7 @@ jobs:
       - name: Nommer l'APK
         id: apk
         run: |
-          v=$(node -p "require('./package.json').version")
+          v=$(node -p "require('./android/version.json').version")
           mkdir -p dist
           cp android/app/build/outputs/apk/github/release/app-github-release.apk "dist/DevGitBrowser-Android-$v.apk"
           mkdir -p dist-play
@@ -77,18 +77,21 @@ jobs:
           path: dist-play/*.aab
           retention-days: 90
 
-      - name: Ajouter l'APK à la release
+      # Releases Android séparées de Windows : tag « android-v1.0.1 », jamais marquées « latest »
+      # (la mise à jour automatique de Windows et le site lisent la dernière release Windows).
+      - name: Publier la release Android
         if: github.event_name == 'push' && env.ANDROID_KEYSTORE_FILE != ''
         env:
           GH_TOKEN: ${{ github.token }}
           V: ${{ steps.apk.outputs.version }}
         run: |
-          # La release est créée par le workflow Windows ; on l'attend (45 min au plus).
-          for i in $(seq 1 90); do
-            if gh release view "v$V" >/dev/null 2>&1; then
-              gh release upload "v$V" "dist/DevGitBrowser-Android-$V.apk" --clobber
-              echo "APK ajouté à la release v$V"; exit 0
-            fi
-            sleep 30
-          done
-          echo "::error::Release v$V introuvable : APK non publié."; exit 1
+          tag="android-v$V"
+          if gh release view "$tag" >/dev/null 2>&1; then echo "La release $tag existe déjà : aucune publication."; exit 0; fi
+          channel=$(node -p "require('./android/version.json').channel || ''")
+          node -e '
+            const fs=require("fs");const v=process.env.V;
+            const log=fs.readFileSync("android/CHANGELOG.md","utf8");
+            const esc=v.replace(/\./g,"\\.");
+            const m=log.match(new RegExp("^## "+esc+"[\\s\\S]*?(?=\\n## |(?![\\s\\S]))","m"));
+            fs.writeFileSync("release-notes.md",(m?m[0]:"## "+v).trim()+"\n\n**Installation :** télécharge `DevGitBrowser-Android-"+v+".apk` sur ton téléphone (Android 8 ou plus récent) et ouvre-le.\n");'
+          gh release create "$tag" --title "DevGitBrowser Android $V $channel" --notes-file release-notes.md --latest=false --target "$GITHUB_SHA" "dist/DevGitBrowser-Android-$V.apk"
